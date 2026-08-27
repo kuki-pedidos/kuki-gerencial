@@ -532,17 +532,20 @@
       }
 
       .mobile-header {
-        display: flex;
+        display: grid;
+        grid-template-columns: 46px 1fr auto;
         align-items: center;
-        justify-content: space-between;
+        gap: 10px;
         background: var(--vermelho);
         padding: 13px 15px;
         border-radius: 15px;
         margin-bottom: 20px;
       }
+      .mobile-menu-button { display:block; }
 
       .mobile-header img {
         width: 110px;
+        justify-self:center;
         background: #fff8f2;
         padding: 5px;
         border-radius: 8px;
@@ -601,6 +604,77 @@
       }
     }
   
+
+    /* =========================
+       NAVEGAÇÃO MOBILE - COMPLETA
+       Mantém no celular todas as opções disponíveis no desktop.
+    ========================= */
+    .mobile-menu-button {
+      display:none;
+      width:46px;
+      height:46px;
+      border:none;
+      border-radius:12px;
+      background:rgba(255,255,255,.16);
+      color:#fff;
+      font-size:24px;
+      cursor:pointer;
+      line-height:1;
+    }
+    .mobile-menu-overlay {
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(20,12,10,.48);
+      z-index:4000;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .22s ease;
+    }
+    .mobile-menu-overlay.open { opacity:1; pointer-events:auto; }
+    .mobile-drawer {
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      width:min(86vw,360px);
+      background:var(--vermelho);
+      color:#fff;
+      padding:18px 14px 24px;
+      overflow-y:auto;
+      transform:translateX(-102%);
+      transition:transform .22s ease;
+      box-shadow:18px 0 40px rgba(0,0,0,.22);
+    }
+    .mobile-menu-overlay.open .mobile-drawer { transform:translateX(0); }
+    .mobile-drawer-head {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:18px;
+    }
+    .mobile-drawer-brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:17px; }
+    .mobile-drawer-brand img { width:78px; background:#fff8f2; border-radius:10px; padding:4px; }
+    .mobile-drawer-close {
+      width:42px; height:42px; border:none; border-radius:11px;
+      background:rgba(255,255,255,.14); color:#fff; font-size:24px; cursor:pointer;
+    }
+    .mobile-drawer-welcome {
+      padding:14px; border-radius:14px; background:rgba(255,255,255,.12);
+      border:1px solid rgba(255,255,255,.16); margin-bottom:16px; font-size:13px; line-height:1.45;
+    }
+    .mobile-nav { display:grid; gap:7px; }
+    .mobile-nav button {
+      width:100%; border:none; background:transparent; color:#fff; text-align:left;
+      padding:14px 13px; border-radius:11px; font:inherit; font-weight:700; cursor:pointer;
+    }
+    .mobile-nav button:hover, .mobile-nav button.active { background:rgba(255,255,255,.18); }
+    .mobile-nav button span { display:inline-block; width:31px; font-size:19px; }
+    .mobile-drawer-footer { margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,.18); }
+    .mobile-user { font-size:12px; opacity:.9; margin-bottom:10px; overflow-wrap:anywhere; }
+    .mobile-logout { width:100%; border:none; border-radius:11px; padding:13px; background:rgba(0,0,0,.2); color:#fff; font-weight:800; cursor:pointer; }
+
     /* CRUD módulos */
     .crud-form-box{margin:20px 0;padding:18px;border:1px solid #ead7c7;border-radius:16px;background:#fffaf6}
     .crud-form-box h3{margin-bottom:14px}.crud-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-weight:700}.crud-field input{padding:12px;border:1px solid #d9c8bb;border-radius:10px;font:inherit}.check-field{flex-direction:row;align-items:center}.crud-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.actions-inline{display:flex;gap:8px;align-items:center;justify-content:flex-start;flex-wrap:nowrap}.actions-inline button{margin:0!important;min-width:92px}.crud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.crud-grid .crud-field{margin-bottom:0}
@@ -678,6 +752,32 @@
        SISTEMA
   ========================== -->
 
+
+  <!-- MENU COMPLETO PARA CELULAR -->
+  <div class="mobile-menu-overlay" id="mobileMenuOverlay" aria-hidden="true" onclick="fecharMenuMobile(event)">
+    <aside class="mobile-drawer" aria-label="Menu principal" onclick="event.stopPropagation()">
+      <div class="mobile-drawer-head">
+        <div class="mobile-drawer-brand"><img src="logo-kuki-transparente.png" alt="KUKI"><span>GERENCIAL</span></div>
+        <button class="mobile-drawer-close" type="button" onclick="toggleMenuMobile(false)" aria-label="Fechar menu">×</button>
+      </div>
+      <div class="mobile-drawer-welcome"><strong>Bem-vindo! 🍪</strong><br>Tenha acesso a todas as áreas da KUKI Gerencial.</div>
+      <nav class="mobile-nav" id="mobileNav">
+        <button class="active" type="button" data-module="Dashboard" onclick="abrirModuloMobile('Dashboard')"><span>📊</span> Dashboard</button>
+        <button type="button" data-module="Pedidos" onclick="abrirModuloMobile('Pedidos')"><span>📦</span> Pedidos</button>
+        <button type="button" data-module="Produtos" onclick="abrirModuloMobile('Produtos')"><span>🍪</span> Produtos</button>
+        <button type="button" data-module="Clientes" onclick="abrirModuloMobile('Clientes')"><span>👥</span> Clientes</button>
+        <button type="button" data-module="Formas de pagamento" onclick="abrirModuloMobile('Formas de pagamento')"><span>💳</span> Pagamentos</button>
+        <button type="button" data-module="Formas de entrega" onclick="abrirModuloMobile('Formas de entrega')"><span>🛵</span> Entregas</button>
+        <button type="button" data-module="Horários" onclick="abrirModuloMobile('Horários')"><span>🕐</span> Horários</button>
+        <button type="button" data-module="Configurações" onclick="abrirModuloMobile('Configurações')"><span>⚙️</span> Configurações</button>
+      </nav>
+      <div class="mobile-drawer-footer">
+        <div class="mobile-user" id="mobileUserName">Usuário</div>
+        <button class="mobile-logout" type="button" onclick="logout()">🚪 SAIR</button>
+      </div>
+    </aside>
+  </div>
+
   <section id="appScreen">
 
     <!-- MENU LATERAL -->
@@ -751,16 +851,9 @@
     <main class="main">
 
       <div class="mobile-header">
-
-        <img
-          src="logo-kuki-transparente.png"
-          alt="KUKI"
-        >
-
-        <button onclick="logout()">
-          SAIR
-        </button>
-
+        <button class="mobile-menu-button" type="button" onclick="toggleMenuMobile(true)" aria-label="Abrir menu">☰</button>
+        <img src="logo-kuki-transparente.png" alt="KUKI">
+        <button onclick="logout()">SAIR</button>
       </div>
 
 
@@ -1606,7 +1699,7 @@
     async function abrirSistema(user) {
       loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
-      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
+      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email); const mobileUser=document.getElementById('mobileUserName'); if(mobileUser) mobileUser.textContent=obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
       await carregarPedidos(true);
       if (pollingTimer) clearInterval(pollingTimer);
@@ -1619,6 +1712,32 @@
       await supabaseClient.auth.signOut();
       appScreen.style.display = 'none'; loginScreen.style.display = 'flex';
       document.getElementById('username').value = ''; document.getElementById('password').value = '';
+    }
+
+
+    /* =====================================================
+       MENU MOBILE
+    ====================================================== */
+    function toggleMenuMobile(force) {
+      const overlay = document.getElementById('mobileMenuOverlay');
+      if (!overlay) return;
+      const open = typeof force === 'boolean' ? force : !overlay.classList.contains('open');
+      overlay.classList.toggle('open', open);
+      overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
+      document.body.style.overflow = open ? 'hidden' : '';
+    }
+    function fecharMenuMobile(event) {
+      if (!event || event.target === event.currentTarget) toggleMenuMobile(false);
+    }
+    function abrirModuloMobile(name) {
+      toggleMenuMobile(false);
+      selectMenuByName(name);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function sincronizarMenuMobile(name) {
+      document.querySelectorAll('#mobileNav [data-module]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.module === name);
+      });
     }
 
     /* =====================================================
@@ -1636,6 +1755,7 @@
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
     function abrirModulo(name) {
       moduloAtual = name;
+      sincronizarMenuMobile(name);
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
@@ -1650,6 +1770,11 @@
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
+
+
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 760) toggleMenuMobile(false);
+    });
 
     /* =====================================================
        INICIAR
