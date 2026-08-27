@@ -352,27 +352,6 @@
       color: var(--texto);
       margin-top: 5px;
     }
-    .dashboard-filter-card {
-      cursor: pointer;
-      text-align: left;
-      width: 100%;
-      border: 1px solid var(--borda);
-      font: inherit;
-      color: inherit;
-    }
-    .dashboard-filter-card:hover,
-    .dashboard-filter-card:focus-visible {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 24px rgba(105, 20, 30, .12);
-      outline: none;
-    }
-    .dashboard-filter-card:active { transform: translateY(0); }
-    .dashboard-filter-card .card-hint {
-      margin-top: 8px;
-      font-size: 12px;
-      color: var(--cinza);
-      font-weight: 600;
-    }
 
     .content-grid {
       display: grid;
@@ -553,20 +532,17 @@
       }
 
       .mobile-header {
-        display: grid;
-        grid-template-columns: 46px 1fr auto;
+        display: flex;
         align-items: center;
-        gap: 10px;
+        justify-content: space-between;
         background: var(--vermelho);
         padding: 13px 15px;
         border-radius: 15px;
         margin-bottom: 20px;
       }
-      .mobile-menu-button { display:block; }
 
       .mobile-header img {
         width: 110px;
-        justify-self:center;
         background: #fff8f2;
         padding: 5px;
         border-radius: 8px;
@@ -625,145 +601,35 @@
       }
     }
   
-
-    /* =========================
-       NAVEGAÇÃO MOBILE - COMPLETA
-       Mantém no celular todas as opções disponíveis no desktop.
-    ========================= */
-    .mobile-menu-button {
-      display:none;
-      width:46px;
-      height:46px;
-      border:none;
-      border-radius:12px;
-      background:rgba(255,255,255,.16);
-      color:#fff;
-      font-size:24px;
-      cursor:pointer;
-      line-height:1;
-    }
-    .mobile-menu-overlay {
-      display:none;
-      position:fixed;
-      inset:0;
-      background:rgba(20,12,10,.48);
-      z-index:4000;
-      opacity:0;
-      pointer-events:none;
-      transition:opacity .22s ease;
-    }
-    .mobile-menu-overlay.open { opacity:1; pointer-events:auto; }
-    .mobile-drawer {
-      position:absolute;
-      left:0;
-      top:0;
-      bottom:0;
-      width:min(86vw,360px);
-      background:var(--vermelho);
-      color:#fff;
-      padding:18px 14px 24px;
-      overflow-y:auto;
-      transform:translateX(-102%);
-      transition:transform .22s ease;
-      box-shadow:18px 0 40px rgba(0,0,0,.22);
-    }
-    .mobile-menu-overlay.open .mobile-drawer { transform:translateX(0); }
-    .mobile-drawer-head {
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:18px;
-    }
-    .mobile-drawer-brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:17px; }
-    .mobile-drawer-brand img { width:78px; background:#fff8f2; border-radius:10px; padding:4px; }
-    .mobile-drawer-close {
-      width:42px; height:42px; border:none; border-radius:11px;
-      background:rgba(255,255,255,.14); color:#fff; font-size:24px; cursor:pointer;
-    }
-    .mobile-drawer-welcome {
-      padding:14px; border-radius:14px; background:rgba(255,255,255,.12);
-      border:1px solid rgba(255,255,255,.16); margin-bottom:16px; font-size:13px; line-height:1.45;
-    }
-    .mobile-nav { display:grid; gap:7px; }
-    .mobile-nav button {
-      width:100%; border:none; background:transparent; color:#fff; text-align:left;
-      padding:14px 13px; border-radius:11px; font:inherit; font-weight:700; cursor:pointer;
-    }
-    .mobile-nav button:hover, .mobile-nav button.active { background:rgba(255,255,255,.18); }
-    .mobile-nav button span { display:inline-block; width:31px; font-size:19px; }
-    .mobile-drawer-footer { margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,.18); }
-    .mobile-user { font-size:12px; opacity:.9; margin-bottom:10px; overflow-wrap:anywhere; }
-    .mobile-logout { width:100%; border:none; border-radius:11px; padding:13px; background:rgba(0,0,0,.2); color:#fff; font-weight:800; cursor:pointer; }
-
     /* CRUD módulos */
     .crud-form-box{margin:20px 0;padding:18px;border:1px solid #ead7c7;border-radius:16px;background:#fffaf6}
     .crud-form-box h3{margin-bottom:14px}.crud-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-weight:700}.crud-field input{padding:12px;border:1px solid #d9c8bb;border-radius:10px;font:inherit}.check-field{flex-direction:row;align-items:center}.crud-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.actions-inline{display:flex;gap:8px;align-items:center;justify-content:flex-start;flex-wrap:nowrap}.actions-inline button{margin:0!important;min-width:92px}.crud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.crud-grid .crud-field{margin-bottom:0}
     @media(max-width:700px){.actions-inline{gap:6px}.actions-inline button{min-width:0;padding:9px 8px;font-size:12px}.crud-grid{grid-template-columns:1fr}}
 
 
-
-/* =========================
-   CORREÇÃO DEFINITIVA DO MOBILE
-========================= */
-@media (max-width: 760px) {
-  .mobile-header {
-    display:grid !important;
-    grid-template-columns:46px minmax(0,1fr) auto !important;
-    align-items:center !important;
-    gap:10px !important;
-    min-height:74px;
-    padding:12px 14px !important;
-    background:var(--vermelho) !important;
-    border-radius:16px !important;
-    margin:0 0 24px !important;
-  }
-  .mobile-menu-button {
-    display:flex !important;
-    align-items:center;
-    justify-content:center;
-    width:46px !important;
-    height:46px !important;
-    padding:0 !important;
-    font-size:24px !important;
-    line-height:1 !important;
-  }
-  .mobile-header img {
-    display:block !important;
-    width:112px !important;
-    max-width:100% !important;
-    height:auto !important;
-    justify-self:center !important;
-    margin:0 !important;
-  }
-  .mobile-header > button:last-child {
-    display:block !important;
-    width:auto !important;
-    min-width:72px;
-    white-space:nowrap;
-    padding:10px 14px !important;
-  }
-  .mobile-menu-overlay {
-    display:block !important;
-  }
-  .mobile-menu-overlay:not(.open) {
-    visibility:hidden !important;
-  }
-  .mobile-menu-overlay.open {
-    visibility:visible !important;
-    opacity:1 !important;
-    pointer-events:auto !important;
-  }
-  .mobile-drawer {
-    display:block !important;
-    width:min(86vw,360px) !important;
-    z-index:4001 !important;
-  }
-  .mobile-nav button {
-    display:block !important;
-    min-height:48px;
-  }
-}
+    .dashboard-card-action{
+      width:100%;
+      font:inherit;
+      color:inherit;
+      text-align:left;
+      cursor:pointer;
+      appearance:none;
+    }
+    .dashboard-card-action:hover{
+      transform:translateY(-2px);
+      box-shadow:0 12px 28px rgba(90,55,35,.12);
+    }
+    .dashboard-card-action:focus-visible{
+      outline:3px solid rgba(174,0,35,.28);
+      outline-offset:3px;
+    }
+    .card-hint{
+      margin-top:12px;
+      font-size:.88rem;
+      font-weight:600;
+      color:var(--cinza);
+      line-height:1.35;
+    }
 
 </style>
 </head>
@@ -836,32 +702,6 @@
   <!-- =========================
        SISTEMA
   ========================== -->
-
-
-  <!-- MENU COMPLETO PARA CELULAR -->
-  <div class="mobile-menu-overlay" id="mobileMenuOverlay" aria-hidden="true" onclick="fecharMenuMobile(event)">
-    <aside class="mobile-drawer" aria-label="Menu principal" onclick="event.stopPropagation()">
-      <div class="mobile-drawer-head">
-        <div class="mobile-drawer-brand"><img src="logo-kuki-transparente.png" alt="KUKI"><span>GERENCIAL</span></div>
-        <button class="mobile-drawer-close" type="button" onclick="toggleMenuMobile(false)" aria-label="Fechar menu">×</button>
-      </div>
-      <div class="mobile-drawer-welcome"><strong>Bem-vindo! 🍪</strong><br>Tenha acesso a todas as áreas da KUKI Gerencial.</div>
-      <nav class="mobile-nav" id="mobileNav">
-        <button class="active" type="button" data-module="Dashboard" onclick="abrirModuloMobile('Dashboard')"><span>📊</span> Dashboard</button>
-        <button type="button" data-module="Pedidos" onclick="abrirModuloMobile('Pedidos')"><span>📦</span> Pedidos</button>
-        <button type="button" data-module="Produtos" onclick="abrirModuloMobile('Produtos')"><span>🍪</span> Produtos</button>
-        <button type="button" data-module="Clientes" onclick="abrirModuloMobile('Clientes')"><span>👥</span> Clientes</button>
-        <button type="button" data-module="Formas de pagamento" onclick="abrirModuloMobile('Formas de pagamento')"><span>💳</span> Pagamentos</button>
-        <button type="button" data-module="Formas de entrega" onclick="abrirModuloMobile('Formas de entrega')"><span>🛵</span> Entregas</button>
-        <button type="button" data-module="Horários" onclick="abrirModuloMobile('Horários')"><span>🕐</span> Horários</button>
-        <button type="button" data-module="Configurações" onclick="abrirModuloMobile('Configurações')"><span>⚙️</span> Configurações</button>
-      </nav>
-      <div class="mobile-drawer-footer">
-        <div class="mobile-user" id="mobileUserName">Usuário</div>
-        <button class="mobile-logout" type="button" onclick="logout()">🚪 SAIR</button>
-      </div>
-    </aside>
-  </div>
 
   <section id="appScreen">
 
@@ -936,9 +776,16 @@
     <main class="main">
 
       <div class="mobile-header">
-        <button class="mobile-menu-button" type="button" onclick="toggleMenuMobile(true)" aria-label="Abrir menu">☰</button>
-        <img src="logo-kuki-transparente.png" alt="KUKI">
-        <button onclick="logout()">SAIR</button>
+
+        <img
+          src="logo-kuki-transparente.png"
+          alt="KUKI"
+        >
+
+        <button onclick="logout()">
+          SAIR
+        </button>
+
       </div>
 
 
@@ -965,18 +812,21 @@
       <div id="dashboardContent">
 
         <div class="cards">
-          <button class="card dashboard-filter-card" type="button" onclick="abrirPedidosFiltrados('hoje')" aria-label="Ver todos os pedidos de hoje">
+
+          <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('HOJE')">
             <div class="card-icon">📦</div>
             <div class="card-label">PEDIDOS HOJE</div>
             <div class="card-value" id="pedidosHoje">0</div>
             <div class="card-hint">Ver todos os pedidos de hoje</div>
           </button>
-          <button class="card dashboard-filter-card" type="button" onclick="abrirPedidosFiltrados('novo')" aria-label="Ver pedidos com status NOVO">
+
+          <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('NOVOS')">
             <div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
             <div class="card-hint">Ver somente pedidos com status NOVO</div>
           </button>
+
         </div>
 
 
@@ -1127,14 +977,12 @@
        ESTADO / DADOS
     ====================================================== */
     let pedidosCache = [];
-    // Filtro temporário aberto pelos cards do Dashboard.
-    // Valores: null | 'hoje' | 'novo'
-    let filtroPedidosDashboard = null;
     let horariosCache = [];
     let ultimoPedidoChave = null;
     let notificacoesPendentes = 0;
     let pollingTimer = null;
     let moduloAtual = 'Dashboard';
+    let filtroPedidosAtivo = 'TODOS';
 
     function atualizarData() {
       const agora = new Date();
@@ -1250,8 +1098,8 @@
       });
 
       const novos = pedidosCache.filter(p => {
-        // Card PEDIDOS NOVOS: somente status exatamente NOVO.
-        return normalizarStatus(getValue(p,['status','STATUS'],'')) === 'NOVO';
+        const st = String(getValue(p,['status','STATUS'],'')).toUpperCase().trim();
+        return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
       }).length;
 
       const pedidosHojeEl = document.getElementById('pedidosHoje');
@@ -1289,57 +1137,17 @@
       setTimeout(() => toast.remove(), 7000);
     }
 
-    // =====================================================
-    // ÁUDIO DE NOTIFICAÇÃO
-    // Navegadores móveis bloqueiam som automático até ocorrer
-    // uma interação do usuário. Por isso o áudio é desbloqueado
-    // no primeiro toque/clique e depois toca automaticamente
-    // quando chegar um novo pedido.
-    // =====================================================
-    let notificationAudioContext = null;
-    let notificationAudioUnlocked = false;
-
-    async function desbloquearAudioNotificacao() {
+    function beep() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return false;
-        if (!notificationAudioContext) notificationAudioContext = new AudioCtx();
-        if (notificationAudioContext.state === 'suspended') await notificationAudioContext.resume();
-        notificationAudioUnlocked = notificationAudioContext.state === 'running';
-        return notificationAudioUnlocked;
-      } catch(e) {
-        console.warn('Não foi possível desbloquear o áudio:', e);
-        return false;
-      }
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 880; gain.gain.value = 0.08;
+        osc.start(); setTimeout(() => { osc.stop(); ctx.close(); }, 180);
+      } catch(e) {}
     }
-
-    function tocarSomNotificacao() {
-      try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        if (!notificationAudioContext) notificationAudioContext = new AudioCtx();
-        const ctx = notificationAudioContext;
-        if (ctx.state === 'suspended') { ctx.resume().catch(()=>{}); return; }
-        const agora = ctx.currentTime;
-        [880, 1175, 1568].forEach((freq, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, agora + i * 0.16);
-          gain.gain.setValueAtTime(0.0001, agora + i * 0.16);
-          gain.gain.exponentialRampToValueAtTime(0.16, agora + i * 0.16 + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, agora + i * 0.16 + 0.14);
-          osc.connect(gain); gain.connect(ctx.destination);
-          osc.start(agora + i * 0.16);
-          osc.stop(agora + i * 0.16 + 0.15);
-        });
-      } catch(e) { console.warn('Erro ao tocar notificação:', e); }
-    }
-
-    function beep() { tocarSomNotificacao(); }
-
-    document.addEventListener('pointerdown', desbloquearAudioNotificacao, { once:true });
-    document.addEventListener('keydown', desbloquearAudioNotificacao, { once:true });
 
     function atualizarBadge() {
       const badge = document.getElementById('notificationBadge');
@@ -1348,15 +1156,9 @@
     }
 
     function marcarNotificacoesLidas() {
-      desbloquearAudioNotificacao();
-      const qtd = notificacoesPendentes;
       notificacoesPendentes = 0;
       atualizarBadge();
-      if (qtd > 0) {
-        showToast('Notificações', qtd+' nova(s) notificação(ões) marcada(s) como lida(s).');
-      } else {
-        showToast('Notificações', 'Nenhuma nova notificação no momento. O som de alerta está ativo para novos pedidos.');
-      }
+      if (pedidosCache[0]) showToast('Pedidos recentes', 'Há '+pedidosCache.length+' pedido(s) carregado(s) no sistema.');
     }
 
     function notificarNovoPedido(qtd, pedido) {
@@ -1714,40 +1516,38 @@
     }
 
     function abrirPedidosFiltrados(tipo) {
-      filtroPedidosDashboard = tipo === 'novo' ? 'novo' : 'hoje';
-      window.__preservarFiltroPedidosDashboard = true;
-      try { selectMenuByName('Pedidos'); }
-      finally { window.__preservarFiltroPedidosDashboard = false; }
+      filtroPedidosAtivo = tipo === 'HOJE' ? 'HOJE' : 'NOVOS';
+      selectMenuByName('Pedidos');
     }
 
-    function limparFiltroPedidosDashboard() {
-      filtroPedidosDashboard = null;
-      if (moduloAtual === 'Pedidos') renderPedidosModule();
-    }
-
-    function pedidosFiltradosDashboard() {
-      if (filtroPedidosDashboard === 'hoje') {
+    function getPedidosFiltradosDashboard() {
+      if (filtroPedidosAtivo === 'HOJE') {
         const hoje = localDateKey(new Date());
         return pedidosCache.filter(p => {
-          const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
-          return localDateKey(data) === hoje;
+          const v = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
+          return localDateKey(v) === hoje;
         });
       }
-      if (filtroPedidosDashboard === 'novo') {
-        return pedidosCache.filter(p => normalizarStatus(getPedidoStatus(p)) === 'NOVO');
+
+      if (filtroPedidosAtivo === 'NOVOS') {
+        return pedidosCache.filter(p => {
+          const st = String(getValue(p,['status','STATUS'],'')).toUpperCase().trim();
+          return ['NOVO','NOVOS'].includes(st);
+        });
       }
-      return pedidosCache;
+
+      return [...pedidosCache];
+    }
+
+    function limparFiltroPedidos() {
+      filtroPedidosAtivo = 'TODOS';
+      renderPedidosModule();
     }
 
     function renderPedidosModule() {
       const container = document.getElementById('moduleContent');
-      const pedidosVisiveis = pedidosFiltradosDashboard();
-      const filtroTitulo = filtroPedidosDashboard === 'hoje'
-        ? 'Mostrando todos os pedidos realizados hoje.'
-        : filtroPedidosDashboard === 'novo'
-          ? 'Mostrando somente pedidos com status NOVO.'
-          : '';
-      const linhas = pedidosVisiveis.length ? pedidosVisiveis.map(p => {
+      const pedidosExibidos = getPedidosFiltradosDashboard();
+      const linhas = pedidosExibidos.length ? pedidosExibidos.map(p => {
         const id = getPedidoId(p);
         const numero = getValue(p,['NUMERO_PEDIDO','numero_pedido','id','ID'],'-');
         const clienteId = getValue(p,['CLIENTE_ID','cliente_id'], null);
@@ -1775,10 +1575,24 @@
           + '<td>'+escapeHtml(formatMoney(total))+'</td>'
           + '<td class="actions-cell">'+actions+'</td>'
           + '</tr>';
-      }).join('') : '<tr><td colspan="6">'+escapeHtml(filtroPedidosDashboard ? 'Nenhum pedido encontrado para este filtro.' : 'Nenhum pedido encontrado.')+'</td></tr>';
+      }).join('') : '<tr><td colspan="6">Nenhum pedido encontrado para este filtro.</td></tr>';
+
+      const tituloFiltro = filtroPedidosAtivo === 'HOJE'
+        ? 'Pedidos de hoje'
+        : (filtroPedidosAtivo === 'NOVOS' ? 'Pedidos novos' : 'Pedidos');
+
+      const descricaoFiltro = filtroPedidosAtivo === 'HOJE'
+        ? 'Todos os pedidos criados na data de hoje.'
+        : (filtroPedidosAtivo === 'NOVOS'
+          ? 'Somente pedidos com status NOVO.'
+          : 'Pedidos recebidos pela KUKI. Pedidos concluídos, fechados e finalizados ficam somente para consulta.');
+
+      const botaoFiltro = filtroPedidosAtivo !== 'TODOS'
+        ? '<button class="secondary-button" type="button" onclick="limparFiltroPedidos()">← Ver todos</button>'
+        : '';
 
       container.innerHTML = '<div class="module-panel">'
-        + '<div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">'+escapeHtml(filtroTitulo || 'Pedidos recebidos pela KUKI. Pedidos concluídos, fechados e finalizados ficam somente para consulta.')+'</p></div><div class="actions-inline">'+(filtroPedidosDashboard ? '<button class="secondary-button" type="button" onclick="limparFiltroPedidosDashboard()">Ver todos</button>' : '')+'<button class="primary-button" type="button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
+        + '<div class="module-toolbar"><div><h2>📦 '+tituloFiltro+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoFiltro+'</p></div><div class="actions-inline">'+botaoFiltro+'<button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
         + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>CONCLUÍDOS, FECHADOS, FINALIZADOS ou ENCERRADOS</strong> não podem ser editados, ter o status alterado ou ser excluídos.</div>'
         + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
@@ -1864,11 +1678,8 @@
     async function abrirSistema(user) {
       loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
-      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email); const mobileUser=document.getElementById('mobileUserName'); if(mobileUser) mobileUser.textContent=obterNomeUsuarioPorEmail(user.email);
+      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
-      // Tenta liberar o som após a entrada no sistema.
-      // Em celular, o primeiro toque/clique também libera o áudio.
-      await desbloquearAudioNotificacao();
       await carregarPedidos(true);
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
@@ -1882,32 +1693,6 @@
       document.getElementById('username').value = ''; document.getElementById('password').value = '';
     }
 
-
-    /* =====================================================
-       MENU MOBILE
-    ====================================================== */
-    function toggleMenuMobile(force) {
-      const overlay = document.getElementById('mobileMenuOverlay');
-      if (!overlay) return;
-      const open = typeof force === 'boolean' ? force : !overlay.classList.contains('open');
-      overlay.classList.toggle('open', open);
-      overlay.setAttribute('aria-hidden', open ? 'false' : 'true');
-      document.body.style.overflow = open ? 'hidden' : '';
-    }
-    function fecharMenuMobile(event) {
-      if (!event || event.target === event.currentTarget) toggleMenuMobile(false);
-    }
-    function abrirModuloMobile(name) {
-      toggleMenuMobile(false);
-      selectMenuByName(name);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    function sincronizarMenuMobile(name) {
-      document.querySelectorAll('#mobileNav [data-module]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.module === name);
-      });
-    }
-
     /* =====================================================
        MENU
     ====================================================== */
@@ -1916,32 +1701,13 @@
       button.classList.add('active'); abrirModulo(name);
     }
     function selectMenuByName(name) {
-      // Ao abrir Pedidos pelo menu/acesso rápido, volta para a lista completa.
-      if (name === 'Pedidos' && !window.__preservarFiltroPedidosDashboard) filtroPedidosDashboard = null;
-      const aliases = {
-        'Dashboard': 'Dashboard',
-        'Pedidos': 'Pedidos',
-        'Produtos': 'Produtos',
-        'Clientes': 'Clientes',
-        'Formas de pagamento': 'Pagamentos',
-        'Pagamentos': 'Pagamentos',
-        'Formas de entrega': 'Entregas',
-        'Entregas': 'Entregas',
-        'Horários': 'Horários',
-        'Configurações': 'Configurações'
-      };
-      const texto = aliases[name] || name;
-      const botao = Array.from(document.querySelectorAll('.menu button')).find(b =>
-        b.textContent.replace(/\s+/g,' ').trim().includes(texto)
-      );
-      if (botao) selectMenu(botao, name);
-      else abrirModulo(name);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      document.querySelectorAll('.menu button').forEach(botao => {
+        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
+      });
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
     function abrirModulo(name) {
       moduloAtual = name;
-      sincronizarMenuMobile(name);
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
@@ -1956,11 +1722,6 @@
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
-
-
-    window.addEventListener('resize', function() {
-      if (window.innerWidth > 760) toggleMenuMobile(false);
-    });
 
     /* =====================================================
        INICIAR
