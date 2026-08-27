@@ -1808,12 +1808,20 @@
     }
 
     async function carregarFinanceiroDados() {
+      // IMPORTANTE: o Supabase/PostgREST diferencia o nome real das colunas.
+      // FINANCEIRO_CATEGORIAS foi criada com colunas em minúsculas (ativo/nome),
+      // portanto não usamos ATIVO/NOME. Também removemos order=DATA da tabela de
+      // despesas para não falhar caso o campo tenha sido criado com outro nome.
       const [despesas, categorias, formas] = await Promise.all([
-        getTable('FINANCEIRO_DESPESAS', '?select=*&order=DATA.desc'),
-        getTable('FINANCEIRO_CATEGORIAS', '?select=*&ATIVO=eq.true&order=NOME.asc'),
+        getTable('FINANCEIRO_DESPESAS', '?select=*'),
+        getTable('FINANCEIRO_CATEGORIAS', '?select=*&ativo=eq.true&order=nome.asc'),
         getTable('FORMAS_PAGAMENTO', '?select=*')
       ]);
-      financeiroDespesasCache = Array.isArray(despesas) ? despesas : [];
+      financeiroDespesasCache = (Array.isArray(despesas) ? despesas : []).sort((a,b) => {
+        const da = new Date(getField(a,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
+        const db = new Date(getField(b,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
+        return db - da;
+      });
       financeiroCategoriasCache = Array.isArray(categorias) ? categorias : [];
       financeiroFormasCache = (Array.isArray(formas) ? formas : []).filter(f => {
         const a = getField(f,['ATIVO','ativo'],true);
