@@ -1333,7 +1333,18 @@
         ...(options.headers || {})
       };
       const url = SUPABASE_URL + '/rest/v1/' + encodeURIComponent(table) + path;
-      const response = await fetch(url, {...options, headers});
+
+      // O fetch não transforma objetos JavaScript em JSON automaticamente.
+      // Sem isso o Supabase recebe "[object Object]" e retorna PGRST102.
+      const requestOptions = {...options, headers};
+      if (requestOptions.body && typeof requestOptions.body === 'object' &&
+          !(requestOptions.body instanceof FormData) &&
+          !(requestOptions.body instanceof Blob) &&
+          !(requestOptions.body instanceof URLSearchParams)) {
+        requestOptions.body = JSON.stringify(requestOptions.body);
+      }
+
+      const response = await fetch(url, requestOptions);
       const text = await response.text();
       let body = null;
       try { body = text ? JSON.parse(text) : null; } catch(e) { body = text; }
