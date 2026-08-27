@@ -582,7 +582,8 @@
         padding: 15px;
       }
     }
-  </style>
+      .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}.form-grid label{display:flex;flex-direction:column;gap:7px;font-weight:600}.form-grid input{padding:11px;border:1px solid var(--borda);border-radius:9px}.danger-button{padding:9px 12px;border:none;border-radius:8px;background:#b42318;color:#fff;cursor:pointer;margin-left:5px}@media(max-width:760px){.data-table{font-size:12px}.data-table th,.data-table td{padding:9px 6px}.form-grid{grid-template-columns:1fr}}
+</style>
 </head>
 
 <body>
@@ -1216,8 +1217,8 @@
     }
 
     function renderPedidosModule() {
-      const container = document.getElementById('moduleContent');
-      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">Pedidos recebidos pela KUKI.</p></div><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th></tr></thead><tbody>'+ (pedidosCache.length ? pedidosCache.map(p => '<tr><td>#'+escapeHtml(getValue(p,['id','ID','pedido_id','PEDIDO_ID'],'-'))+'</td><td>'+escapeHtml(getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'-'))+'</td><td>'+escapeHtml(formatDateTime(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'')))+'</td><td><span class="status-pill">'+escapeHtml(getValue(p,['status','STATUS'],'-'))+'</span></td><td>'+escapeHtml(formatMoney(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],0)))+'</td></tr>').join('') : '<tr><td colspan="5">Nenhum pedido encontrado.</td></tr>')+'</tbody></table></div></div>';
+      const c=document.getElementById('moduleContent');
+      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">Pedidos concluídos ficam somente para consulta.</p></div><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ação</th></tr></thead><tbody>'+(pedidosCache.length?pedidosCache.map((p,i)=>{const st=String(getValue(p,['status','STATUS'],'-'));const encerrado=['CONCLUIDO','CONCLUÍDO'].includes(st.toUpperCase());return '<tr><td>#'+escapeHtml(getValue(p,['id','ID','NUMERO_PEDIDO'],'-'))+'</td><td>'+escapeHtml(getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'-'))+'</td><td>'+escapeHtml(formatDateTime(getValue(p,['created_at','DATA'],'')))+'</td><td><span class="status-pill">'+escapeHtml(st)+'</span></td><td>'+escapeHtml(formatMoney(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL'],0)))+'</td><td>'+(encerrado?'<span style="color:var(--cinza)">Encerrado</span>':'<button class="primary-button" onclick="atualizarStatusPedido('+i+')">Alterar status</button>')+'</td></tr>';}).join(''):'<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>')+'</tbody></table></div></div>';
     }
 
     function renderPlaceholderModule(name) {
@@ -1326,6 +1327,7 @@
       dashboard.style.display='none'; moduleContent.style.display='block';
       if (name === 'Horários') renderHorariosModule();
       else if (name === 'Pedidos') renderPedidosModule();
+      else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
 
