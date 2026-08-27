@@ -359,6 +359,10 @@
       gap: 20px;
     }
 
+    .dashboard-quick-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
     .panel {
       background: white;
       border: 1px solid var(--borda);
@@ -782,18 +786,6 @@
 
       <div id="dashboardContent">
 
-        <div class="welcome">
-
-          <h2>Bem-vindo ao KUKI Gerencial! 🍪</h2>
-
-          <p>
-            Aqui você poderá acompanhar os pedidos e gerenciar
-            todos os dados da sua loja.
-          </p>
-
-        </div>
-
-
         <div class="cards">
 
           <div class="card">
@@ -808,45 +800,10 @@
             <div class="card-value" id="pedidosNovos">0</div>
           </div>
 
-          <div class="card">
-            <div class="card-icon">💰</div>
-            <div class="card-label">FATURAMENTO HOJE</div>
-            <div class="card-value" id="faturamentoHoje">R$ 0,00</div>
-          </div>
-
-          <div class="card">
-            <div class="card-icon">👥</div>
-            <div class="card-label">CLIENTES</div>
-            <div class="card-value" id="totalClientes">0</div>
-          </div>
-
         </div>
 
 
-        <div class="content-grid">
-
-          <div class="panel">
-
-            <div class="panel-header">
-              <h2>Pedidos recentes</h2>
-
-              <button
-                class="panel-link"
-                onclick="selectMenuByName('Pedidos')"
-              >
-                Ver todos
-              </button>
-            </div>
-
-            <div id="recentOrders" class="recent-orders-list">
-              <div class="empty-state">
-                <div class="empty-state-icon">📦</div>
-                <strong>Carregando pedidos...</strong>
-              </div>
-            </div>
-
-          </div>
-
+        <div class="content-grid dashboard-quick-grid">
 
           <div class="panel">
 
@@ -1088,36 +1045,44 @@
         if (moduloAtual === 'Pedidos') renderPedidosModule();
       } catch (error) {
         console.error('Pedidos:', error);
-        document.getElementById('recentOrders').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Confira o acesso à tabela PEDIDOS.</p></div>';
+        const recentOrders = document.getElementById('recentOrders');
+        if (recentOrders) recentOrders.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Confira o acesso à tabela PEDIDOS.</p></div>';
       }
     }
 
-    function atualizarDashboard() {
-      const hoje = new Date().toISOString().slice(0,10);
-      const pedidosHoje = pedidosCache.filter(p => {
-        const v = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
-        return String(v).slice(0,10) === hoje;
-      });
-      const faturamento = pedidosHoje.reduce((sum,p) => sum + (Number(String(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],'0')).replace(',','.')) || 0), 0);
-      const novos = pedidosCache.filter(p => {
-        const st = String(getValue(p,['status','STATUS'],'')).toUpperCase();
-        return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
-      }).length;
-      document.getElementById('pedidosHoje').textContent = pedidosHoje.length;
-      document.getElementById('pedidosNovos').textContent = novos;
-      document.getElementById('faturamentoHoje').textContent = formatMoney(faturamento);
-      renderRecentOrders();
+    function localDateKey(value) {
+      const d = value instanceof Date ? value : new Date(value);
+      if (isNaN(d)) return '';
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
     }
 
-    async function carregarClientes() {
-      try {
-        const rows = await getTable('CLIENTES','?select=*');
-        document.getElementById('totalClientes').textContent = Array.isArray(rows) ? rows.length : 0;
-      } catch(e) { console.error('Clientes:', e); }
+    function atualizarDashboard() {
+      // IMPORTANTE: usa a data LOCAL do navegador. Assim, um pedido criado
+      // às 21:51 do dia anterior no Brasil não é contado como "hoje" apenas
+      // porque o timestamp do Supabase está armazenado em UTC.
+      const hoje = localDateKey(new Date());
+      const pedidosHoje = pedidosCache.filter(p => {
+        const v = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
+        return localDateKey(v) === hoje;
+      });
+
+      const novos = pedidosCache.filter(p => {
+        const st = String(getValue(p,['status','STATUS'],'')).toUpperCase().trim();
+        return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
+      }).length;
+
+      const pedidosHojeEl = document.getElementById('pedidosHoje');
+      const pedidosNovosEl = document.getElementById('pedidosNovos');
+      if (pedidosHojeEl) pedidosHojeEl.textContent = pedidosHoje.length;
+      if (pedidosNovosEl) pedidosNovosEl.textContent = novos;
     }
 
     function renderRecentOrders() {
       const el = document.getElementById('recentOrders');
+      if (!el) return;
       if (!pedidosCache.length) {
         el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><strong>Nenhum pedido encontrado.</strong></div>';
         return;
@@ -1643,7 +1608,7 @@
       appScreen.style.display = 'block';
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
-      await Promise.all([carregarPedidos(true), carregarClientes()]);
+      await carregarPedidos(true);
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
     }
