@@ -352,6 +352,27 @@
       color: var(--texto);
       margin-top: 5px;
     }
+    .dashboard-filter-card {
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      border: 1px solid var(--borda);
+      font: inherit;
+      color: inherit;
+    }
+    .dashboard-filter-card:hover,
+    .dashboard-filter-card:focus-visible {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(105, 20, 30, .12);
+      outline: none;
+    }
+    .dashboard-filter-card:active { transform: translateY(0); }
+    .dashboard-filter-card .card-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--cinza);
+      font-weight: 600;
+    }
 
     .content-grid {
       display: grid;
@@ -944,19 +965,18 @@
       <div id="dashboardContent">
 
         <div class="cards">
-
-          <div class="card">
+          <button class="card dashboard-filter-card" type="button" onclick="abrirPedidosFiltrados('hoje')" aria-label="Ver todos os pedidos de hoje">
             <div class="card-icon">📦</div>
             <div class="card-label">PEDIDOS HOJE</div>
             <div class="card-value" id="pedidosHoje">0</div>
-          </div>
-
-          <div class="card">
+            <div class="card-hint">Ver todos os pedidos de hoje</div>
+          </button>
+          <button class="card dashboard-filter-card" type="button" onclick="abrirPedidosFiltrados('novo')" aria-label="Ver pedidos com status NOVO">
             <div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
-          </div>
-
+            <div class="card-hint">Ver somente pedidos com status NOVO</div>
+          </button>
         </div>
 
 
@@ -1107,6 +1127,9 @@
        ESTADO / DADOS
     ====================================================== */
     let pedidosCache = [];
+    // Filtro temporário aberto pelos cards do Dashboard.
+    // Valores: null | 'hoje' | 'novo'
+    let filtroPedidosDashboard = null;
     let horariosCache = [];
     let ultimoPedidoChave = null;
     let notificacoesPendentes = 0;
@@ -1227,8 +1250,8 @@
       });
 
       const novos = pedidosCache.filter(p => {
-        const st = String(getValue(p,['status','STATUS'],'')).toUpperCase().trim();
-        return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
+        // Card PEDIDOS NOVOS: somente status exatamente NOVO.
+        return normalizarStatus(getValue(p,['status','STATUS'],'')) === 'NOVO';
       }).length;
 
       const pedidosHojeEl = document.getElementById('pedidosHoje');
@@ -1266,17 +1289,57 @@
       setTimeout(() => toast.remove(), 7000);
     }
 
-    function beep() {
+    // =====================================================
+    // ÁUDIO DE NOTIFICAÇÃO
+    // Navegadores móveis bloqueiam som automático até ocorrer
+    // uma interação do usuário. Por isso o áudio é desbloqueado
+    // no primeiro toque/clique e depois toca automaticamente
+    // quando chegar um novo pedido.
+    // =====================================================
+    let notificationAudioContext = null;
+    let notificationAudioUnlocked = false;
+
+    async function desbloquearAudioNotificacao() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = 880; gain.gain.value = 0.08;
-        osc.start(); setTimeout(() => { osc.stop(); ctx.close(); }, 180);
-      } catch(e) {}
+        if (!AudioCtx) return false;
+        if (!notificationAudioContext) notificationAudioContext = new AudioCtx();
+        if (notificationAudioContext.state === 'suspended') await notificationAudioContext.resume();
+        notificationAudioUnlocked = notificationAudioContext.state === 'running';
+        return notificationAudioUnlocked;
+      } catch(e) {
+        console.warn('Não foi possível desbloquear o áudio:', e);
+        return false;
+      }
     }
+
+    function tocarSomNotificacao() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!notificationAudioContext) notificationAudioContext = new AudioCtx();
+        const ctx = notificationAudioContext;
+        if (ctx.state === 'suspended') { ctx.resume().catch(()=>{}); return; }
+        const agora = ctx.currentTime;
+        [880, 1175, 1568].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, agora + i * 0.16);
+          gain.gain.setValueAtTime(0.0001, agora + i * 0.16);
+          gain.gain.exponentialRampToValueAtTime(0.16, agora + i * 0.16 + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, agora + i * 0.16 + 0.14);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(agora + i * 0.16);
+          osc.stop(agora + i * 0.16 + 0.15);
+        });
+      } catch(e) { console.warn('Erro ao tocar notificação:', e); }
+    }
+
+    function beep() { tocarSomNotificacao(); }
+
+    document.addEventListener('pointerdown', desbloquearAudioNotificacao, { once:true });
+    document.addEventListener('keydown', desbloquearAudioNotificacao, { once:true });
 
     function atualizarBadge() {
       const badge = document.getElementById('notificationBadge');
@@ -1285,9 +1348,15 @@
     }
 
     function marcarNotificacoesLidas() {
+      desbloquearAudioNotificacao();
+      const qtd = notificacoesPendentes;
       notificacoesPendentes = 0;
       atualizarBadge();
-      if (pedidosCache[0]) showToast('Pedidos recentes', 'Há '+pedidosCache.length+' pedido(s) carregado(s) no sistema.');
+      if (qtd > 0) {
+        showToast('Notificações', qtd+' nova(s) notificação(ões) marcada(s) como lida(s).');
+      } else {
+        showToast('Notificações', 'Nenhuma nova notificação no momento. O som de alerta está ativo para novos pedidos.');
+      }
     }
 
     function notificarNovoPedido(qtd, pedido) {
@@ -1644,9 +1713,41 @@
       }
     }
 
+    function abrirPedidosFiltrados(tipo) {
+      filtroPedidosDashboard = tipo === 'novo' ? 'novo' : 'hoje';
+      window.__preservarFiltroPedidosDashboard = true;
+      try { selectMenuByName('Pedidos'); }
+      finally { window.__preservarFiltroPedidosDashboard = false; }
+    }
+
+    function limparFiltroPedidosDashboard() {
+      filtroPedidosDashboard = null;
+      if (moduloAtual === 'Pedidos') renderPedidosModule();
+    }
+
+    function pedidosFiltradosDashboard() {
+      if (filtroPedidosDashboard === 'hoje') {
+        const hoje = localDateKey(new Date());
+        return pedidosCache.filter(p => {
+          const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
+          return localDateKey(data) === hoje;
+        });
+      }
+      if (filtroPedidosDashboard === 'novo') {
+        return pedidosCache.filter(p => normalizarStatus(getPedidoStatus(p)) === 'NOVO');
+      }
+      return pedidosCache;
+    }
+
     function renderPedidosModule() {
       const container = document.getElementById('moduleContent');
-      const linhas = pedidosCache.length ? pedidosCache.map(p => {
+      const pedidosVisiveis = pedidosFiltradosDashboard();
+      const filtroTitulo = filtroPedidosDashboard === 'hoje'
+        ? 'Mostrando todos os pedidos realizados hoje.'
+        : filtroPedidosDashboard === 'novo'
+          ? 'Mostrando somente pedidos com status NOVO.'
+          : '';
+      const linhas = pedidosVisiveis.length ? pedidosVisiveis.map(p => {
         const id = getPedidoId(p);
         const numero = getValue(p,['NUMERO_PEDIDO','numero_pedido','id','ID'],'-');
         const clienteId = getValue(p,['CLIENTE_ID','cliente_id'], null);
@@ -1674,10 +1775,10 @@
           + '<td>'+escapeHtml(formatMoney(total))+'</td>'
           + '<td class="actions-cell">'+actions+'</td>'
           + '</tr>';
-      }).join('') : '<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>';
+      }).join('') : '<tr><td colspan="6">'+escapeHtml(filtroPedidosDashboard ? 'Nenhum pedido encontrado para este filtro.' : 'Nenhum pedido encontrado.')+'</td></tr>';
 
       container.innerHTML = '<div class="module-panel">'
-        + '<div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">Pedidos recebidos pela KUKI. Pedidos concluídos, fechados e finalizados ficam somente para consulta.</p></div><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div>'
+        + '<div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">'+escapeHtml(filtroTitulo || 'Pedidos recebidos pela KUKI. Pedidos concluídos, fechados e finalizados ficam somente para consulta.')+'</p></div><div class="actions-inline">'+(filtroPedidosDashboard ? '<button class="secondary-button" type="button" onclick="limparFiltroPedidosDashboard()">Ver todos</button>' : '')+'<button class="primary-button" type="button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
         + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>CONCLUÍDOS, FECHADOS, FINALIZADOS ou ENCERRADOS</strong> não podem ser editados, ter o status alterado ou ser excluídos.</div>'
         + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
@@ -1765,6 +1866,9 @@
       appScreen.style.display = 'block';
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email); const mobileUser=document.getElementById('mobileUserName'); if(mobileUser) mobileUser.textContent=obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
+      // Tenta liberar o som após a entrada no sistema.
+      // Em celular, o primeiro toque/clique também libera o áudio.
+      await desbloquearAudioNotificacao();
       await carregarPedidos(true);
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
@@ -1812,9 +1916,27 @@
       button.classList.add('active'); abrirModulo(name);
     }
     function selectMenuByName(name) {
-      document.querySelectorAll('.menu button').forEach(botao => {
-        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
-      });
+      // Ao abrir Pedidos pelo menu/acesso rápido, volta para a lista completa.
+      if (name === 'Pedidos' && !window.__preservarFiltroPedidosDashboard) filtroPedidosDashboard = null;
+      const aliases = {
+        'Dashboard': 'Dashboard',
+        'Pedidos': 'Pedidos',
+        'Produtos': 'Produtos',
+        'Clientes': 'Clientes',
+        'Formas de pagamento': 'Pagamentos',
+        'Pagamentos': 'Pagamentos',
+        'Formas de entrega': 'Entregas',
+        'Entregas': 'Entregas',
+        'Horários': 'Horários',
+        'Configurações': 'Configurações'
+      };
+      const texto = aliases[name] || name;
+      const botao = Array.from(document.querySelectorAll('.menu button')).find(b =>
+        b.textContent.replace(/\s+/g,' ').trim().includes(texto)
+      );
+      if (botao) selectMenu(botao, name);
+      else abrirModulo(name);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
     function abrirModulo(name) {
