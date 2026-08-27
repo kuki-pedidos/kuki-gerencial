@@ -871,6 +871,62 @@
 }
 </style>
 
+
+<style id="kuki-financeiro-modal-fix">
+.modal-overlay{
+  position:fixed !important;
+  inset:0 !important;
+  z-index:10000 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  padding:18px !important;
+  background:rgba(20,15,12,.58) !important;
+  box-sizing:border-box !important;
+  overflow:auto !important;
+}
+.modal-card{
+  width:min(100%,620px) !important;
+  max-height:calc(100vh - 36px) !important;
+  overflow-y:auto !important;
+  box-sizing:border-box !important;
+  background:#fff !important;
+  border-radius:18px !important;
+  padding:22px !important;
+  box-shadow:0 20px 60px rgba(0,0,0,.28) !important;
+}
+.modal-header{
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:16px !important;
+  margin-bottom:18px !important;
+}
+.modal-header h2{margin:0 !important;}
+.modal-card .field{margin:12px 0 !important;}
+.modal-card label{display:block !important;font-weight:800 !important;margin-bottom:6px !important;}
+.modal-card input,.modal-card select,.modal-card textarea{
+  width:100% !important;
+  box-sizing:border-box !important;
+  padding:11px 12px !important;
+  border:1px solid var(--borda) !important;
+  border-radius:10px !important;
+  font:inherit !important;
+}
+.modal-card textarea{min-height:90px !important;resize:vertical !important;}
+@media(max-width:760px){
+  .modal-overlay{align-items:flex-end !important;padding:0 !important;}
+  .modal-card{
+    width:100% !important;
+    max-height:92vh !important;
+    border-radius:20px 20px 0 0 !important;
+    padding:20px 16px 28px !important;
+  }
+  .modal-card .actions-inline{justify-content:stretch !important;}
+  .modal-card .actions-inline button{flex:1 !important;}
+}
+</style>
+
 </head>
 
 <body>
@@ -1963,6 +2019,16 @@
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
       await carregarPedidos(true);
+
+      // Cria o estado inicial para que VOLTAR navegue dentro do sistema.
+      try {
+        const inicial = moduloDoHash() || 'Dashboard';
+        if (!history.state || !history.state.kukiModule) {
+          history.replaceState({kukiModule: inicial}, '', inicial === 'Dashboard' ? location.pathname + location.search : '#'+encodeURIComponent(inicial.toLowerCase().replace(/\s+/g,'-')));
+        }
+        if (inicial !== 'Dashboard') abrirModulo(inicial, {history:false});
+      } catch(e) {}
+
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
     }
@@ -2042,7 +2108,7 @@
 
     function renderFinanceiroModule() {
       const container = document.getElementById('moduleContent');
-      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="abrirCategoriasFinanceiras()">🏷️ Categorias</button><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="abrirCategoriasFinanceiras()">🏷️ Categorias</button><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button id="btnNovaDespesa" type="button" class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
       carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
         console.error('Financeiro:', error);
         document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">'+escapeHtml(error.message || 'Erro desconhecido')+'</p></div>';
@@ -2120,6 +2186,11 @@
         <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
         <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button class="secondary-button" onclick="fecharModalDespesa()">Cancelar</button><button class="primary-button" onclick="salvarDespesa(${id===null?'null':JSON.stringify(String(id))})">💾 Confirmar</button></div></div>`;
       document.body.appendChild(modal);
+      modal.addEventListener('click', function(ev){
+        if (ev.target === modal) fecharModalDespesa();
+      });
+      // Garante foco visual no primeiro campo do formulário.
+      setTimeout(() => document.getElementById('despesaDescricao')?.focus(), 50);
     }
 
     function fecharModalDespesa(){ document.getElementById('modalDespesa')?.remove(); }
@@ -2173,8 +2244,19 @@
       else abrirModulo(alvo);
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
-    function abrirModulo(name) {
+    let navegacaoInternaPorHistorico = false;
+
+    function abrirModulo(name, options={}) {
+      const moduloAnterior = moduloAtual;
       moduloAtual = name;
+
+      // Cada mudança de tela entra no histórico do navegador.
+      // Assim o botão VOLTAR funciona no desktop e no celular sem fechar o app.
+      if (options.history !== false && moduloAnterior !== name) {
+        try {
+          history.pushState({ kukiModule: name }, '', '#'+encodeURIComponent(String(name).toLowerCase().replace(/\s+/g,'-')));
+        } catch(e) {}
+      }
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
@@ -2190,6 +2272,60 @@
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
+
+
+    /* =====================================================
+       HISTÓRICO / BOTÃO VOLTAR
+    ====================================================== */
+    function moduloDoHash() {
+      const h = decodeURIComponent(String(location.hash || '').replace(/^#/,'')).trim().toLowerCase();
+      const mapa = {
+        'dashboard':'Dashboard',
+        'pedidos':'Pedidos',
+        'financeiro':'Financeiro',
+        'produtos':'Produtos',
+        'clientes':'Clientes',
+        'formas-de-pagamento':'Formas de pagamento',
+        'formas-de-entrega':'Formas de entrega',
+        'horarios':'Horários',
+        'horários':'Horários',
+        'configuracoes':'Configurações',
+        'configurações':'Configurações',
+        'categorias-financeiras':'Categorias financeiras'
+      };
+      return mapa[h] || null;
+    }
+
+    function restaurarModuloDoHistorico() {
+      const modulo = moduloDoHash() || 'Dashboard';
+      selectMenuByName(modulo);
+    }
+
+    function marcarMenuAtivo(nome) {
+      document.querySelectorAll('.menu button').forEach(item => {
+        item.classList.toggle('active', item.textContent.replace(/\s+/g,' ').trim().endsWith(String(nome).trim()));
+      });
+    }
+
+    window.addEventListener('popstate', function(){
+      const modulo = moduloDoHash() || 'Dashboard';
+      // Não cria nova entrada enquanto estamos respondendo ao botão VOLTAR.
+      marcarMenuAtivo(modulo);
+      abrirModulo(modulo, {history:false});
+    });
+
+    // Se o usuário abrir uma tela diretamente por URL, mostra a tela correspondente.
+    window.addEventListener('hashchange', function(){
+      const modulo = moduloDoHash();
+      if (modulo && modulo !== moduloAtual) abrirModulo(modulo, {history:false});
+    });
+
+
+    // Garantia extra para botões inline em todos os navegadores.
+    window.abrirFormDespesa = abrirFormDespesa;
+    window.fecharModalDespesa = fecharModalDespesa;
+    window.salvarDespesa = salvarDespesa;
+    window.abrirModulo = abrirModulo;
 
     /* =====================================================
        INICIAR
