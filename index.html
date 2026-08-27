@@ -174,8 +174,6 @@
       flex-direction: column;
       z-index: 1000;
       box-shadow: 3px 0 20px rgba(0,0,0,0.08);
-      overflow-y: auto;
-      overflow-x: hidden;
     }
 
     .sidebar-logo {
@@ -809,10 +807,6 @@
           <span>📦</span> Pedidos
         </button>
 
-        <button type="button" class="financeiro-menu-button" onclick="selectMenu(this, 'Financeiro')">
-          <span>💰</span> Financeiro
-        </button>
-
         <button onclick="selectMenu(this, 'Produtos')">
           <span>🍪</span> Produtos
         </button>
@@ -831,6 +825,10 @@
 
         <button onclick="selectMenu(this, 'Horários')">
           <span>🕐</span> Horários
+        </button>
+        <!-- FINANCEIRO: mantido imediatamente acima de Configurações -->
+        <button class="financeiro-menu-button" type="button" onclick="selectMenu(this, 'Financeiro')">
+          <span>💰</span> Financeiro
         </button>
 
         <button onclick="selectMenu(this, 'Configurações')">
