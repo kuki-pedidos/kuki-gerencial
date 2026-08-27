@@ -1094,9 +1094,17 @@
     }
 
     async function restRequest(table, path='', options={}) {
+      // Usa o token do usuário logado. A chave publishable continua no header apikey,
+      // mas o Authorization precisa representar o usuário autenticado para respeitar RLS.
+      let accessToken = SUPABASE_KEY;
+      try {
+        const { data } = await supabaseClient.auth.getSession();
+        if (data && data.session && data.session.access_token) accessToken = data.session.access_token;
+      } catch(e) {}
+
       const headers = {
         'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Authorization': 'Bearer ' + accessToken,
         'Content-Type': 'application/json',
         ...(options.headers || {})
       };
@@ -1106,8 +1114,10 @@
       let body = null;
       try { body = text ? JSON.parse(text) : null; } catch(e) { body = text; }
       if (!response.ok) {
-        const message = body && body.message ? body.message : (body && body.hint ? body.hint : text || 'Erro ao consultar dados.');
-        throw new Error(message);
+        const details = body && typeof body === 'object'
+          ? [body.message, body.details, body.hint, body.code].filter(Boolean).join(' | ')
+          : text;
+        throw new Error('Tabela ' + table + ' — HTTP ' + response.status + ': ' + (details || text || 'Erro ao consultar dados.'));
       }
       return body;
     }
@@ -1808,15 +1818,16 @@
     }
 
     async function carregarFinanceiroDados() {
-      // IMPORTANTE: o Supabase/PostgREST diferencia o nome real das colunas.
-      // FINANCEIRO_CATEGORIAS foi criada com colunas em minúsculas (ativo/nome),
-      // portanto não usamos ATIVO/NOME. Também removemos order=DATA da tabela de
-      // despesas para não falhar caso o campo tenha sido criado com outro nome.
-      const [despesas, categorias, formas] = await Promise.all([
+      // Carrega cada fonte separadamente para identificar exatamente qual tabela falhou.
+      const resultados = await Promise.allSettled([
         getTable('FINANCEIRO_DESPESAS', '?select=*'),
         getTable('FINANCEIRO_CATEGORIAS', '?select=*&ativo=eq.true&order=nome.asc'),
         getTable('FORMAS_PAGAMENTO', '?select=*')
       ]);
+      const nomes = ['FINANCEIRO_DESPESAS','FINANCEIRO_CATEGORIAS','FORMAS_PAGAMENTO'];
+      const erros = resultados.map((r,i) => r.status === 'rejected' ? nomes[i] + ': ' + (r.reason?.message || r.reason) : null).filter(Boolean);
+      if (erros.length) throw new Error(erros.join(' — '));
+      const [despesas, categorias, formas] = resultados.map(r => r.value);
       financeiroDespesasCache = (Array.isArray(despesas) ? despesas : []).sort((a,b) => {
         const da = new Date(getField(a,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
         const db = new Date(getField(b,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
@@ -1864,7 +1875,7 @@
       container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
       carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
         console.error('Financeiro:', error);
-        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">Confira o acesso às tabelas FINANCEIRO_DESPESAS e FINANCEIRO_CATEGORIAS.</p></div>';
+        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">'+escapeHtml(error.message || 'Erro desconhecido')+'</p></div>';
       });
     }
 
