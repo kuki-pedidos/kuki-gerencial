@@ -720,6 +720,20 @@
       opacity:1 !important;
     }
 
+    /* MENU MOBILE COMPLETO */
+    .mobile-menu-toggle{font-size:22px;line-height:1;min-width:46px}
+    .mobile-menu-overlay{position:fixed;inset:0;background:rgba(30,20,20,.45);z-index:3000;display:none;align-items:stretch;justify-content:flex-end}
+    .mobile-menu-overlay.open{display:flex}
+    .mobile-menu-drawer{width:min(86vw,360px);height:100%;background:#fff;box-shadow:-12px 0 35px rgba(0,0,0,.18);padding:18px 14px;overflow:auto;animation:slideInMobile .2s ease-out}
+    @keyframes slideInMobile{from{transform:translateX(100%)}to{transform:translateX(0)}}
+    .mobile-menu-head{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 14px;border-bottom:1px solid var(--borda);margin-bottom:10px}
+    .mobile-menu-head strong{font-size:20px;color:var(--vermelho)}
+    .mobile-menu-close{border:0;background:#f1e8e2;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer}
+    .mobile-menu-list{display:grid;gap:7px}
+    .mobile-menu-list button{width:100%;border:0;background:#fff;text-align:left;padding:14px 12px;border-radius:12px;font-weight:800;color:var(--texto);font-size:15px;cursor:pointer}
+    .mobile-menu-list button:hover,.mobile-menu-list button.active{background:#f7e7ea;color:var(--vermelho)}
+    @media(min-width:761px){.mobile-menu-overlay{display:none!important}.mobile-menu-toggle{display:none!important}}
+
 </style>
 </head>
 
@@ -863,22 +877,34 @@
 
     </aside>
 
+    <!-- MENU COMPLETO PARA CELULAR -->
+    <div class="mobile-menu-overlay" id="mobileMenuOverlay" onclick="if(event.target===this)fecharMenuMobile()">
+      <aside class="mobile-menu-drawer" aria-label="Menu principal">
+        <div class="mobile-menu-head"><strong>🍪 KUKI Gerencial</strong><button class="mobile-menu-close" type="button" onclick="fecharMenuMobile()">✕</button></div>
+        <div class="mobile-menu-list">
+          <button type="button" onclick="abrirModuloMobile('Dashboard')">📊 Dashboard</button>
+          <button type="button" onclick="abrirModuloMobile('Pedidos')">📦 Pedidos</button>
+          <button type="button" onclick="abrirModuloMobile('Financeiro')">💰 Financeiro</button>
+          <button type="button" onclick="abrirModuloMobile('Produtos')">🍪 Produtos</button>
+          <button type="button" onclick="abrirModuloMobile('Clientes')">👥 Clientes</button>
+          <button type="button" onclick="abrirModuloMobile('Formas de pagamento')">💳 Pagamentos</button>
+          <button type="button" onclick="abrirModuloMobile('Formas de entrega')">🛵 Entregas</button>
+          <button type="button" onclick="abrirModuloMobile('Horários')">🕐 Horários</button>
+          <button type="button" onclick="abrirModuloMobile('Configurações')">⚙️ Configurações</button>
+        </div>
+      </aside>
+    </div>
 
     <!-- CONTEÚDO -->
 
     <main class="main">
 
       <div class="mobile-header">
-
-        <img
-          src="logo-kuki-transparente.png"
-          alt="KUKI"
-        >
-
-        <button onclick="logout()">
-          SAIR
-        </button>
-
+        <img src="logo-kuki-transparente.png" alt="KUKI">
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="mobile-menu-toggle" type="button" onclick="abrirMenuMobile()" aria-label="Abrir menu">☰</button>
+          <button onclick="logout()">SAIR</button>
+        </div>
       </div>
 
 
@@ -1723,7 +1749,9 @@
       'Produtos': { table:'PRODUTOS', icon:'🍪', fields:['NOME','DESCRICAO','PRECO','ATIVO'] },
       'Clientes': { table:'CLIENTES', icon:'👥', fields:['NOME','TELEFONE','WHATSAPP','CEP','ENDERECO','NUMERO','COMPLEMENTO','BAIRRO','CIDADE'] },
       'Formas de pagamento': { table:'FORMAS_PAGAMENTO', icon:'💳', fields:['NOME','ATIVO'] },
-      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
+      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] },
+      'Configurações': { table:'CONFIGURACOES', icon:'⚙️', fields:[] },
+      'Categorias financeiras': { table:'FINANCEIRO_CATEGORIAS', icon:'🏷️', fields:['NOME','DESCRICAO','ATIVO'] }
     };
     const crudCache = {};
     function normKey(k){ return String(k||'').toUpperCase(); }
@@ -1755,7 +1783,7 @@
 
     function renderPlaceholderModule(name) {
       const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
-      document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Este módulo será conectado ao Supabase na próxima etapa.</p></div>';
+      document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Módulo em preparação.</p></div>';
     }
 
     /* =====================================================
@@ -1878,7 +1906,7 @@
 
     function renderFinanceiroModule() {
       const container = document.getElementById('moduleContent');
-      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="abrirCategoriasFinanceiras()">🏷️ Categorias</button><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
       carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
         console.error('Financeiro:', error);
         document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">'+escapeHtml(error.message || 'Erro desconhecido')+'</p></div>';
@@ -1924,6 +1952,15 @@
             }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}</tbody>
           </table>
         </div>`;
+    }
+
+    function abrirCategoriasFinanceiras() {
+      const dashboard = document.getElementById('dashboardContent');
+      const moduleContent = document.getElementById('moduleContent');
+      dashboard.style.display='none'; moduleContent.style.display='block';
+      document.getElementById('pageTitle').textContent = 'Categorias financeiras';
+      document.getElementById('pageSubtitle').textContent = 'Cadastre e mantenha as categorias de despesas';
+      renderCrudModule('Categorias financeiras');
     }
 
     function abrirFormDespesa(id=null) {
@@ -1982,6 +2019,10 @@
     }
 
 
+    function abrirMenuMobile(){ document.getElementById('mobileMenuOverlay')?.classList.add('open'); }
+    function fecharMenuMobile(){ document.getElementById('mobileMenuOverlay')?.classList.remove('open'); }
+    function abrirModuloMobile(name){ fecharMenuMobile(); selectMenuByName(name); }
+
     /* =====================================================
        MENU
     ====================================================== */
@@ -1990,9 +2031,10 @@
       button.classList.add('active'); abrirModulo(name);
     }
     function selectMenuByName(name) {
-      document.querySelectorAll('.menu button').forEach(botao => {
-        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
-      });
+      const alvo = String(name).trim();
+      const botao = Array.from(document.querySelectorAll('.menu button')).find(b => b.textContent.replace(/\s+/g,' ').trim().endsWith(alvo));
+      if (botao) selectMenu(botao, alvo);
+      else abrirModulo(alvo);
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
     function abrirModulo(name) {
@@ -2001,7 +2043,7 @@
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro','Categorias financeiras':'Cadastre e mantenha as categorias de despesas'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
