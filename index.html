@@ -157,7 +157,7 @@
     ========================= */
 
     #appScreen {
-      display: block;
+      display: none;
       min-height: 100vh;
     }
 
@@ -420,15 +420,21 @@
     .mobile-header {
       display: none;
     }
-    .mobile-back-button { display:none; }
-    .mobile-header-title { display:none; }
-
 
 
 
     /* =========================
        BEM-VINDO / NOTIFICAÇÕES / MÓDULOS
     ========================= */
+    .sidebar-welcome {
+      margin: 6px 6px 22px;
+      padding: 18px 15px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.16);
+    }
+    .sidebar-welcome strong { display:block; font-size:18px; margin-bottom:6px; }
+    .sidebar-welcome span { font-size:12px; line-height:1.45; opacity:.88; }
 
     .notification-button {
       border: 1px solid var(--borda);
@@ -485,8 +491,17 @@
     .recent-order small { color:var(--cinza); }
     .empty-module { text-align:center; padding:50px 20px; color:var(--cinza); }
 
-
-    .crud-form-box{margin:20px 0;padding:18px;border:1px solid #ead7c7;border-radius:16px;background:#fffaf6}.crud-form-box h3{margin-bottom:14px}.crud-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-weight:700}.crud-field input{padding:12px;border:1px solid #d9c8bb;border-radius:10px;font:inherit}.check-field{flex-direction:row;align-items:center}.crud-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.secondary-button,.danger-button{padding:10px 14px;border-radius:9px;border:1px solid #d8c4b5;background:#fff;cursor:pointer;font-weight:700}.danger-button{color:#a20c23;border-color:#e3b5be}
+    /* AÇÕES DE PEDIDOS - HARDENED */
+    .actions-cell { white-space:nowrap; }
+    .action-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .secondary-button, .danger-button, .locked-button { border:none; padding:9px 12px; border-radius:9px; font-weight:800; cursor:pointer; font-size:12px; }
+    .secondary-button { background:#eee6df; color:var(--texto); }
+    .secondary-button:hover { filter:brightness(.97); }
+    .danger-button { background:#a9001d; color:#fff; }
+    .danger-button:hover { background:#820016; }
+    .locked-button { background:#f1f1f1; color:#777; cursor:not-allowed; }
+    .status-select { border:1px solid var(--borda); border-radius:9px; padding:8px; background:#fff; min-width:125px; }
+    .order-lock-note { margin-top:14px; padding:12px 14px; border-radius:10px; background:#fff7e8; border:1px solid #f0d49a; color:#7a5b17; font-size:13px; }
 
     /* =========================
        RESPONSIVO
@@ -503,10 +518,6 @@
     }
 
     @media (max-width: 760px) {
-      .welcome-top { display:block; padding:22px; }
-      .welcome-top h1 { font-size:22px; }
-      .welcome-top .topbar-actions { margin-top:18px; justify-content:space-between; }
-
       .sidebar {
         display: none;
       }
@@ -585,11 +596,73 @@
         padding: 15px;
       }
     }
-      .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}.form-grid label{display:flex;flex-direction:column;gap:7px;font-weight:600}.form-grid input{padding:11px;border:1px solid var(--borda);border-radius:9px}.danger-button{padding:9px 12px;border:none;border-radius:8px;background:#b42318;color:#fff;cursor:pointer;margin-left:5px}@media(max-width:760px){.data-table{font-size:12px}.data-table th,.data-table td{padding:9px 6px}.form-grid{grid-template-columns:1fr}}
-</style>
+  </style>
 </head>
 
 <body>
+
+  <!-- =========================
+       LOGIN
+  ========================== -->
+
+  <section id="loginScreen">
+
+    <div class="login-card">
+
+      <img
+        src="logo-kuki-transparente.png"
+        alt="KUKI Cookies"
+        class="login-logo"
+      >
+
+      <h1 class="login-title">KUKI GERENCIAL</h1>
+
+      <p class="login-subtitle">
+        Acesse o sistema de gerenciamento da loja
+      </p>
+
+      <form id="loginForm">
+
+        <div class="field">
+          <label for="username">Usuário</label>
+          <input
+            type="text"
+            id="username"
+            placeholder="Digite seu usuário"
+            required
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          >
+        </div>
+
+        <div class="field">
+          <label for="password">Senha</label>
+          <input
+            type="password"
+            id="password"
+            placeholder="Digite sua senha"
+            required
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button
+          type="submit"
+          class="login-button"
+          id="loginButton"
+        >
+          ENTRAR
+        </button>
+
+      </form>
+
+      <div id="loginError" class="login-error"></div>
+
+    </div>
+
+  </section>
+
 
   <!-- =========================
        SISTEMA
@@ -600,6 +673,11 @@
     <!-- MENU LATERAL -->
 
     <aside class="sidebar">
+
+      <div class="sidebar-welcome">
+        <strong>Bem-vindo! 🍪</strong>
+        <span>Gerencie sua KUKI, acompanhe os pedidos e mantenha a loja sempre atualizada.</span>
+      </div>
 
       <nav class="menu">
 
@@ -663,24 +741,32 @@
     <main class="main">
 
       <div class="mobile-header">
-        <button class="mobile-back-button" id="mobileBackButton" type="button" onclick="voltarTelaAnterior()" aria-label="Voltar">← Voltar</button>
-        <div class="mobile-header-title">KUKI Gerencial</div>
-        <button onclick="logout()">SAIR</button>
+
+        <img
+          src="logo-kuki-transparente.png"
+          alt="KUKI"
+        >
+
+        <button onclick="logout()">
+          SAIR
+        </button>
+
       </div>
 
 
-      <div class="topbar" id="topbar">
+      <div class="topbar">
 
-        <div class="welcome-top">
-          <div>
-            <h1 id="pageTitle">Bem-vindo ao KUKI Gerencial! 💰</h1>
-            <p id="pageSubtitle">Tenha uma visão completa da sua loja e gerencie tudo em um só lugar.</p>
-          </div>
+        <div class="page-title">
+          <h1 id="pageTitle">Dashboard</h1>
 
-          <div class="topbar-actions">
-            <div class="date-box" id="currentDate"></div>
-            <button class="notification-button" type="button" onclick="marcarNotificacoesLidas()" title="Novos pedidos">🔔<span class="notification-badge" id="notificationBadge">0</span></button>
-          </div>
+          <p id="pageSubtitle">
+            Visão geral da sua loja
+          </p>
+        </div>
+
+        <div class="topbar-actions">
+          <div class="date-box" id="currentDate"></div>
+          <button class="notification-button" type="button" onclick="marcarNotificacoesLidas()" title="Novos pedidos">🔔<span class="notification-badge" id="notificationBadge">0</span></button>
         </div>
 
       </div>
@@ -690,19 +776,42 @@
 
       <div id="dashboardContent">
 
+        <div class="welcome">
+
+          <h2>Bem-vindo ao KUKI Gerencial! 🍪</h2>
+
+          <p>
+            Aqui você poderá acompanhar os pedidos e gerenciar
+            todos os dados da sua loja.
+          </p>
+
+        </div>
+
 
         <div class="cards">
 
-          <div class="card card-clickable" onclick="abrirDashboardModulo('Pedidos')" title="Ver pedidos de hoje">
+          <div class="card">
             <div class="card-icon">📦</div>
             <div class="card-label">PEDIDOS HOJE</div>
             <div class="card-value" id="pedidosHoje">0</div>
           </div>
 
-          <div class="card card-clickable" onclick="abrirDashboardModulo('Pedidos')" title="Ver pedidos novos">
+          <div class="card">
             <div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon">💰</div>
+            <div class="card-label">FATURAMENTO HOJE</div>
+            <div class="card-value" id="faturamentoHoje">R$ 0,00</div>
+          </div>
+
+          <div class="card">
+            <div class="card-icon">👥</div>
+            <div class="card-label">CLIENTES</div>
+            <div class="card-value" id="totalClientes">0</div>
           </div>
 
         </div>
@@ -769,36 +878,6 @@
                 "
               >
                 🍪 Gerenciar produtos
-              </button>
-
-              <button
-                onclick="abrirDashboardModulo('Pedidos')"
-                style="
-                  padding:15px;
-                  border:1px solid #e8ddd3;
-                  background:#fff;
-                  border-radius:12px;
-                  cursor:pointer;
-                  text-align:left;
-                  font-weight:bold;
-                "
-              >
-                💰 Ver faturamento
-              </button>
-
-              <button
-                onclick="abrirDashboardModulo('Clientes')"
-                style="
-                  padding:15px;
-                  border:1px solid #e8ddd3;
-                  background:#fff;
-                  border-radius:12px;
-                  cursor:pointer;
-                  text-align:left;
-                  font-weight:bold;
-                "
-              >
-                👥 Gerenciar clientes
               </button>
 
               <button
@@ -985,74 +1064,31 @@
     }
 
     async function carregarPedidos(initial=false) {
-      let rows = null;
-      const erros = [];
-
-      // Primeiro usa o cliente oficial do Supabase.
-      for (const tabela of ['PEDIDOS', 'pedidos']) {
-        try {
-          const resultado = await supabaseClient.from(tabela).select('*');
-          if (!resultado.error) {
-            rows = Array.isArray(resultado.data) ? resultado.data : [];
-            break;
-          }
-          erros.push(tabela + ': ' + resultado.error.message);
-        } catch (erro) {
-          erros.push(tabela + ': ' + (erro.message || String(erro)));
+      try {
+        const rows = await getTable('PEDIDOS', '?select=*');
+        pedidosCache = Array.isArray(rows) ? sortPedidos(rows) : [];
+        const latest = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
+        if (!initial && ultimoPedidoChave && latest && latest !== ultimoPedidoChave) {
+          const novos = pedidosCache.filter(p => pedidoKey(p) !== ultimoPedidoChave);
+          if (novos.length) notificarNovoPedido(novos.length, novos[0]);
         }
-      }
-
-      // Mantém o REST como segunda tentativa, para compatibilidade com o projeto atual.
-      if (rows === null) {
-        for (const tabela of ['PEDIDOS', 'pedidos']) {
-          try {
-            const resultado = await restRequest(tabela, '?select=*');
-            rows = Array.isArray(resultado) ? resultado : [];
-            break;
-          } catch (erro) {
-            erros.push('REST ' + tabela + ': ' + (erro.message || String(erro)));
-          }
-        }
-      }
-
-      if (rows === null) {
-        const detalhe = erros.join(' | ') || 'Erro desconhecido ao consultar a tabela PEDIDOS.';
-        console.error('Erro ao carregar PEDIDOS:', detalhe);
-        pedidosCache = [];
+        ultimoPedidoChave = latest;
         atualizarDashboard();
-        if (moduloAtual === 'Pedidos') {
-          const c = document.getElementById('moduleContent');
-          if (c) c.innerHTML = '<div class="module-panel"><div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;word-break:break-word;">' + escapeHtml(detalhe) + '</p><button class="primary-button" style="margin-top:16px" onclick="carregarPedidos(false)">↻ Tentar novamente</button></div></div>';
-        }
-        const recent = document.getElementById('recentOrders');
-        if (recent) recent.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Verifique a mensagem no módulo Pedidos.</p></div>';
-        return;
+        if (moduloAtual === 'Pedidos') renderPedidosModule();
+      } catch (error) {
+        console.error('Pedidos:', error);
+        document.getElementById('recentOrders').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Confira o acesso à tabela PEDIDOS.</p></div>';
       }
-
-      pedidosCache = sortPedidos(rows);
-      const latest = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
-      if (!initial && ultimoPedidoChave && latest && latest !== ultimoPedidoChave) {
-        const novos = pedidosCache.filter(p => pedidoKey(p) !== ultimoPedidoChave);
-        if (novos.length) notificarNovoPedido(novos.length, novos[0]);
-      }
-      ultimoPedidoChave = latest;
-      atualizarDashboard();
-      if (moduloAtual === 'Pedidos') renderPedidosModule();
     }
 
     function atualizarDashboard() {
-      const agora = new Date();
-      const hoje = [agora.getFullYear(), String(agora.getMonth()+1).padStart(2,'0'), String(agora.getDate()).padStart(2,'0')].join('-');
+      const hoje = new Date().toISOString().slice(0,10);
       const pedidosHoje = pedidosCache.filter(p => {
         const v = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
-        if (!v) return false;
-        const d = new Date(v);
-        if (isNaN(d)) return String(v).slice(0,10) === hoje;
-        const chaveLocal = [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
-        return chaveLocal === hoje;
+        return String(v).slice(0,10) === hoje;
       });
       const faturamento = pedidosHoje.reduce((sum,p) => sum + (Number(String(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],'0')).replace(',','.')) || 0), 0);
-      const novos = pedidosHoje.filter(p => {
+      const novos = pedidosCache.filter(p => {
         const st = String(getValue(p,['status','STATUS'],'')).toUpperCase();
         return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
       }).length;
@@ -1194,175 +1230,183 @@
       renderHorariosModule();
     }
 
+    /* =====================================================
+       PEDIDOS - REGRAS DE INTEGRIDADE
+       Pedido concluído/fechado/finalizado é imutável na UI.
+       Toda operação valida novamente o status antes do PATCH/DELETE.
+    ====================================================== */
+    const PEDIDO_STATUS_BLOQUEADOS = new Set([
+      'CONCLUIDO','CONCLUÍDO','FECHADO','FINALIZADO','ENCERRADO'
+    ]);
+
+    function normalizarStatus(status) {
+      return String(status || '')
+        .trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+    }
+
+    function pedidoEstaBloqueado(status) {
+      return PEDIDO_STATUS_BLOQUEADOS.has(normalizarStatus(status));
+    }
+
+    function getPedidoId(pedido) {
+      return getValue(pedido, ['id','ID','pedido_id','PEDIDO_ID'], null);
+    }
+
+    function getPedidoStatus(pedido) {
+      return getValue(pedido, ['status','STATUS'], 'NOVO');
+    }
+
+    async function patchPedido(id, payload) {
+      const filter = '?id=eq.' + encodeURIComponent(id);
+      try {
+        return await restRequest('PEDIDOS', filter, {
+          method:'PATCH',
+          headers:{'Prefer':'return=representation'},
+          body:JSON.stringify(payload)
+        });
+      } catch (e) {
+        const lowerPayload = {};
+        Object.keys(payload).forEach(k => lowerPayload[k.toLowerCase()] = payload[k]);
+        return await restRequest('pedidos', filter, {
+          method:'PATCH',
+          headers:{'Prefer':'return=representation'},
+          body:JSON.stringify(lowerPayload)
+        });
+      }
+    }
+
+    async function deletePedido(id) {
+      const filter = '?id=eq.' + encodeURIComponent(id);
+      try {
+        return await restRequest('PEDIDOS', filter, { method:'DELETE' });
+      } catch (e) {
+        return await restRequest('pedidos', filter, { method:'DELETE' });
+      }
+    }
+
+    function obterPedidoAtual(id) {
+      return pedidosCache.find(p => String(getPedidoId(p)) === String(id)) || null;
+    }
+
+    async function atualizarStatusPedido(id) {
+      const pedido = obterPedidoAtual(id);
+      if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
+      const statusAtual = getPedidoStatus(pedido);
+      if (pedidoEstaBloqueado(statusAtual)) {
+        showToast('🔒 Pedido bloqueado','Pedidos concluídos, fechados ou finalizados não podem ser alterados.');
+        return;
+      }
+      const select = document.getElementById('statusPedido_' + id);
+      const novoStatus = select ? select.value : statusAtual;
+      if (normalizarStatus(novoStatus) === normalizarStatus(statusAtual)) return;
+      if (!confirm('Confirmar alteração do status do pedido #' + id + ' para "' + novoStatus + '"?\n\nAtenção: se o pedido for concluído/fechado/finalizado, ele ficará bloqueado para novas alterações.')) {
+        if (select) select.value = statusAtual;
+        return;
+      }
+      try {
+        await patchPedido(id, { STATUS: novoStatus, DATA_ATUALIZACAO: new Date().toISOString() });
+        showToast('Status atualizado','O pedido #' + id + ' foi atualizado com sucesso.');
+        await carregarPedidos(false);
+      } catch (error) {
+        console.error('Erro ao alterar status:', error);
+        showToast('Erro ao atualizar','Não foi possível alterar o status: ' + error.message);
+        if (select) select.value = statusAtual;
+      }
+    }
+
+    async function editarPedido(id) {
+      const pedido = obterPedidoAtual(id);
+      if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
+      if (pedidoEstaBloqueado(getPedidoStatus(pedido))) {
+        showToast('🔒 Pedido bloqueado','Este pedido está concluído/fechado e só pode ser consultado.');
+        return;
+      }
+
+      const totalAtual = getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'], '');
+      const obsAtual = getValue(pedido,['OBSERVACAO','observacao'], '');
+      const novoTotal = prompt('Valor total do pedido #' + id + ':', String(totalAtual ?? ''));
+      if (novoTotal === null) return;
+      const novaObs = prompt('Observação do pedido #' + id + ':', String(obsAtual ?? ''));
+      if (novaObs === null) return;
+      const numero = Number(String(novoTotal).replace(',', '.'));
+      if (!Number.isFinite(numero) || numero < 0) {
+        showToast('Valor inválido','Informe um valor numérico válido.');
+        return;
+      }
+      if (!confirm('Confirmar alteração do pedido #' + id + '?')) return;
+
+      try {
+        await patchPedido(id, {
+          VALOR_TOTAL: numero,
+          OBSERVACAO: novaObs,
+          DATA_ATUALIZACAO: new Date().toISOString()
+        });
+        showToast('Pedido atualizado','As alterações foram gravadas com sucesso.');
+        await carregarPedidos(false);
+      } catch (error) {
+        console.error('Erro ao editar pedido:', error);
+        showToast('Erro ao atualizar','Não foi possível salvar: ' + error.message);
+      }
+    }
+
+    async function excluirPedido(id) {
+      const pedido = obterPedidoAtual(id);
+      if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
+      if (pedidoEstaBloqueado(getPedidoStatus(pedido))) {
+        showToast('🔒 Pedido bloqueado','Pedidos concluídos/fechados/finalizados não podem ser excluídos.');
+        return;
+      }
+      if (!confirm('EXCLUIR o pedido #' + id + '?\n\nEsta ação não poderá ser desfeita.')) return;
+      try {
+        await deletePedido(id);
+        showToast('Pedido excluído','O pedido #' + id + ' foi removido.');
+        await carregarPedidos(false);
+      } catch (error) {
+        console.error('Erro ao excluir pedido:', error);
+        showToast('Erro ao excluir','Não foi possível excluir: ' + error.message);
+      }
+    }
+
     function renderPedidosModule() {
-      const c=document.getElementById('moduleContent');
-      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">Pedidos concluídos ficam somente para consulta.</p></div><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ação</th></tr></thead><tbody>'+(pedidosCache.length?pedidosCache.map((p,i)=>{const st=String(getValue(p,['status','STATUS'],'-'));const encerrado=['CONCLUIDO','CONCLUÍDO'].includes(st.toUpperCase());return '<tr><td>#'+escapeHtml(getValue(p,['id','ID','NUMERO_PEDIDO'],'-'))+'</td><td>'+escapeHtml(getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'-'))+'</td><td>'+escapeHtml(formatDateTime(getValue(p,['created_at','DATA'],'')))+'</td><td><span class="status-pill">'+escapeHtml(st)+'</span></td><td>'+escapeHtml(formatMoney(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL'],0)))+'</td><td>'+(encerrado?'<span style="color:var(--cinza)">Encerrado</span>':'<button class="primary-button" onclick="atualizarStatusPedido('+i+')">Alterar status</button>')+'</td></tr>';}).join(''):'<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>')+'</tbody></table></div></div>';
+      const container = document.getElementById('moduleContent');
+      const linhas = pedidosCache.length ? pedidosCache.map(p => {
+        const id = getPedidoId(p);
+        const numero = getValue(p,['NUMERO_PEDIDO','numero_pedido','id','ID'],'-');
+        const clienteId = getValue(p,['CLIENTE_ID','cliente_id'], null);
+        const clienteNome = getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE'],'');
+        const cliente = clienteNome || (clienteId ? 'Cliente #' + clienteId : 'Cliente não informado');
+        const status = getPedidoStatus(p);
+        const bloqueado = pedidoEstaBloqueado(status);
+        const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
+        const total = getValue(p,['VALOR_TOTAL','valor_total','TOTAL','total','valor'],0);
+        const statusEsc = escapeHtml(status);
+        const options = ['NOVO','EM PROCESSAMENTO','EM PRODUÇÃO','SAIU PARA ENTREGA','ENTREGUE','CONCLUÍDO','FECHADO','FINALIZADO']
+          .map(st => '<option value="'+escapeHtml(st)+'" '+(normalizarStatus(st)===normalizarStatus(status)?'selected':'')+'>'+escapeHtml(st)+'</option>').join('');
+        const actions = bloqueado
+          ? '<div class="action-group"><button class="locked-button" type="button" disabled title="Pedido bloqueado">🔒 '+escapeHtml(status)+'</button></div>'
+          : '<div class="action-group">'
+            + '<select id="statusPedido_'+escapeHtml(id)+'" class="status-select">'+options+'</select>'
+            + '<button class="secondary-button" type="button" onclick="atualizarStatusPedido(\''+escapeHtml(id)+'\')">Status</button>'
+            + '<button class="secondary-button" type="button" onclick="editarPedido(\''+escapeHtml(id)+'\')">✏️ Editar</button>'
+            + '<button class="danger-button" type="button" onclick="excluirPedido(\''+escapeHtml(id)+'\')">🗑 Excluir</button>'
+            + '</div>';
+        return '<tr>'
+          + '<td><strong>#'+escapeHtml(numero)+'</strong></td>'
+          + '<td>'+escapeHtml(cliente)+'</td>'
+          + '<td>'+escapeHtml(formatDateTime(data))+'</td>'
+          + '<td><span class="status-pill">'+statusEsc+'</span></td>'
+          + '<td>'+escapeHtml(formatMoney(total))+'</td>'
+          + '<td class="actions-cell">'+actions+'</td>'
+          + '</tr>';
+      }).join('') : '<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>';
+
+      container.innerHTML = '<div class="module-panel">'
+        + '<div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">Pedidos recebidos pela KUKI. Pedidos concluídos, fechados e finalizados ficam somente para consulta.</p></div><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div>'
+        + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>CONCLUÍDOS, FECHADOS, FINALIZADOS ou ENCERRADOS</strong> não podem ser editados, ter o status alterado ou ser excluídos.</div>'
+        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
-
-
-    /* =====================================================
-       STATUS DOS PEDIDOS
-       Correção adicionada sem alterar o carregamento dos pedidos
-    ====================================================== */
-    async function atualizarStatusPedido(index) {
-      const pedido = pedidosCache[Number(index)];
-      if (!pedido) {
-        alert('Pedido não encontrado. Clique em Atualizar e tente novamente.');
-        return;
-      }
-
-      const statusAtual = String(getValue(pedido, ['status','STATUS'], 'NOVO') || 'NOVO');
-      const id = getValue(pedido, ['id','ID'], null);
-      if (id === null || id === undefined || id === '') {
-        alert('Não foi possível identificar o ID deste pedido.');
-        return;
-      }
-
-      if (['CONCLUIDO','CONCLUÍDO'].includes(statusAtual.toUpperCase())) {
-        alert('Este pedido já está concluído e permanece somente para consulta.');
-        return;
-      }
-
-      const opcoes = [
-        'NOVO',
-        'RECEBIDO',
-        'EM PREPARO',
-        'PRONTO',
-        'SAIU PARA ENTREGA',
-        'CONCLUÍDO',
-        'CANCELADO'
-      ];
-
-      const novoStatus = window.prompt(
-        'Digite o novo status do pedido.\n\nOpções sugeridas:\n' + opcoes.join('\n') + '\n\nStatus atual: ' + statusAtual,
-        statusAtual
-      );
-      if (novoStatus === null) return;
-
-      const status = String(novoStatus).trim().toUpperCase();
-      if (!status) {
-        alert('Informe um status válido.');
-        return;
-      }
-      if (status === statusAtual.toUpperCase()) {
-        alert('O pedido já está com esse status.');
-        return;
-      }
-      if (!window.confirm('Confirma alterar o pedido #' + id + ' de "' + statusAtual + '" para "' + status + '"?')) return;
-
-      const camposId = [];
-      if (Object.prototype.hasOwnProperty.call(pedido, 'ID')) camposId.push('ID');
-      if (Object.prototype.hasOwnProperty.call(pedido, 'id')) camposId.push('id');
-      if (!camposId.length) camposId.push('id','ID');
-
-      const tentativas = [];
-      for (const tabela of ['PEDIDOS','pedidos']) {
-        for (const campoId of camposId) {
-          tentativas.push({ tabela, campoId, corpo: { STATUS: status } });
-          tentativas.push({ tabela, campoId, corpo: { status: status } });
-        }
-      }
-
-      let ultimoErro = null;
-      for (const t of tentativas) {
-        try {
-          await restRequest(
-            t.tabela,
-            '?' + encodeURIComponent(t.campoId) + '=eq.' + encodeURIComponent(id),
-            {
-              method: 'PATCH',
-              headers: { 'Prefer': 'return=representation' },
-              body: JSON.stringify(t.corpo)
-            }
-          );
-
-          // Atualiza a lista original do jeito que já funcionava antes.
-          await carregarPedidos(true);
-          if (moduloAtual === 'Pedidos') renderPedidosModule();
-          showToast('Status atualizado!', 'O pedido #' + id + ' agora está: ' + status + '.');
-          return;
-        } catch (erro) {
-          ultimoErro = erro;
-        }
-      }
-
-      console.error('Erro ao alterar status:', ultimoErro);
-      alert('Não foi possível alterar o status. ' + (ultimoErro && ultimoErro.message ? ultimoErro.message : ''));
-    }
-
-    /* =====================================================
-       CRUD DOS MÓDULOS
-    ====================================================== */
-    const CRUD_TABLES = {
-      'Produtos': { table:'PRODUTOS', icon:'🍪', fields:['NOME','DESCRICAO','PRECO','ATIVO'] },
-      'Clientes': { table:'CLIENTES', icon:'👥', fields:['NOME','TELEFONE','WHATSAPP','CEP','ENDERECO','NUMERO','COMPLEMENTO','BAIRRO','CIDADE'] },
-      'Formas de pagamento': { table:'FORMAS_PAGAMENTO', icon:'💳', fields:['NOME','ATIVO'] },
-      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
-    };
-    const crudCache = {};
-    function normKey(k){ return String(k||'').toUpperCase(); }
-    function prettyField(k){ return String(k).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
-    function isSystemField(k){ return ['ID','CREATED_AT','UPDATED_AT'].includes(normKey(k)); }
-    function isBoolField(k){ return ['ATIVO','ABERTO','DISPONIVEL','HABILITADO'].includes(normKey(k)); }
-    function isNumberField(k){ return ['PRECO','VALOR','TOTAL','TAXA','ESTOQUE','QUANTIDADE'].some(x=>normKey(k).includes(x)); }
-    async function carregarCrud(name){
-      const cfg=CRUD_TABLES[name]; if(!cfg) return [];
-      try { const rows=await restRequest(cfg.table,'?select=*&order=id.asc'); crudCache[name]=Array.isArray(rows)?rows:[]; return crudCache[name]; }
-      catch(e){ try { const rows=await restRequest(cfg.table.toLowerCase(),'?select=*'); crudCache[name]=Array.isArray(rows)?rows:[]; return crudCache[name]; } catch(e2){ console.error(e,e2); crudCache[name]=[]; throw e2; } }
-    }
-    function crudFields(name, rows){
-      const cfg=CRUD_TABLES[name]; const set=new Set(cfg.fields);
-      (rows||[]).forEach(r=>Object.keys(r||{}).forEach(k=>{ if(!isSystemField(k)) set.add(k); }));
-      return [...set];
-    }
-    async function renderCrudModule(name){
-      const c = document.getElementById('moduleContent');
-      const cfg = CRUD_TABLES[name];
-      if (!cfg) return;
-      c.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
-      let rows = [];
-      let loadError = '';
-      try { rows = await carregarCrud(name); }
-      catch(e) { console.error(e); loadError = 'Não foi possível carregar os dados desta tabela.'; }
-
-      const fields = crudFields(name, rows);
-      const cols = rows.length ? Object.keys(rows[0]).filter(k => !['created_at','updated_at'].includes(String(k).toLowerCase())) : fields;
-      const nameJs = JSON.stringify(name);
-      const form = fields.map(f => {
-        const type = isBoolField(f) ? 'checkbox' : (isNumberField(f) ? 'number' : 'text');
-        const step = isNumberField(f) ? ' step="0.01"' : '';
-        if (type === 'checkbox') return '<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>';
-        return '<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>';
-      }).join('');
-
-      const header = cols.map(k => '<th>'+escapeHtml(prettyField(k))+'</th>').join('');
-      const body = rows.length ? rows.map((r,i) => {
-        const cells = cols.map(k => '<td>'+escapeHtml(isBoolField(k) ? (r[k] ? 'Sim' : 'Não') : (r[k] ?? ''))+'</td>').join('');
-        const actions = '<td><button class="secondary-button" onclick="editarCrud('+nameJs+','+i+')">Editar</button> <button class="danger-button" onclick="excluirCrud('+nameJs+','+i+')">Excluir</button></td>';
-        return '<tr>'+cells+actions+'</tr>';
-      }).join('') : '<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
-
-      c.innerHTML = '<div class="module-panel">'
-        + '<div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div>'
-        + '<div><button class="primary-button" id="crudNewButton">＋ Novo</button> <button class="secondary-button" id="crudRefreshButton">↻ Atualizar</button></div></div>'
-        + (loadError ? '<div class="empty-module"><p>'+escapeHtml(loadError)+'</p></div>' : '')
-        + '<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm">'+form+'<div class="crud-actions"><button type="submit" class="primary-button">Salvar</button><button type="button" class="secondary-button" onclick="fecharFormularioCrud()">Cancelar</button></div></form></div>'
-        + '<div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>'
-        + '</div>';
-
-      const formEl = document.getElementById('crudForm');
-      if (formEl) formEl.addEventListener('submit', e => salvarCrud(e, name));
-      const newBtn = document.getElementById('crudNewButton');
-      if (newBtn) newBtn.addEventListener('click', () => abrirFormularioCrud(name));
-      const refreshBtn = document.getElementById('crudRefreshButton');
-      if (refreshBtn) refreshBtn.addEventListener('click', () => renderCrudModule(name));
-    }
-    function abrirFormularioCrud(name){ document.getElementById('crudFormBox').style.display='block'; document.getElementById('crudFormTitle').textContent='Novo cadastro'; document.getElementById('crudForm').dataset.editIndex=''; document.getElementById('crudForm').reset(); }
-    function fecharFormularioCrud(){ const b=document.getElementById('crudFormBox'); if(b)b.style.display='none'; }
-    function editarCrud(name,index){ const r=(crudCache[name]||[])[index]; if(!r)return; abrirFormularioCrud(name); document.getElementById('crudFormTitle').textContent='Editar cadastro'; const f=document.getElementById('crudForm'); f.dataset.editIndex=index; Object.keys(r).forEach(k=>{const el=f.elements[k]; if(el){ if(el.type==='checkbox')el.checked=!!r[k]; else el.value=r[k]??''; }}); document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth'}); }
-    function collectCrudForm(form){ const obj={}; Array.from(form.elements).forEach(el=>{ if(!el.name)return; let v=el.type==='checkbox'?el.checked:el.value.trim(); if(v!=='' || el.type==='checkbox') obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v; }); return obj; }
-    async function salvarCrud(e,name){ e.preventDefault(); const cfg=CRUD_TABLES[name], form=e.currentTarget, body=collectCrudForm(form), idx=form.dataset.editIndex; try{ if(idx!==''){ const old=crudCache[name][Number(idx)]; if(!old?.id)throw new Error('Registro sem ID'); await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(old.id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)}); } else { await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)}); } showToast('Sucesso','Cadastro salvo com sucesso.'); await renderCrudModule(name); }catch(err){ console.error(err); alert('Não foi possível salvar. '+(err.message||'')); } }
-    async function excluirCrud(name,index){ const old=(crudCache[name]||[])[index]; if(!old?.id){ alert('Não foi possível identificar o registro.'); return; } if(!confirm('Deseja realmente excluir este cadastro?'))return; const cfg=CRUD_TABLES[name]; try{ await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(old.id),{method:'DELETE'}); showToast('Excluído','Registro removido com sucesso.'); await renderCrudModule(name); }catch(err){ console.error(err); alert('Não foi possível excluir. '+(err.message||'')); } }
 
     function renderPlaceholderModule(name) {
       const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
@@ -1370,87 +1414,92 @@
     }
 
     /* =====================================================
-       ACESSO TEMPORARIAMENTE SEM LOGIN
+       VERIFICAR LOGIN EXISTENTE
     ====================================================== */
-    async function abrirSistemaSemLogin() {
+    async function verificarSessao() {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) { console.error(error); return; }
+      if (data.session) abrirSistema(data.session.user);
+    }
+
+    /* =====================================================
+       LOGIN
+    ====================================================== */
+    loginForm.addEventListener('submit', async function(event) {
+      event.preventDefault();
+      loginError.style.display = 'none';
+      const username = normalizarUsuario(document.getElementById('username').value);
+      const password = document.getElementById('password').value;
+      const email = USUARIOS_LOGIN[username];
+      if (!email) {
+        loginError.textContent = 'Usuário ou senha inválidos.';
+        loginError.style.display = 'block'; return;
+      }
+      loginButton.disabled = true; loginButton.textContent = 'ENTRANDO...';
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({email, password});
+        if (error) throw error;
+        abrirSistema(data.user);
+      } catch(error) {
+        console.error(error); loginError.textContent = 'Usuário ou senha inválidos.'; loginError.style.display = 'block';
+      } finally { loginButton.disabled = false; loginButton.textContent = 'ENTRAR'; }
+    });
+
+    /* =====================================================
+       ABRIR SISTEMA / LOGOUT
+    ====================================================== */
+    async function abrirSistema(user) {
+      loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
-      const nome = document.getElementById('userName');
-      if (nome) nome.textContent = 'KUKI Gerencial';
+      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
-      history.replaceState({kukiGerencial:true, modulo:'Dashboard'}, '', '#dashboard');
-      abrirModulo('Dashboard', false);
       await Promise.all([carregarPedidos(true), carregarClientes()]);
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
     }
 
-    function logout() {
-      if (confirm('Deseja sair da tela atual?')) {
-        abrirModulo('Dashboard', false);
-        window.scrollTo({top:0, behavior:'smooth'});
-      }
+    async function logout() {
+      if (pollingTimer) clearInterval(pollingTimer);
+      pollingTimer = null;
+      await supabaseClient.auth.signOut();
+      appScreen.style.display = 'none'; loginScreen.style.display = 'flex';
+      document.getElementById('username').value = ''; document.getElementById('password').value = '';
     }
 
     /* =====================================================
        MENU
     ====================================================== */
-    function atualizarBotaoVoltar() {
-      const btn = document.getElementById('mobileBackButton');
-      if (btn) btn.classList.toggle('visible', moduloAtual !== 'Dashboard');
-    }
-
-    function voltarTelaAnterior() {
-      if (moduloAtual !== 'Dashboard') {
-        abrirModulo('Dashboard', false);
-        if (window.history.state && window.history.state.kukiGerencial) history.replaceState({kukiGerencial:true, modulo:'Dashboard'}, '', '#dashboard');
-      }
-    }
-
     function selectMenu(button, name) {
       document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
-      button.classList.add('active'); abrirModulo(name, true);
+      button.classList.add('active'); abrirModulo(name);
     }
-    function abrirDashboardModulo(name) {
-      selectMenuByName(name);
-    }
-
     function selectMenuByName(name) {
       document.querySelectorAll('.menu button').forEach(botao => {
         if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
       });
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
-    function abrirModulo(name, registrarHistorico=false) {
+    function abrirModulo(name) {
       moduloAtual = name;
-      if (registrarHistorico) {
-        history.pushState({kukiGerencial:true, modulo:name}, '', '#' + encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-')));
-      }
-      atualizarBotaoVoltar();
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
-      document.getElementById('pageTitle').textContent = name === 'Dashboard' ? 'Bem-vindo ao KUKI Gerencial! 💰' : name;
+      document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Tenha uma visão completa da sua loja e gerencie tudo em um só lugar.','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
       dashboard.style.display='none'; moduleContent.style.display='block';
       if (name === 'Horários') renderHorariosModule();
       else if (name === 'Pedidos') renderPedidosModule();
-      else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
-
-
-    window.addEventListener('popstate', function(event) {
-      const modulo = event.state && event.state.kukiGerencial ? event.state.modulo : 'Dashboard';
-      abrirModulo(modulo || 'Dashboard', false);
-    });
 
     /* =====================================================
        INICIAR
     ====================================================== */
-    abrirSistemaSemLogin();
+    // Nesta versão o login está temporariamente desativado.
+    abrirSistema({ email: 'admin@kuki.local' });
 
   </script>
 
