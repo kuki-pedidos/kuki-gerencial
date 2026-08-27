@@ -1,36 +1,25 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
   <title>KUKI Gerencial</title>
 
-  <!-- SUPABASE -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-
     :root {
       --vermelho: #a9001d;
       --vermelho-escuro: #820016;
       --vermelho-claro: #c31231;
-
       --creme: #f8eee4;
       --creme-escuro: #ead7c4;
-
       --branco: #ffffff;
       --texto: #352c2c;
       --cinza: #777777;
-
       --borda: #e8ddd3;
       --fundo: #f7f3ef;
-
       --verde: #1f9d55;
     }
 
@@ -41,896 +30,787 @@
     }
 
     body {
-      font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
+      font-family: Arial, Helvetica, sans-serif;
       background: var(--fundo);
       color: var(--texto);
     }
 
     button,
-    input,
-    select,
-    textarea {
+    input {
       font-family: inherit;
     }
 
+    /* =========================
+       LOGIN
+    ========================= */
 
-    /* ========================================
+    #loginScreen {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 25px;
+      background:
+        radial-gradient(circle at top left, #f9e7d6, transparent 35%),
+        linear-gradient(135deg, #fff8f2, #ead8c8);
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(255,255,255,0.97);
+      border-radius: 28px;
+      padding: 42px;
+      box-shadow: 0 20px 60px rgba(80, 30, 30, 0.16);
+      border: 1px solid var(--borda);
+    }
+
+    .login-logo {
+      display: block;
+      width: 210px;
+      max-width: 100%;
+      margin: 0 auto 10px;
+    }
+
+    .login-title {
+      text-align: center;
+      color: var(--vermelho);
+      font-size: 30px;
+      font-weight: 800;
+      margin-top: 5px;
+    }
+
+    .login-subtitle {
+      text-align: center;
+      color: var(--cinza);
+      margin: 10px 0 30px;
+      font-size: 15px;
+    }
+
+    .field {
+      margin-bottom: 18px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--texto);
+    }
+
+    .field input {
+      width: 100%;
+      height: 52px;
+      border-radius: 13px;
+      border: 1px solid var(--borda);
+      padding: 0 16px;
+      font-size: 16px;
+      outline: none;
+      background: #fff;
+      transition: 0.2s;
+    }
+
+    .field input:focus {
+      border-color: var(--vermelho);
+      box-shadow: 0 0 0 3px rgba(169, 0, 29, 0.1);
+    }
+
+    .login-button {
+      width: 100%;
+      height: 54px;
+      border: none;
+      border-radius: 13px;
+      background: var(--vermelho);
+      color: white;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: 0.2s;
+    }
+
+    .login-button:hover {
+      background: var(--vermelho-escuro);
+      transform: translateY(-1px);
+    }
+
+    .login-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .login-error {
+      display: none;
+      margin-top: 18px;
+      background: #fff0f1;
+      border: 1px solid #f3c4ca;
+      color: #a9001d;
+      padding: 13px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    /* =========================
        SISTEMA
-    ======================================== */
+    ========================= */
 
     #appScreen {
+      display: none;
       min-height: 100vh;
     }
 
-
-    /* ========================================
-       MENU LATERAL
-    ======================================== */
-
     .sidebar {
-
       position: fixed;
-
-      left: 0;
-      top: 0;
-
       width: 260px;
       height: 100vh;
-
+      left: 0;
+      top: 0;
       background: var(--vermelho);
-
       color: white;
-
       padding: 22px 15px;
-
       display: flex;
       flex-direction: column;
-
       z-index: 1000;
-
-      box-shadow:
-        3px 0 20px
-        rgba(0,0,0,0.08);
+      box-shadow: 3px 0 20px rgba(0,0,0,0.08);
     }
 
-
-    /* LOGO */
-
     .sidebar-logo {
-
-      padding:
-        10px
-        15px
-        28px;
-
+      padding: 10px 15px 28px;
       text-align: center;
     }
 
     .sidebar-logo img {
-
       width: 160px;
-
       max-width: 100%;
-
       background: #fff8f2;
-
       border-radius: 14px;
-
       padding: 8px;
     }
 
     .sidebar-title {
-
       font-size: 12px;
-
       letter-spacing: 2px;
-
       font-weight: 700;
-
       margin-top: 8px;
-
       opacity: 0.85;
     }
 
-
-    /* MENU */
-
     .menu {
-
       display: flex;
-
       flex-direction: column;
-
       gap: 7px;
     }
 
     .menu button {
-
       width: 100%;
-
       border: none;
-
       background: transparent;
-
       color: white;
-
       text-align: left;
-
-      padding:
-        14px
-        15px;
-
+      padding: 14px 15px;
       border-radius: 11px;
-
       cursor: pointer;
-
       font-size: 15px;
-
       font-weight: 600;
-
       transition: 0.2s;
     }
 
     .menu button:hover,
     .menu button.active {
-
-      background:
-        rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.18);
     }
 
     .menu button span {
-
       display: inline-block;
-
       width: 30px;
-
       font-size: 19px;
     }
 
+    .sidebar-bottom {
+      margin-top: auto;
+      padding-top: 20px;
+    }
 
-    /* ========================================
-       CONTEÚDO PRINCIPAL
-    ======================================== */
+    .user-info {
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .user-label {
+      font-size: 11px;
+      opacity: 0.75;
+      margin-bottom: 5px;
+    }
+
+    .user-email {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .logout-button {
+      width: 100%;
+      border: none;
+      background: rgba(0,0,0,0.18);
+      color: white;
+      padding: 13px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .logout-button:hover {
+      background: rgba(0,0,0,0.28);
+    }
+
+    /* =========================
+       CONTEÚDO
+    ========================= */
 
     .main {
-
       margin-left: 260px;
-
       min-height: 100vh;
-
       padding: 30px;
     }
 
-
-    /* ========================================
-       CABEÇALHO
-    ======================================== */
-
     .topbar {
-
       display: flex;
-
       justify-content: space-between;
-
       align-items: center;
-
       margin-bottom: 30px;
-
       gap: 20px;
     }
 
     .page-title h1 {
-
       font-size: 30px;
-
       color: var(--vermelho);
-
       margin-bottom: 5px;
     }
 
     .page-title p {
-
       color: var(--cinza);
-
       font-size: 14px;
     }
 
     .date-box {
-
       background: white;
-
-      border:
-        1px solid
-        var(--borda);
-
-      padding:
-        12px
-        17px;
-
+      border: 1px solid var(--borda);
+      padding: 12px 17px;
       border-radius: 12px;
-
       font-size: 13px;
-
       color: var(--cinza);
     }
 
-
-    /* ========================================
-       MOBILE HEADER
-    ======================================== */
-
-    .mobile-header {
-
-      display: none;
-    }
-
-
-    /* ========================================
-       DASHBOARD
-    ======================================== */
-
     .dashboard {
-
       display: block;
     }
 
-    .welcome {
-
-      background:
-
-        linear-gradient(
-          135deg,
-          var(--vermelho),
-          var(--vermelho-escuro)
-        );
-
-      color: white;
-
-      border-radius: 18px;
-
-      padding: 25px;
-
-      margin-bottom: 25px;
-    }
-
-    .welcome h2 {
-
-      font-size: 24px;
-
-      margin-bottom: 7px;
-    }
-
-    .welcome p {
-
-      opacity: 0.88;
-
-      font-size: 14px;
-
-      line-height: 1.5;
-    }
-
-
-    /* ========================================
-       CARDS
-    ======================================== */
-
     .cards {
-
       display: grid;
-
-      grid-template-columns:
-        repeat(
-          4,
-          minmax(180px, 1fr)
-        );
-
+      grid-template-columns: repeat(4, minmax(180px, 1fr));
       gap: 18px;
-
       margin-bottom: 25px;
     }
 
     .card {
-
       background: white;
-
       border-radius: 18px;
-
       padding: 22px;
-
-      border:
-        1px solid
-        var(--borda);
-
-      box-shadow:
-        0 5px 18px
-        rgba(50,30,20,0.04);
+      border: 1px solid var(--borda);
+      box-shadow: 0 5px 18px rgba(50, 30, 20, 0.04);
     }
 
     .card-icon {
-
       width: 45px;
       height: 45px;
-
       border-radius: 13px;
-
       display: flex;
-
       align-items: center;
-
       justify-content: center;
-
-      background:
-        var(--creme);
-
+      background: var(--creme);
       font-size: 22px;
-
       margin-bottom: 15px;
     }
 
     .card-label {
-
       font-size: 13px;
-
-      color:
-        var(--cinza);
-
+      color: var(--cinza);
       font-weight: 600;
     }
 
     .card-value {
-
       font-size: 29px;
-
       font-weight: 800;
-
-      color:
-        var(--texto);
-
+      color: var(--texto);
       margin-top: 5px;
     }
 
-
-    /* ========================================
-       PAINÉIS
-    ======================================== */
-
     .content-grid {
-
       display: grid;
-
-      grid-template-columns:
-        1.5fr
-        1fr;
-
+      grid-template-columns: 1.5fr 1fr;
       gap: 20px;
     }
 
     .panel {
-
       background: white;
-
-      border:
-        1px solid
-        var(--borda);
-
+      border: 1px solid var(--borda);
       border-radius: 18px;
-
       padding: 24px;
     }
 
     .panel-header {
-
       display: flex;
-
       align-items: center;
-
       justify-content: space-between;
-
       margin-bottom: 20px;
     }
 
     .panel h2 {
-
       font-size: 19px;
-
-      color:
-        var(--texto);
+      color: var(--texto);
     }
 
     .panel-link {
-
       border: none;
-
       background: none;
-
-      color:
-        var(--vermelho);
-
+      color: var(--vermelho);
       cursor: pointer;
-
       font-weight: 700;
     }
 
-
-    /* ========================================
-       ESTADO VAZIO
-    ======================================== */
-
     .empty-state {
-
       text-align: center;
-
-      padding:
-        45px
-        20px;
-
-      color:
-        var(--cinza);
+      padding: 45px 20px;
+      color: var(--cinza);
     }
 
     .empty-state-icon {
-
       font-size: 45px;
-
       margin-bottom: 12px;
     }
 
+    .welcome {
+      background:
+        linear-gradient(135deg, var(--vermelho), var(--vermelho-escuro));
+      color: white;
+      border-radius: 18px;
+      padding: 25px;
+      margin-bottom: 25px;
+    }
 
-    /* ========================================
-       BOTÕES DE ACESSO RÁPIDO
-    ======================================== */
+    .welcome h2 {
+      font-size: 24px;
+      margin-bottom: 7px;
+    }
 
-    .quick-button {
-
-      width: 100%;
-
-      padding: 15px;
-
-      border:
-        1px solid
-        var(--borda);
-
-      background: white;
-
-      border-radius: 12px;
-
-      cursor: pointer;
-
-      text-align: left;
-
-      font-weight: bold;
-
+    .welcome p {
+      opacity: 0.88;
       font-size: 14px;
-
-      transition: 0.2s;
+      line-height: 1.5;
     }
 
-    .quick-button:hover {
-
-      border-color:
-        var(--vermelho);
-
-      transform:
-        translateY(-1px);
+    .mobile-header {
+      display: none;
     }
 
 
-    /* ========================================
+
+    /* =========================
+       BEM-VINDO / NOTIFICAÇÕES / MÓDULOS
+    ========================= */
+    .sidebar-welcome {
+      margin: 6px 6px 22px;
+      padding: 18px 15px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.14);
+      border: 1px solid rgba(255,255,255,0.16);
+    }
+    .sidebar-welcome strong { display:block; font-size:18px; margin-bottom:6px; }
+    .sidebar-welcome span { font-size:12px; line-height:1.45; opacity:.88; }
+
+    .notification-button {
+      border: 1px solid var(--borda);
+      background: white;
+      width: 46px;
+      height: 46px;
+      border-radius: 13px;
+      cursor: pointer;
+      position: relative;
+      font-size: 20px;
+    }
+    .notification-badge {
+      position:absolute; right:-5px; top:-5px;
+      min-width:20px; height:20px; padding:0 5px;
+      border-radius:20px; background:var(--vermelho); color:#fff;
+      font-size:11px; font-weight:800; display:none;
+      align-items:center; justify-content:center;
+      border:2px solid #fff;
+    }
+    .topbar-actions { display:flex; align-items:center; gap:12px; }
+
+    .toast-container {
+      position:fixed; right:24px; top:24px; z-index:5000;
+      display:flex; flex-direction:column; gap:10px; max-width:360px;
+    }
+    .toast {
+      background:#fff; border:1px solid var(--borda); border-left:5px solid var(--vermelho);
+      border-radius:14px; padding:14px 16px; box-shadow:0 14px 35px rgba(50,20,20,.18);
+      animation:slideIn .25s ease;
+    }
+    .toast strong { display:block; color:var(--vermelho); margin-bottom:4px; }
+    .toast p { color:var(--texto); font-size:13px; }
+    @keyframes slideIn { from {opacity:0; transform:translateX(30px)} to {opacity:1; transform:none} }
+
+    .module-panel { background:#fff; border:1px solid var(--borda); border-radius:18px; padding:24px; }
+    .module-toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:18px; flex-wrap:wrap; }
+    .primary-button { border:none; background:var(--vermelho); color:#fff; padding:11px 16px; border-radius:10px; font-weight:800; cursor:pointer; }
+    .primary-button:hover { background:var(--vermelho-escuro); }
+    .table-wrap { overflow-x:auto; }
+    .data-table { width:100%; border-collapse:collapse; min-width:680px; }
+    .data-table th, .data-table td { padding:13px 12px; border-bottom:1px solid var(--borda); text-align:left; font-size:14px; }
+    .data-table th { color:var(--cinza); font-size:12px; text-transform:uppercase; letter-spacing:.3px; }
+    .time-input { border:1px solid var(--borda); border-radius:9px; padding:8px; color:var(--texto); }
+    .switch { position:relative; display:inline-block; width:48px; height:26px; }
+    .switch input { opacity:0; width:0; height:0; }
+    .slider { position:absolute; inset:0; background:#bbb; border-radius:30px; cursor:pointer; transition:.2s; }
+    .slider:before { content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+    .switch input:checked + .slider { background:var(--verde); }
+    .switch input:checked + .slider:before { transform:translateX(22px); }
+    .status-pill { display:inline-block; padding:5px 9px; border-radius:20px; background:var(--creme); color:var(--texto); font-size:12px; font-weight:700; }
+    .recent-orders-list { display:grid; gap:10px; }
+    .recent-order { display:flex; justify-content:space-between; gap:12px; padding:13px; border:1px solid var(--borda); border-radius:12px; }
+    .recent-order strong { display:block; margin-bottom:4px; }
+    .recent-order small { color:var(--cinza); }
+    .empty-module { text-align:center; padding:50px 20px; color:var(--cinza); }
+
+    /* =========================
        RESPONSIVO
-    ======================================== */
+    ========================= */
 
-    @media (
-      max-width: 1100px
-    ) {
-
+    @media (max-width: 1100px) {
       .cards {
-
-        grid-template-columns:
-          repeat(2, 1fr);
+        grid-template-columns: repeat(2, 1fr);
       }
 
       .content-grid {
-
-        grid-template-columns:
-          1fr;
+        grid-template-columns: 1fr;
       }
-
     }
 
-
-    @media (
-      max-width: 760px
-    ) {
-
+    @media (max-width: 760px) {
       .sidebar {
-
         display: none;
       }
 
       .main {
-
         margin-left: 0;
-
-        padding:
-          20px
-          15px;
+        padding: 20px 15px;
       }
 
       .mobile-header {
-
         display: flex;
-
         align-items: center;
-
-        justify-content: center;
-
-        background:
-          var(--vermelho);
-
-        padding:
-          13px
-          15px;
-
+        justify-content: space-between;
+        background: var(--vermelho);
+        padding: 13px 15px;
         border-radius: 15px;
-
         margin-bottom: 20px;
       }
 
       .mobile-header img {
-
-        width: 120px;
-
-        background:
-          #fff8f2;
-
+        width: 110px;
+        background: #fff8f2;
         padding: 5px;
-
         border-radius: 8px;
       }
 
-      .topbar {
+      .mobile-header button {
+        border: none;
+        background: rgba(255,255,255,0.16);
+        color: white;
+        padding: 9px 12px;
+        border-radius: 8px;
+        font-weight: 700;
+      }
 
+      .topbar {
         display: block;
       }
 
+      .topbar-actions { margin-top:15px; justify-content:space-between; }
+      .toast-container { right:12px; left:12px; top:12px; max-width:none; }
+
       .date-box {
-
         margin-top: 15px;
-
         display: inline-block;
       }
 
       .cards {
-
-        grid-template-columns:
-          1fr 1fr;
-
+        grid-template-columns: 1fr 1fr;
         gap: 12px;
       }
 
       .card {
-
         padding: 16px;
       }
 
       .card-value {
-
         font-size: 23px;
       }
 
+      .login-card {
+        padding: 30px 22px;
+      }
+
+      .login-title {
+        font-size: 26px;
+      }
     }
 
-
-    @media (
-      max-width: 430px
-    ) {
-
+    @media (max-width: 430px) {
       .cards {
-
-        grid-template-columns:
-          1fr;
+        grid-template-columns: 1fr;
       }
 
       .main {
-
         padding: 15px;
       }
-
     }
-
   </style>
-
 </head>
-
 
 <body>
 
+  <!-- =========================
+       LOGIN
+  ========================== -->
 
-  <!-- ======================================
+  <section id="loginScreen">
+
+    <div class="login-card">
+
+      <img
+        src="logo-kuki-transparente.png"
+        alt="KUKI Cookies"
+        class="login-logo"
+      >
+
+      <h1 class="login-title">KUKI GERENCIAL</h1>
+
+      <p class="login-subtitle">
+        Acesse o sistema de gerenciamento da loja
+      </p>
+
+      <form id="loginForm">
+
+        <div class="field">
+          <label for="username">Usuário</label>
+          <input
+            type="text"
+            id="username"
+            placeholder="Digite seu usuário"
+            required
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          >
+        </div>
+
+        <div class="field">
+          <label for="password">Senha</label>
+          <input
+            type="password"
+            id="password"
+            placeholder="Digite sua senha"
+            required
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button
+          type="submit"
+          class="login-button"
+          id="loginButton"
+        >
+          ENTRAR
+        </button>
+
+      </form>
+
+      <div id="loginError" class="login-error"></div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =========================
        SISTEMA
-  ======================================= -->
+  ========================== -->
 
   <section id="appScreen">
 
-
-    <!-- ======================================
-         MENU LATERAL
-    ======================================= -->
+    <!-- MENU LATERAL -->
 
     <aside class="sidebar">
 
-
-      <div class="sidebar-logo">
-
-        <img
-          src="logo-kuki-transparente.png"
-          alt="KUKI Cookies"
-        >
-
-        <div class="sidebar-title">
-          GERENCIAL
-        </div>
-
+      <div class="sidebar-welcome">
+        <strong>Bem-vindo! 🍪</strong>
+        <span>Gerencie sua KUKI, acompanhe os pedidos e mantenha a loja sempre atualizada.</span>
       </div>
-
 
       <nav class="menu">
 
-
-        <button
-          class="active"
-          onclick="selectMenu(this, 'Dashboard')"
-        >
-          <span>📊</span>
-          Dashboard
+        <button class="active" onclick="selectMenu(this, 'Dashboard')">
+          <span>📊</span> Dashboard
         </button>
 
-
-        <button
-          onclick="selectMenu(this, 'Pedidos')"
-        >
-          <span>📦</span>
-          Pedidos
+        <button onclick="selectMenu(this, 'Pedidos')">
+          <span>📦</span> Pedidos
         </button>
 
-
-        <button
-          onclick="selectMenu(this, 'Produtos')"
-        >
-          <span>🍪</span>
-          Produtos
+        <button onclick="selectMenu(this, 'Produtos')">
+          <span>🍪</span> Produtos
         </button>
 
-
-        <button
-          onclick="selectMenu(this, 'Clientes')"
-        >
-          <span>👥</span>
-          Clientes
+        <button onclick="selectMenu(this, 'Clientes')">
+          <span>👥</span> Clientes
         </button>
 
-
-        <button
-          onclick="selectMenu(this, 'Formas de pagamento')"
-        >
-          <span>💳</span>
-          Pagamentos
+        <button onclick="selectMenu(this, 'Formas de pagamento')">
+          <span>💳</span> Pagamentos
         </button>
 
-
-        <button
-          onclick="selectMenu(this, 'Formas de entrega')"
-        >
-          <span>🛵</span>
-          Entregas
+        <button onclick="selectMenu(this, 'Formas de entrega')">
+          <span>🛵</span> Entregas
         </button>
 
-
-        <button
-          onclick="selectMenu(this, 'Horários')"
-        >
-          <span>🕐</span>
-          Horários
+        <button onclick="selectMenu(this, 'Horários')">
+          <span>🕐</span> Horários
         </button>
 
-
-        <button
-          onclick="selectMenu(this, 'Configurações')"
-        >
-          <span>⚙️</span>
-          Configurações
+        <button onclick="selectMenu(this, 'Configurações')">
+          <span>⚙️</span> Configurações
         </button>
-
 
       </nav>
 
+      <div class="sidebar-bottom">
+
+        <div class="user-info">
+          <div class="user-label">USUÁRIO LOGADO</div>
+          <div class="user-email" id="userName">
+            Usuário
+          </div>
+        </div>
+
+        <button
+          class="logout-button"
+          onclick="logout()"
+        >
+          🚪 SAIR
+        </button>
+
+      </div>
 
     </aside>
 
 
-
-    <!-- ======================================
-         CONTEÚDO
-    ======================================= -->
+    <!-- CONTEÚDO -->
 
     <main class="main">
-
-
-      <!-- MOBILE -->
 
       <div class="mobile-header">
 
         <img
           src="logo-kuki-transparente.png"
-          alt="KUKI Cookies"
+          alt="KUKI"
         >
+
+        <button onclick="logout()">
+          SAIR
+        </button>
 
       </div>
 
 
-
-      <!-- CABEÇALHO -->
-
       <div class="topbar">
 
-
         <div class="page-title">
-
-          <h1 id="pageTitle">
-            Dashboard
-          </h1>
+          <h1 id="pageTitle">Dashboard</h1>
 
           <p id="pageSubtitle">
             Visão geral da sua loja
           </p>
-
         </div>
 
-
-        <div
-          class="date-box"
-          id="currentDate"
-        ></div>
-
+        <div class="topbar-actions">
+          <div class="date-box" id="currentDate"></div>
+          <button class="notification-button" type="button" onclick="marcarNotificacoesLidas()" title="Novos pedidos">🔔<span class="notification-badge" id="notificationBadge">0</span></button>
+        </div>
 
       </div>
 
 
-
-      <!-- ======================================
-           DASHBOARD
-      ======================================= -->
+      <!-- DASHBOARD -->
 
       <div id="dashboardContent">
 
-
         <div class="welcome">
 
-          <h2>
-            Bem-vindo ao KUKI Gerencial! 🍪
-          </h2>
+          <h2>Bem-vindo ao KUKI Gerencial! 🍪</h2>
 
           <p>
-            Aqui você poderá acompanhar os pedidos
-            e gerenciar todos os dados da sua loja.
+            Aqui você poderá acompanhar os pedidos e gerenciar
+            todos os dados da sua loja.
           </p>
 
         </div>
 
 
-
-        <!-- CARDS -->
-
         <div class="cards">
 
-
           <div class="card">
-
-            <div class="card-icon">
-              📦
-            </div>
-
-            <div class="card-label">
-              PEDIDOS HOJE
-            </div>
-
-            <div
-              class="card-value"
-              id="pedidosHoje"
-            >
-              0
-            </div>
-
+            <div class="card-icon">📦</div>
+            <div class="card-label">PEDIDOS HOJE</div>
+            <div class="card-value" id="pedidosHoje">0</div>
           </div>
 
-
-
           <div class="card">
-
-            <div class="card-icon">
-              🔔
-            </div>
-
-            <div class="card-label">
-              PEDIDOS NOVOS
-            </div>
-
-            <div
-              class="card-value"
-              id="pedidosNovos"
-            >
-              0
-            </div>
-
+            <div class="card-icon">🔔</div>
+            <div class="card-label">PEDIDOS NOVOS</div>
+            <div class="card-value" id="pedidosNovos">0</div>
           </div>
 
-
-
           <div class="card">
-
-            <div class="card-icon">
-              💰
-            </div>
-
-            <div class="card-label">
-              FATURAMENTO HOJE
-            </div>
-
-            <div
-              class="card-value"
-              id="faturamentoHoje"
-            >
-              R$ 0,00
-            </div>
-
+            <div class="card-icon">💰</div>
+            <div class="card-label">FATURAMENTO HOJE</div>
+            <div class="card-value" id="faturamentoHoje">R$ 0,00</div>
           </div>
 
-
-
           <div class="card">
-
-            <div class="card-icon">
-              👥
-            </div>
-
-            <div class="card-label">
-              CLIENTES
-            </div>
-
-            <div
-              class="card-value"
-              id="totalClientes"
-            >
-              0
-            </div>
-
+            <div class="card-icon">👥</div>
+            <div class="card-label">CLIENTES</div>
+            <div class="card-value" id="totalClientes">0</div>
           </div>
-
 
         </div>
 
 
-
-        <!-- PAINÉIS -->
-
         <div class="content-grid">
-
-
-          <!-- PEDIDOS RECENTES -->
 
           <div class="panel">
 
-
             <div class="panel-header">
-
-              <h2>
-                Pedidos recentes
-              </h2>
-
+              <h2>Pedidos recentes</h2>
 
               <button
                 class="panel-link"
@@ -938,155 +818,94 @@
               >
                 Ver todos
               </button>
-
-
             </div>
 
-
-            <div
-              class="empty-state"
-              id="pedidosRecentes"
-            >
-
-              <div class="empty-state-icon">
-                📦
+            <div id="recentOrders" class="recent-orders-list">
+              <div class="empty-state">
+                <div class="empty-state-icon">📦</div>
+                <strong>Carregando pedidos...</strong>
               </div>
-
-              <strong>
-                Carregando pedidos...
-              </strong>
-
-              <p
-                style="margin-top:8px;"
-              >
-                Em breve os pedidos do Supabase
-                aparecerão aqui.
-              </p>
-
             </div>
-
 
           </div>
 
 
-
-          <!-- ACESSO RÁPIDO -->
-
           <div class="panel">
 
-
             <div class="panel-header">
-
-              <h2>
-                Acesso rápido
-              </h2>
-
+              <h2>Acesso rápido</h2>
             </div>
 
-
-            <div
-              style="
-                display:grid;
-                gap:12px;
-              "
-            >
-
+            <div style="display:grid; gap:12px;">
 
               <button
-                class="quick-button"
                 onclick="selectMenuByName('Pedidos')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
               >
                 📦 Gerenciar pedidos
               </button>
 
-
               <button
-                class="quick-button"
                 onclick="selectMenuByName('Produtos')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
               >
                 🍪 Gerenciar produtos
               </button>
 
-
               <button
-                class="quick-button"
                 onclick="selectMenuByName('Horários')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
               >
                 🕐 Alterar horários
               </button>
 
-
             </div>
-
 
           </div>
 
-
         </div>
-
 
       </div>
 
 
-
-      <!-- ======================================
-           ÁREA DOS MÓDULOS
-      ======================================= -->
-
-      <div
-        id="moduleContent"
-        style="display:none;"
-      >
-
-
-        <div class="panel">
-
-
-          <div class="empty-state">
-
-
-            <div
-              class="empty-state-icon"
-              id="moduleIcon"
-            >
-              ⚙️
-            </div>
-
-
-            <h2 id="moduleTitle">
-              Módulo
-            </h2>
-
-
-            <p
-              id="moduleDescription"
-              style="margin-top:10px;"
-            >
-              Este módulo será conectado ao Supabase.
-            </p>
-
-
-          </div>
-
-
-        </div>
-
-
-      </div>
-
-
+      <!-- ÁREA DE OUTROS MÓDULOS -->
+      <div id="moduleContent" style="display:none;"></div>
     </main>
-
 
   </section>
 
 
+  <div class="toast-container" id="toastContainer"></div>
 
   <script>
 
-    /* ========================================
+    /* =====================================================
        SUPABASE
-    ======================================== */
+    ====================================================== */
 
     const SUPABASE_URL =
       'https://delakuvbbayovkpxemgm.supabase.co';
@@ -1094,285 +913,409 @@
     const SUPABASE_KEY =
       'sb_publishable_FqBkrIbKuNSmh78DidDpow_30o7P4kP';
 
-
     const supabaseClient =
       window.supabase.createClient(
         SUPABASE_URL,
         SUPABASE_KEY
       );
 
+    /*
+      =====================================================
+      USUÁRIOS DE LOGIN
+      =====================================================
+
+      O usuário informa somente o nome de usuário na tela.
+      O e-mail continua sendo usado internamente pelo Supabase Auth.
+
+      Para cadastrar outro usuário futuramente, adicione:
+      'novo_usuario': 'email-do-usuario@dominio.com',
+    */
+    const USUARIOS_LOGIN = {
+      'admin': 'robesousa@gmail.com',
+       'robesousa': 'robesousa@gmail.com'
+    };
+
+    function normalizarUsuario(usuario) {
+      return (usuario || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
+    }
+
+    function obterNomeUsuarioPorEmail(email) {
+      const usuario = Object.keys(USUARIOS_LOGIN).find(function(nome) {
+        return USUARIOS_LOGIN[nome] === email;
+      });
+
+      return usuario || 'Usuário';
+    }
 
 
-    /* ========================================
-       DATA
-    ======================================== */
+    /* =====================================================
+       ELEMENTOS
+    ====================================================== */
+
+    const loginScreen =
+      document.getElementById('loginScreen');
+
+    const appScreen =
+      document.getElementById('appScreen');
+
+    const loginForm =
+      document.getElementById('loginForm');
+
+    const loginButton =
+      document.getElementById('loginButton');
+
+    const loginError =
+      document.getElementById('loginError');
+
+
+    /* =====================================================
+       ESTADO / DADOS
+    ====================================================== */
+    let pedidosCache = [];
+    let horariosCache = [];
+    let ultimoPedidoChave = null;
+    let notificacoesPendentes = 0;
+    let pollingTimer = null;
+    let moduloAtual = 'Dashboard';
 
     function atualizarData() {
-
-      const agora =
-        new Date();
-
-
-      document
-        .getElementById('currentDate')
-        .textContent =
-
-        agora.toLocaleDateString(
-          'pt-BR',
-          {
-            weekday: 'long',
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric'
-          }
-        );
-
+      const agora = new Date();
+      document.getElementById('currentDate').textContent = agora.toLocaleDateString('pt-BR', {
+        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+      });
     }
-
-
     atualizarData();
 
-
-
-    /* ========================================
-       MENU
-    ======================================== */
-
-    function selectMenu(
-      button,
-      name
-    ) {
-
-      document
-        .querySelectorAll('.menu button')
-        .forEach(
-          function(item) {
-
-            item
-              .classList
-              .remove('active');
-
-          }
-        );
-
-
-      button
-        .classList
-        .add('active');
-
-
-      abrirModulo(name);
-
-    }
-
-
-
-    function selectMenuByName(
-      name
-    ) {
-
-      const botoes =
-        document.querySelectorAll(
-          '.menu button'
-        );
-
-
-      botoes.forEach(
-        function(botao) {
-
-          const texto =
-            botao.textContent
-              .replace(/\s+/g, ' ')
-              .trim();
-
-
-          if (
-            texto.includes(name)
-          ) {
-
-            selectMenu(
-              botao,
-              name
-            );
-
-          }
-
-        }
-      );
-
-    }
-
-
-
-    /* ========================================
-       ABRIR MÓDULO
-    ======================================== */
-
-    function abrirModulo(
-      name
-    ) {
-
-      const dashboard =
-        document.getElementById(
-          'dashboardContent'
-        );
-
-
-      const moduleContent =
-        document.getElementById(
-          'moduleContent'
-        );
-
-
-      document
-        .getElementById('pageTitle')
-        .textContent =
-        name;
-
-
-
-      const subtitles = {
-
-
-        'Dashboard':
-          'Visão geral da sua loja',
-
-
-        'Pedidos':
-          'Acompanhe e gerencie todos os pedidos',
-
-
-        'Produtos':
-          'Cadastre e gerencie os produtos da KUKI',
-
-
-        'Clientes':
-          'Consulte os clientes cadastrados',
-
-
-        'Formas de pagamento':
-          'Gerencie as opções de pagamento',
-
-
-        'Formas de entrega':
-          'Gerencie as formas de entrega',
-
-
-        'Horários':
-          'Defina os horários de funcionamento da loja',
-
-
-        'Configurações':
-          'Configurações gerais do sistema'
-
-      };
-
-
-      document
-        .getElementById('pageSubtitle')
-        .textContent =
-        subtitles[name] || '';
-
-
-
-      /* DASHBOARD */
-
-      if (
-        name === 'Dashboard'
-      ) {
-
-        dashboard.style.display =
-          'block';
-
-
-        moduleContent.style.display =
-          'none';
-
-
-        return;
-
+    function getValue(obj, names, fallback='') {
+      if (!obj) return fallback;
+      const map = {};
+      Object.keys(obj).forEach(k => map[k.toLowerCase()] = k);
+      for (const name of names) {
+        const key = map[name.toLowerCase()];
+        if (key !== undefined && obj[key] !== null && obj[key] !== undefined) return obj[key];
       }
-
-
-
-      /* OUTROS MÓDULOS */
-
-      dashboard.style.display =
-        'none';
-
-
-      moduleContent.style.display =
-        'block';
-
-
-
-      document
-        .getElementById('moduleTitle')
-        .textContent =
-        name;
-
-
-
-      const icons = {
-
-
-        'Pedidos':
-          '📦',
-
-
-        'Produtos':
-          '🍪',
-
-
-        'Clientes':
-          '👥',
-
-
-        'Formas de pagamento':
-          '💳',
-
-
-        'Formas de entrega':
-          '🛵',
-
-
-        'Horários':
-          '🕐',
-
-
-        'Configurações':
-          '⚙️'
-
-      };
-
-
-      document
-        .getElementById('moduleIcon')
-        .textContent =
-        icons[name] || '⚙️';
-
-
-
-      document
-        .getElementById('moduleDescription')
-        .textContent =
-        'Este módulo será conectado ao Supabase na próxima etapa.';
-
+      return fallback;
     }
 
+    async function restRequest(table, path='', options={}) {
+      const headers = {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      };
+      const url = SUPABASE_URL + '/rest/v1/' + encodeURIComponent(table) + path;
+      const response = await fetch(url, {...options, headers});
+      const text = await response.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch(e) { body = text; }
+      if (!response.ok) {
+        const message = body && body.message ? body.message : (body && body.hint ? body.hint : text || 'Erro ao consultar dados.');
+        throw new Error(message);
+      }
+      return body;
+    }
 
+    async function getTable(table, query='?select=*') {
+      try { return await restRequest(table, query); }
+      catch (firstError) {
+        const alternative = table === table.toUpperCase() ? table.toLowerCase() : table.toUpperCase();
+        if (alternative !== table) return await restRequest(alternative, query);
+        throw firstError;
+      }
+    }
 
-    /* ========================================
+    function formatMoney(value) {
+      const n = Number(String(value ?? 0).replace(',', '.')) || 0;
+      return n.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+    }
+
+    function formatDateTime(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      return isNaN(d) ? String(value) : d.toLocaleString('pt-BR');
+    }
+
+    function pedidoKey(p) {
+      return String(getValue(p, ['id','ID','pedido_id','PEDIDO_ID'], '')) + '|' + String(getValue(p, ['created_at','DATA','data','data_pedido','DATA_PEDIDO'], ''));
+    }
+
+    function sortPedidos(pedidos) {
+      return [...pedidos].sort((a,b) => {
+        const da = new Date(getValue(a,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],0)).getTime() || 0;
+        const db = new Date(getValue(b,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],0)).getTime() || 0;
+        return db-da;
+      });
+    }
+
+    async function carregarPedidos(initial=false) {
+      try {
+        const rows = await getTable('PEDIDOS', '?select=*');
+        pedidosCache = Array.isArray(rows) ? sortPedidos(rows) : [];
+        const latest = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
+        if (!initial && ultimoPedidoChave && latest && latest !== ultimoPedidoChave) {
+          const novos = pedidosCache.filter(p => pedidoKey(p) !== ultimoPedidoChave);
+          if (novos.length) notificarNovoPedido(novos.length, novos[0]);
+        }
+        ultimoPedidoChave = latest;
+        atualizarDashboard();
+        if (moduloAtual === 'Pedidos') renderPedidosModule();
+      } catch (error) {
+        console.error('Pedidos:', error);
+        document.getElementById('recentOrders').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Confira o acesso à tabela PEDIDOS.</p></div>';
+      }
+    }
+
+    function atualizarDashboard() {
+      const hoje = new Date().toISOString().slice(0,10);
+      const pedidosHoje = pedidosCache.filter(p => {
+        const v = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
+        return String(v).slice(0,10) === hoje;
+      });
+      const faturamento = pedidosHoje.reduce((sum,p) => sum + (Number(String(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],'0')).replace(',','.')) || 0), 0);
+      const novos = pedidosCache.filter(p => {
+        const st = String(getValue(p,['status','STATUS'],'')).toUpperCase();
+        return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
+      }).length;
+      document.getElementById('pedidosHoje').textContent = pedidosHoje.length;
+      document.getElementById('pedidosNovos').textContent = novos;
+      document.getElementById('faturamentoHoje').textContent = formatMoney(faturamento);
+      renderRecentOrders();
+    }
+
+    async function carregarClientes() {
+      try {
+        const rows = await getTable('CLIENTES','?select=*');
+        document.getElementById('totalClientes').textContent = Array.isArray(rows) ? rows.length : 0;
+      } catch(e) { console.error('Clientes:', e); }
+    }
+
+    function renderRecentOrders() {
+      const el = document.getElementById('recentOrders');
+      if (!pedidosCache.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><strong>Nenhum pedido encontrado.</strong></div>';
+        return;
+      }
+      el.innerHTML = pedidosCache.slice(0,5).map(p => {
+        const id = getValue(p,['id','ID','pedido_id','PEDIDO_ID'],'#');
+        const nome = getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'Pedido');
+        const total = getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],'');
+        const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
+        return '<div class="recent-order"><div><strong>#'+escapeHtml(id)+' · '+escapeHtml(nome)+'</strong><small>'+escapeHtml(formatDateTime(data))+'</small></div><div><strong>'+escapeHtml(total !== '' ? formatMoney(total) : '')+'</strong></div></div>';
+      }).join('');
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+
+    function showToast(title, message) {
+      const box = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = '<strong>'+escapeHtml(title)+'</strong><p>'+escapeHtml(message)+'</p>';
+      box.appendChild(toast);
+      setTimeout(() => toast.remove(), 7000);
+    }
+
+    function beep() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 880; gain.gain.value = 0.08;
+        osc.start(); setTimeout(() => { osc.stop(); ctx.close(); }, 180);
+      } catch(e) {}
+    }
+
+    function atualizarBadge() {
+      const badge = document.getElementById('notificationBadge');
+      badge.textContent = notificacoesPendentes > 99 ? '99+' : notificacoesPendentes;
+      badge.style.display = notificacoesPendentes ? 'flex' : 'none';
+    }
+
+    function marcarNotificacoesLidas() {
+      notificacoesPendentes = 0;
+      atualizarBadge();
+      if (pedidosCache[0]) showToast('Pedidos recentes', 'Há '+pedidosCache.length+' pedido(s) carregado(s) no sistema.');
+    }
+
+    function notificarNovoPedido(qtd, pedido) {
+      notificacoesPendentes += qtd;
+      atualizarBadge();
+      const id = getValue(pedido,['id','ID','pedido_id','PEDIDO_ID'],'');
+      showToast('🔔 Novo pedido!', qtd > 1 ? qtd+' novos pedidos chegaram.' : 'O pedido #'+id+' acabou de chegar!');
+      beep();
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('KUKI Gerencial', { body: qtd > 1 ? qtd+' novos pedidos chegaram.' : 'Novo pedido #'+id });
+      }
+    }
+
+    async function pedirPermissaoNotificacao() {
+      if ('Notification' in window && Notification.permission === 'default') {
+        try { await Notification.requestPermission(); } catch(e) {}
+      }
+    }
+
+    /* =====================================================
+       HORÁRIOS
+    ====================================================== */
+    async function carregarHorarios() {
+      const rows = await getTable('HORARIOS','?select=*');
+      horariosCache = Array.isArray(rows) ? rows : [];
+      const ordem = ['SEGUNDA','TERÇA','TERCA','QUARTA','QUINTA','SEXTA','SÁBADO','SABADO','DOMINGO'];
+      horariosCache.sort((a,b) => ordem.indexOf(String(getValue(a,['DIA_SEMANA','dia_semana'])).toUpperCase()) - ordem.indexOf(String(getValue(b,['DIA_SEMANA','dia_semana'])).toUpperCase()));
+      return horariosCache;
+    }
+
+    function normalizeTime(v) { return v ? String(v).slice(0,5) : ''; }
+
+    async function renderHorariosModule() {
+      const container = document.getElementById('moduleContent');
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>🕐 Horários de funcionamento</h2><p style="color:var(--cinza);margin-top:6px;">Altere os dias, horários e o funcionamento da loja. As mudanças são gravadas diretamente na tabela existente.</p></div><button class="primary-button" onclick="carregarModuloAtual()">↻ Atualizar</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Dia</th><th>Aberto?</th><th>Abertura</th><th>Fechamento</th><th></th></tr></thead><tbody id="horariosBody"><tr><td colspan="5">Carregando...</td></tr></tbody></table></div></div>';
+      try {
+        await carregarHorarios();
+        document.getElementById('horariosBody').innerHTML = horariosCache.map((h,i) => {
+          const dia = getValue(h,['DIA_SEMANA','dia_semana'],'');
+          const aberto = !!getValue(h,['ABERTO','aberto'],false);
+          const abertura = normalizeTime(getValue(h,['HORA_ABERTURA','hora_abertura'],''));
+          const fechamento = normalizeTime(getValue(h,['HORA_FECHAMENTO','hora_fechamento'],''));
+          return '<tr data-index="'+i+'"><td><strong>'+escapeHtml(dia)+'</strong></td><td><label class="switch"><input class="h-aberto" type="checkbox" '+(aberto?'checked':'')+' onchange="toggleHorarioInputs('+i+')"><span class="slider"></span></label></td><td><input class="time-input h-abertura" type="time" value="'+escapeHtml(abertura)+'" '+(!aberto?'disabled':'')+'></td><td><input class="time-input h-fechamento" type="time" value="'+escapeHtml(fechamento)+'" '+(!aberto?'disabled':'')+'></td><td><button class="primary-button" onclick="salvarHorario('+i+')">Salvar</button></td></tr>';
+        }).join('');
+      } catch(error) {
+        container.querySelector('#horariosBody').innerHTML = '<tr><td colspan="5">Erro ao carregar horários: '+escapeHtml(error.message)+'</td></tr>';
+      }
+    }
+
+    function toggleHorarioInputs(index) {
+      const row = document.querySelector('#horariosBody tr[data-index="'+index+'"]');
+      const aberto = row.querySelector('.h-aberto').checked;
+      row.querySelector('.h-abertura').disabled = !aberto;
+      row.querySelector('.h-fechamento').disabled = !aberto;
+    }
+
+    async function salvarHorario(index) {
+      const h = horariosCache[index];
+      const row = document.querySelector('#horariosBody tr[data-index="'+index+'"]');
+      const id = getValue(h,['id','ID']);
+      const aberto = row.querySelector('.h-aberto').checked;
+      const abertura = row.querySelector('.h-abertura').value || null;
+      const fechamento = row.querySelector('.h-fechamento').value || null;
+      if (aberto && (!abertura || !fechamento)) { showToast('Atenção','Informe a hora de abertura e fechamento.'); return; }
+      const body = { ABERTO: aberto, HORA_ABERTURA: aberto ? abertura : null, HORA_FECHAMENTO: aberto ? fechamento : null };
+      try {
+        await restRequest('HORARIOS', '?id=eq.'+encodeURIComponent(id), { method:'PATCH', headers:{'Prefer':'return=representation'}, body:JSON.stringify(body) });
+      } catch(e) {
+        await restRequest('horarios', '?id=eq.'+encodeURIComponent(id), { method:'PATCH', headers:{'Prefer':'return=representation'}, body:JSON.stringify({ aberto, hora_abertura: aberto ? abertura : null, hora_fechamento: aberto ? fechamento : null }) });
+      }
+      showToast('Horário salvo!','As alterações foram gravadas com sucesso.');
+      await carregarHorarios();
+      renderHorariosModule();
+    }
+
+    function renderPedidosModule() {
+      const container = document.getElementById('moduleContent');
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">Pedidos recebidos pela KUKI.</p></div><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th></tr></thead><tbody>'+ (pedidosCache.length ? pedidosCache.map(p => '<tr><td>#'+escapeHtml(getValue(p,['id','ID','pedido_id','PEDIDO_ID'],'-'))+'</td><td>'+escapeHtml(getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'-'))+'</td><td>'+escapeHtml(formatDateTime(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'')))+'</td><td><span class="status-pill">'+escapeHtml(getValue(p,['status','STATUS'],'-'))+'</span></td><td>'+escapeHtml(formatMoney(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],0)))+'</td></tr>').join('') : '<tr><td colspan="5">Nenhum pedido encontrado.</td></tr>')+'</tbody></table></div></div>';
+    }
+
+    function renderPlaceholderModule(name) {
+      const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
+      document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Este módulo será conectado ao Supabase na próxima etapa.</p></div>';
+    }
+
+    /* =====================================================
+       VERIFICAR LOGIN EXISTENTE
+    ====================================================== */
+    async function verificarSessao() {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) { console.error(error); return; }
+      if (data.session) abrirSistema(data.session.user);
+    }
+
+    /* =====================================================
+       LOGIN
+    ====================================================== */
+    loginForm.addEventListener('submit', async function(event) {
+      event.preventDefault();
+      loginError.style.display = 'none';
+      const username = normalizarUsuario(document.getElementById('username').value);
+      const password = document.getElementById('password').value;
+      const email = USUARIOS_LOGIN[username];
+      if (!email) {
+        loginError.textContent = 'Usuário ou senha inválidos.';
+        loginError.style.display = 'block'; return;
+      }
+      loginButton.disabled = true; loginButton.textContent = 'ENTRANDO...';
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({email, password});
+        if (error) throw error;
+        abrirSistema(data.user);
+      } catch(error) {
+        console.error(error); loginError.textContent = 'Usuário ou senha inválidos.'; loginError.style.display = 'block';
+      } finally { loginButton.disabled = false; loginButton.textContent = 'ENTRAR'; }
+    });
+
+    /* =====================================================
+       ABRIR SISTEMA / LOGOUT
+    ====================================================== */
+    async function abrirSistema(user) {
+      loginScreen.style.display = 'none';
+      appScreen.style.display = 'block';
+      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
+      await pedirPermissaoNotificacao();
+      await Promise.all([carregarPedidos(true), carregarClientes()]);
+      if (pollingTimer) clearInterval(pollingTimer);
+      pollingTimer = setInterval(() => carregarPedidos(false), 10000);
+    }
+
+    async function logout() {
+      if (pollingTimer) clearInterval(pollingTimer);
+      pollingTimer = null;
+      await supabaseClient.auth.signOut();
+      appScreen.style.display = 'none'; loginScreen.style.display = 'flex';
+      document.getElementById('username').value = ''; document.getElementById('password').value = '';
+    }
+
+    /* =====================================================
+       MENU
+    ====================================================== */
+    function selectMenu(button, name) {
+      document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
+      button.classList.add('active'); abrirModulo(name);
+    }
+    function selectMenuByName(name) {
+      document.querySelectorAll('.menu button').forEach(botao => {
+        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
+      });
+    }
+    function carregarModuloAtual() { abrirModulo(moduloAtual); }
+    function abrirModulo(name) {
+      moduloAtual = name;
+      const dashboard = document.getElementById('dashboardContent');
+      const moduleContent = document.getElementById('moduleContent');
+      document.getElementById('pageTitle').textContent = name;
+      const subtitles = {
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema'
+      };
+      document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
+      if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
+      dashboard.style.display='none'; moduleContent.style.display='block';
+      if (name === 'Horários') renderHorariosModule();
+      else if (name === 'Pedidos') renderPedidosModule();
+      else renderPlaceholderModule(name);
+    }
+
+    /* =====================================================
        INICIAR
-    ======================================== */
-
-    abrirModulo(
-      'Dashboard'
-    );
+    ====================================================== */
+    verificarSessao();
 
   </script>
 
-
 </body>
-
 </html>
