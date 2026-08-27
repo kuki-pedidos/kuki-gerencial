@@ -685,6 +685,26 @@
       .card-novos-destaque,.card-novos-destaque::before,.novo-alerta-pulse{animation:none !important;}
     }
 
+
+    .financeiro-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px 0}
+    .financeiro-card{padding:20px;border:1px solid var(--borda);border-radius:18px;background:#fff}
+    .financeiro-card .label{font-size:.82rem;font-weight:800;color:var(--cinza);letter-spacing:.04em}
+    .financeiro-card .value{font-size:1.65rem;font-weight:900;margin-top:8px}
+    .financeiro-card .hint{font-size:.8rem;color:var(--cinza);margin-top:6px}
+    .financeiro-card.negativo .value{color:#b00020}
+    .financeiro-card.positivo .value{color:#137333}
+    .financeiro-filtros{display:flex;gap:10px;align-items:end;flex-wrap:wrap;margin:12px 0 18px}
+    .financeiro-filtros .field{margin:0;min-width:170px;flex:1}
+    .financeiro-tabela{width:100%;border-collapse:collapse}
+    .financeiro-tabela th,.financeiro-tabela td{padding:12px 10px;border-bottom:1px solid var(--borda);text-align:left}
+    .financeiro-tabela th{font-size:.78rem;color:var(--cinza);text-transform:uppercase}
+    .actions-inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    @media(max-width:760px){
+      .financeiro-grid{grid-template-columns:1fr}
+      .financeiro-tabela{display:block;overflow-x:auto;white-space:nowrap}
+      .financeiro-filtros .field{min-width:100%}
+    }
+
 </style>
 </head>
 
@@ -1762,6 +1782,168 @@
       document.getElementById('username').value = ''; document.getElementById('password').value = '';
     }
 
+
+    /* =====================================================
+       FINANCEIRO
+    ====================================================== */
+    let financeiroDespesasCache = [];
+    let financeiroCategoriasCache = [];
+    let financeiroFormasCache = [];
+
+    function getField(obj, names, fallback='') {
+      return getValue(obj, names, fallback);
+    }
+
+    async function carregarFinanceiroDados() {
+      const [despesas, categorias, formas] = await Promise.all([
+        getTable('FINANCEIRO_DESPESAS', '?select=*&order=DATA.desc'),
+        getTable('FINANCEIRO_CATEGORIAS', '?select=*&ATIVO=eq.true&order=NOME.asc'),
+        getTable('FORMAS_PAGAMENTO', '?select=*')
+      ]);
+      financeiroDespesasCache = Array.isArray(despesas) ? despesas : [];
+      financeiroCategoriasCache = Array.isArray(categorias) ? categorias : [];
+      financeiroFormasCache = (Array.isArray(formas) ? formas : []).filter(f => {
+        const a = getField(f,['ATIVO','ativo'],true);
+        return a !== false && String(a).toLowerCase() !== 'false' && a !== 0 && a !== '0';
+      });
+    }
+
+    function dataHojeISO() { return localDateKey(new Date()); }
+
+    function valorDespesa(d) {
+      return Number(String(getField(d,['VALOR','valor'],0)).replace(',','.')) || 0;
+    }
+
+    function dataDespesa(d) {
+      return getField(d,['DATA','data','CREATED_AT','created_at'],'');
+    }
+
+    function categoriaNome(id) {
+      const c = financeiroCategoriasCache.find(x => String(getField(x,['ID','id'])) === String(id));
+      return c ? getField(c,['NOME','nome'],'-') : '-';
+    }
+
+    function formaNome(id) {
+      const f = financeiroFormasCache.find(x => String(getField(x,['ID','id'])) === String(id));
+      return f ? getField(f,['NOME','nome','DESCRICAO','descricao'],'-') : '-';
+    }
+
+    function despesasDoPeriodo(inicio, fim) {
+      return financeiroDespesasCache.filter(d => {
+        const dt = localDateKey(dataDespesa(d));
+        if (!dt) return false;
+        if (inicio && dt < inicio) return false;
+        if (fim && dt > fim) return false;
+        return true;
+      });
+    }
+
+    function renderFinanceiroModule() {
+      const container = document.getElementById('moduleContent');
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
+      carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
+        console.error('Financeiro:', error);
+        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">Confira o acesso às tabelas FINANCEIRO_DESPESAS e FINANCEIRO_CATEGORIAS.</p></div>';
+      });
+    }
+
+    function renderFinanceiroBody() {
+      const body = document.getElementById('financeiroBody');
+      if (!body) return;
+      const hoje = dataHojeISO();
+      const inicioMes = hoje.slice(0,7) + '-01';
+      const hojeDespesas = despesasDoPeriodo(hoje,hoje).reduce((s,d)=>s+valorDespesa(d),0);
+      const mesDespesas = despesasDoPeriodo(inicioMes,hoje).reduce((s,d)=>s+valorDespesa(d),0);
+      const inicio = document.getElementById('finInicio')?.value || inicioMes;
+      const fim = document.getElementById('finFim')?.value || hoje;
+      const lista = despesasDoPeriodo(inicio,fim);
+      const totalPeriodo = lista.reduce((s,d)=>s+valorDespesa(d),0);
+
+      body.innerHTML = `
+        <div class="financeiro-grid">
+          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(hojeDespesas)}</div><div class="hint">${hoje}</div></div>
+          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(mesDespesas)}</div><div class="hint">Do dia 1 até hoje</div></div>
+          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(totalPeriodo)}</div><div class="hint">${lista.length} lançamento(s)</div></div>
+        </div>
+        <div class="financeiro-filtros">
+          <div class="field"><label>Data inicial</label><input type="date" id="finInicio" value="${inicio}"></div>
+          <div class="field"><label>Data final</label><input type="date" id="finFim" value="${fim}"></div>
+          <button class="secondary-button" onclick="renderFinanceiroBody()">🔎 Filtrar</button>
+        </div>
+        <div class="table-wrap">
+          <table class="financeiro-tabela">
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead>
+            <tbody>${lista.length ? lista.map(d => {
+              const id = getField(d,['ID','id']);
+              return `<tr>
+                <td>${formatDateTime(dataDespesa(d)).split(',')[0]}</td>
+                <td>${escapeHtml(getField(d,['DESCRICAO','descricao'],'-'))}</td>
+                <td>${escapeHtml(categoriaNome(getField(d,['CATEGORIA_ID','categoria_id'])))}</td>
+                <td>${escapeHtml(formaNome(getField(d,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])))}</td>
+                <td><strong>${formatMoney(valorDespesa(d))}</strong></td>
+                <td><div class="actions-inline"><button class="secondary-button" onclick="editarDespesa('${id}')">✏️ Editar</button><button class="danger-button" onclick="excluirDespesa('${id}')">🗑️ Excluir</button></div></td>
+              </tr>`;
+            }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}</tbody>
+          </table>
+        </div>`;
+    }
+
+    function abrirFormDespesa(id=null) {
+      const atual = id == null ? null : financeiroDespesasCache.find(d => String(getField(d,['ID','id'])) === String(id));
+      const titulo = atual ? '✏️ Editar despesa' : '➕ Nova despesa';
+      const categoriaOptions = financeiroCategoriasCache.map(c => `<option value="${getField(c,['ID','id'])}" ${atual && String(getField(atual,['CATEGORIA_ID','categoria_id']))===String(getField(c,['ID','id']))?'selected':''}>${escapeHtml(getField(c,['NOME','nome']))}</option>`).join('');
+      const formaOptions = financeiroFormasCache.map(f => {
+        const fid=getField(f,['ID','id']); const fn=getField(f,['NOME','nome','DESCRICAO','descricao']);
+        return `<option value="${fid}" ${atual && String(getField(atual,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))===String(fid)?'selected':''}>${escapeHtml(fn)}</option>`;
+      }).join('');
+      const dataAtual = atual ? localDateKey(dataDespesa(atual)) : dataHojeISO();
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'modalDespesa';
+      modal.innerHTML = `<div class="modal-card"><div class="modal-header"><h2>${titulo}</h2><button class="icon-button" onclick="fecharModalDespesa()">✕</button></div>
+        <div class="field"><label>Data</label><input type="date" id="despesaData" value="${dataAtual}" required></div>
+        <div class="field"><label>Descrição</label><input type="text" id="despesaDescricao" value="${escapeHtml(atual?getField(atual,['DESCRICAO','descricao'],''):'')}" placeholder="Ex.: Compra de chocolate" required></div>
+        <div class="field"><label>Categoria</label><select id="despesaCategoria"><option value="">Selecione</option>${categoriaOptions}</select></div>
+        <div class="field"><label>Forma de pagamento</label><select id="despesaForma"><option value="">Selecione</option>${formaOptions}</select></div>
+        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="despesaValor" value="${atual?valorDespesa(atual):''}" placeholder="0,00" required></div>
+        <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button class="secondary-button" onclick="fecharModalDespesa()">Cancelar</button><button class="primary-button" onclick="salvarDespesa(${id===null?'null':JSON.stringify(String(id))})">💾 Confirmar</button></div></div>`;
+      document.body.appendChild(modal);
+    }
+
+    function fecharModalDespesa(){ document.getElementById('modalDespesa')?.remove(); }
+
+    async function salvarDespesa(id) {
+      const data = document.getElementById('despesaData').value;
+      const descricao = document.getElementById('despesaDescricao').value.trim();
+      const categoria = document.getElementById('despesaCategoria').value || null;
+      const forma = document.getElementById('despesaForma').value || null;
+      const valor = Number(document.getElementById('despesaValor').value);
+      const observacao = document.getElementById('despesaObs').value.trim() || null;
+      if (!data || !descricao || !(valor > 0)) { showToast('Dados obrigatórios','Informe data, descrição e valor válido.'); return; }
+      if (!confirm(id ? 'Confirmar alteração desta despesa?' : 'Confirmar inclusão desta despesa?')) return;
+      const payload = { DATA:data+'T12:00:00', DESCRICAO:descricao, CATEGORIA_ID:categoria?Number(categoria):null, FORMA_PAGAMENTO_ID:forma?Number(forma):null, VALOR:valor, OBSERVACAO:observacao, ATIVO:true };
+      try {
+        if (id == null) await restRequest('FINANCEIRO_DESPESAS', '', {method:'POST', body:payload});
+        else await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
+        fecharModalDespesa();
+        showToast('Financeiro atualizado', id == null ? 'Despesa cadastrada com sucesso.' : 'Despesa alterada com sucesso.');
+        renderFinanceiroModule();
+      } catch(e) { console.error(e); showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.'); }
+    }
+
+    function editarDespesa(id){ abrirFormDespesa(id); }
+
+    async function excluirDespesa(id) {
+      if (!confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
+      try {
+        await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'DELETE'});
+        showToast('Despesa excluída','O lançamento foi removido.');
+        renderFinanceiroModule();
+      } catch(e) { console.error(e); showToast('Erro ao excluir', e.message || 'Não foi possível excluir a despesa.'); }
+    }
+
+
     /* =====================================================
        MENU
     ====================================================== */
@@ -1781,12 +1963,13 @@
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
       dashboard.style.display='none'; moduleContent.style.display='block';
       if (name === 'Horários') renderHorariosModule();
+      else if (name === 'Financeiro') renderFinanceiroModule();
       else if (name === 'Pedidos') renderPedidosModule();
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
