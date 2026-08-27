@@ -1350,16 +1350,19 @@
       return null;
     }
 
+    function normalizarTelefoneWhatsApp(valor) {
+      let numero = String(valor || '').replace(/\D/g, '');
+      if (!numero) return '';
+      // Brasil: adiciona DDI quando o número vier apenas com DDD + número.
+      if (numero.length === 10 || numero.length === 11) numero = '55' + numero;
+      return numero;
+    }
+
     async function enviarStatusWhatsApp(pedido, statusAnterior, novoStatus) {
       const cliente = await obterClienteDoPedido(pedido);
       const telefone = cliente && cliente.whatsapp ? normalizarTelefoneWhatsApp(cliente.whatsapp) : '';
-      if (!telefone) {
-        const clienteId = getValue(pedido,['CLIENTE_ID','cliente_id'], null);
-        if (clienteId === null || clienteId === undefined || String(clienteId) === '') {
-          throw new Error('Este pedido não possui CLIENTE_ID vinculado. Vincule o cliente ao pedido para localizar o TELEFONE automaticamente.');
-        }
-        throw new Error('O cliente vinculado ao pedido não possui TELEFONE/WHATSAPP válido.');
-      }
+      if (!telefone) throw new Error('O cliente deste pedido não possui WhatsApp/telefone cadastrado.');
+
       const numeroPedido = getValue(pedido,['NUMERO_PEDIDO','numero_pedido','ID','id'],'');
       const payload = {
         evento: 'STATUS_PEDIDO_ATUALIZADO',
@@ -1375,9 +1378,32 @@
         valor_total: getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],null),
         observacao: getValue(pedido,['OBSERVACAO','observacao'],'')
       };
-      const response = await fetch(STATUS_PEDIDO_WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
-      if (!response.ok) throw new Error('Webhook respondeu HTTP '+response.status);
-      return true;
+
+      // IMPORTANTE:
+      // application/json provoca um preflight OPTIONS no navegador. Se o webhook do
+      // n8n não responder CORS ao OPTIONS, o POST nunca chega ao n8n.
+      // Enviamos como application/x-www-form-urlencoded + no-cors, que é um POST
+      // simples e chega diretamente ao webhook de produção.
+      const form = new URLSearchParams();
+      Object.entries(payload).forEach(([key, value]) => {
+        form.append(key, value === null || value === undefined ? '' : String(value));
+      });
+
+      try {
+        await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+          },
+          body: form.toString(),
+          keepalive: true
+        });
+      } catch (error) {
+        throw new Error('Não foi possível disparar o webhook do n8n: ' + (error.message || error));
+      }
+
+      return { enviado: true, payload };
     }
 
     async function atualizarStatusPedido(id) {
