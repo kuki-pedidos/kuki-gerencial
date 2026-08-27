@@ -420,6 +420,9 @@
     .mobile-header {
       display: none;
     }
+    .mobile-back-button { display:none; }
+    .mobile-header-title { display:none; }
+
 
 
 
@@ -719,16 +722,9 @@
     <main class="main">
 
       <div class="mobile-header">
-
-        <img
-          src="logo-kuki-transparente.png"
-          alt="KUKI"
-        >
-
-        <button onclick="logout()">
-          SAIR
-        </button>
-
+        <button class="mobile-back-button" id="mobileBackButton" type="button" onclick="voltarTelaAnterior()" aria-label="Voltar">← Voltar</button>
+        <div class="mobile-header-title">KUKI Gerencial</div>
+        <button onclick="logout()">SAIR</button>
       </div>
 
 
@@ -736,7 +732,7 @@
 
         <div class="welcome-top">
           <div>
-            <h1 id="pageTitle">Bem-vindo ao KUKI Gerencial! 🍪</h1>
+            <h1 id="pageTitle">Bem-vindo ao KUKI Gerencial! 💰</h1>
             <p id="pageSubtitle">Tenha uma visão completa da sua loja e gerencie tudo em um só lugar.</p>
           </div>
 
@@ -766,18 +762,6 @@
             <div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
-          </div>
-
-          <div class="card card-clickable" onclick="abrirDashboardModulo('Pedidos')" title="Ver faturamento e pedidos">
-            <div class="card-icon">💰</div>
-            <div class="card-label">FATURAMENTO HOJE</div>
-            <div class="card-value" id="faturamentoHoje">R$ 0,00</div>
-          </div>
-
-          <div class="card card-clickable" onclick="abrirDashboardModulo('Clientes')" title="Ver clientes">
-            <div class="card-icon">👥</div>
-            <div class="card-label">CLIENTES</div>
-            <div class="card-value" id="totalClientes">0</div>
           </div>
 
         </div>
@@ -844,6 +828,36 @@
                 "
               >
                 🍪 Gerenciar produtos
+              </button>
+
+              <button
+                onclick="abrirDashboardModulo('Pedidos')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
+              >
+                💰 Ver faturamento
+              </button>
+
+              <button
+                onclick="abrirDashboardModulo('Clientes')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
+              >
+                👥 Gerenciar clientes
               </button>
 
               <button
@@ -1048,13 +1062,18 @@
     }
 
     function atualizarDashboard() {
-      const hoje = new Date().toISOString().slice(0,10);
+      const agora = new Date();
+      const hoje = [agora.getFullYear(), String(agora.getMonth()+1).padStart(2,'0'), String(agora.getDate()).padStart(2,'0')].join('-');
       const pedidosHoje = pedidosCache.filter(p => {
         const v = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
-        return String(v).slice(0,10) === hoje;
+        if (!v) return false;
+        const d = new Date(v);
+        if (isNaN(d)) return String(v).slice(0,10) === hoje;
+        const chaveLocal = [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-');
+        return chaveLocal === hoje;
       });
       const faturamento = pedidosHoje.reduce((sum,p) => sum + (Number(String(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],'0')).replace(',','.')) || 0), 0);
-      const novos = pedidosCache.filter(p => {
+      const novos = pedidosHoje.filter(p => {
         const st = String(getValue(p,['status','STATUS'],'')).toUpperCase();
         return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
       }).length;
@@ -1246,6 +1265,8 @@
       appScreen.style.display = 'block';
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
+      history.replaceState({kukiGerencial:true, modulo:'Dashboard'}, '', '#dashboard');
+      abrirModulo('Dashboard', false);
       await Promise.all([carregarPedidos(true), carregarClientes()]);
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
@@ -1262,9 +1283,21 @@
     /* =====================================================
        MENU
     ====================================================== */
+    function atualizarBotaoVoltar() {
+      const btn = document.getElementById('mobileBackButton');
+      if (btn) btn.classList.toggle('visible', moduloAtual !== 'Dashboard');
+    }
+
+    function voltarTelaAnterior() {
+      if (moduloAtual !== 'Dashboard') {
+        abrirModulo('Dashboard', false);
+        if (window.history.state && window.history.state.kukiGerencial) history.replaceState({kukiGerencial:true, modulo:'Dashboard'}, '', '#dashboard');
+      }
+    }
+
     function selectMenu(button, name) {
       document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
-      button.classList.add('active'); abrirModulo(name);
+      button.classList.add('active'); abrirModulo(name, true);
     }
     function abrirDashboardModulo(name) {
       selectMenuByName(name);
@@ -1276,11 +1309,15 @@
       });
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
-    function abrirModulo(name) {
+    function abrirModulo(name, registrarHistorico=false) {
       moduloAtual = name;
+      if (registrarHistorico) {
+        history.pushState({kukiGerencial:true, modulo:name}, '', '#' + encodeURIComponent(name.toLowerCase().replace(/\s+/g,'-')));
+      }
+      atualizarBotaoVoltar();
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
-      document.getElementById('pageTitle').textContent = name === 'Dashboard' ? 'Bem-vindo ao KUKI Gerencial! 🍪' : name;
+      document.getElementById('pageTitle').textContent = name === 'Dashboard' ? 'Bem-vindo ao KUKI Gerencial! 💰' : name;
       const subtitles = {
         'Dashboard':'Tenha uma visão completa da sua loja e gerencie tudo em um só lugar.','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema'
       };
@@ -1291,6 +1328,12 @@
       else if (name === 'Pedidos') renderPedidosModule();
       else renderPlaceholderModule(name);
     }
+
+
+    window.addEventListener('popstate', function(event) {
+      const modulo = event.state && event.state.kukiGerencial ? event.state.modulo : 'Dashboard';
+      abrirModulo(modulo || 'Dashboard', false);
+    });
 
     /* =====================================================
        INICIAR
