@@ -485,6 +485,9 @@
     .recent-order small { color:var(--cinza); }
     .empty-module { text-align:center; padding:50px 20px; color:var(--cinza); }
 
+
+    .crud-form-box{margin:20px 0;padding:18px;border:1px solid #ead7c7;border-radius:16px;background:#fffaf6}.crud-form-box h3{margin-bottom:14px}.crud-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-weight:700}.crud-field input{padding:12px;border:1px solid #d9c8bb;border-radius:10px;font:inherit}.check-field{flex-direction:row;align-items:center}.crud-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.secondary-button,.danger-button{padding:10px 14px;border-radius:9px;border:1px solid #d8c4b5;background:#fff;cursor:pointer;font-weight:700}.danger-button{color:#a20c23;border-color:#e3b5be}
+
     /* =========================
        RESPONSIVO
     ========================= */
@@ -1220,6 +1223,61 @@
       const c=document.getElementById('moduleContent');
       c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>📦 Pedidos</h2><p style="color:var(--cinza);margin-top:6px;">Pedidos concluídos ficam somente para consulta.</p></div><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ação</th></tr></thead><tbody>'+(pedidosCache.length?pedidosCache.map((p,i)=>{const st=String(getValue(p,['status','STATUS'],'-'));const encerrado=['CONCLUIDO','CONCLUÍDO'].includes(st.toUpperCase());return '<tr><td>#'+escapeHtml(getValue(p,['id','ID','NUMERO_PEDIDO'],'-'))+'</td><td>'+escapeHtml(getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'-'))+'</td><td>'+escapeHtml(formatDateTime(getValue(p,['created_at','DATA'],'')))+'</td><td><span class="status-pill">'+escapeHtml(st)+'</span></td><td>'+escapeHtml(formatMoney(getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL'],0)))+'</td><td>'+(encerrado?'<span style="color:var(--cinza)">Encerrado</span>':'<button class="primary-button" onclick="atualizarStatusPedido('+i+')">Alterar status</button>')+'</td></tr>';}).join(''):'<tr><td colspan="6">Nenhum pedido encontrado.</td></tr>')+'</tbody></table></div></div>';
     }
+
+
+    /* =====================================================
+       CRUD DOS MÓDULOS
+    ====================================================== */
+    const CRUD_TABLES = {
+      'Produtos': { table:'PRODUTOS', icon:'🍪', fields:['NOME','DESCRICAO','PRECO','ATIVO'] },
+      'Clientes': { table:'CLIENTES', icon:'👥', fields:['NOME','TELEFONE','WHATSAPP','CEP','ENDERECO','NUMERO','COMPLEMENTO','BAIRRO','CIDADE'] },
+      'Formas de pagamento': { table:'FORMAS_PAGAMENTO', icon:'💳', fields:['NOME','ATIVO'] },
+      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
+    };
+    const crudCache = {};
+    function normKey(k){ return String(k||'').toUpperCase(); }
+    function prettyField(k){ return String(k).replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase()); }
+    function isSystemField(k){ return ['ID','CREATED_AT','UPDATED_AT'].includes(normKey(k)); }
+    function isBoolField(k){ return ['ATIVO','ABERTO','DISPONIVEL','HABILITADO'].includes(normKey(k)); }
+    function isNumberField(k){ return ['PRECO','VALOR','TOTAL','TAXA','ESTOQUE','QUANTIDADE'].some(x=>normKey(k).includes(x)); }
+    async function carregarCrud(name){
+      const cfg=CRUD_TABLES[name]; if(!cfg) return [];
+      try { const rows=await restRequest(cfg.table,'?select=*&order=id.asc'); crudCache[name]=Array.isArray(rows)?rows:[]; return crudCache[name]; }
+      catch(e){ try { const rows=await restRequest(cfg.table.toLowerCase(),'?select=*'); crudCache[name]=Array.isArray(rows)?rows:[]; return crudCache[name]; } catch(e2){ console.error(e,e2); crudCache[name]=[]; throw e2; } }
+    }
+    function crudFields(name, rows){
+      const cfg=CRUD_TABLES[name]; const set=new Set(cfg.fields);
+      (rows||[]).forEach(r=>Object.keys(r||{}).forEach(k=>{ if(!isSystemField(k)) set.add(k); }));
+      return [...set];
+    }
+    async function renderCrudModule(name){
+      const c=document.getElementById('moduleContent'); const cfg=CRUD_TABLES[name];
+      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
+      let rows=[]; let loadError='';
+      try{ rows=await carregarCrud(name); }catch(e){ loadError='Não foi possível carregar os dados desta tabela.'; }
+      const fields=crudFields(name,rows);
+      const cols=rows.length ? Object.keys(rows[0]).filter(k=>!['created_at','updated_at'].includes(String(k).toLowerCase())) : fields;
+      const form=fields.map(f=>{
+        const type=isBoolField(f)?'checkbox':(isNumberField(f)?'number':'text');
+        const step=isNumberField(f)?'step="0.01"':'';
+        if(type==='checkbox') return '<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>';
+        return '<label class="crud-field">'+escapeHtml(prettyField(f))+'<input '+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>';
+      }).join('');
+      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div><div><button class="primary-button" onclick="abrirFormularioCrud(''+name.replace(/'/g,"\'")+ '')">＋ Novo</button> <button class="secondary-button" onclick="renderCrudModule(''+name.replace(/'/g,"\'")+ '')">↻ Atualizar</button></div></div>' +
+        (loadError?'<div class="empty-module"><p>'+escapeHtml(loadError)+'</p></div>':'')+
+        '<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm">'+form+'<div class="crud-actions"><button type="submit" class="primary-button">Salvar</button><button type="button" class="secondary-button" onclick="fecharFormularioCrud()">Cancelar</button></div></form></div>'+
+        '<div class="table-wrap"><table class="data-table"><thead><tr>'+cols.map(k=>'<th>'+escapeHtml(prettyField(k))+'</th>').join('')+'<th>Ações</th></tr></thead><tbody>'+
+        (rows.length?rows.map((r,i)=>'<tr>'+cols.map(k=>'<td>'+escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??''))+'</td>').join('')+'<td><button class="secondary-button" onclick="editarCrud(''+name.replace(/'/g,"\'")+ '','+i+')">Editar</button> <button class="danger-button" onclick="excluirCrud(''+name.replace(/'/g,"\'")+ '','+i+')">Excluir</button></td></tr>').join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>')+
+        '</tbody></table></div></div>';
+      const formEl=document.getElementById('crudForm');
+      formEl.addEventListener('submit',e=>salvarCrud(e,name));
+    }
+    function abrirFormularioCrud(name){ document.getElementById('crudFormBox').style.display='block'; document.getElementById('crudFormTitle').textContent='Novo cadastro'; document.getElementById('crudForm').dataset.editIndex=''; document.getElementById('crudForm').reset(); }
+    function fecharFormularioCrud(){ const b=document.getElementById('crudFormBox'); if(b)b.style.display='none'; }
+    function editarCrud(name,index){ const r=(crudCache[name]||[])[index]; if(!r)return; abrirFormularioCrud(name); document.getElementById('crudFormTitle').textContent='Editar cadastro'; const f=document.getElementById('crudForm'); f.dataset.editIndex=index; Object.keys(r).forEach(k=>{const el=f.elements[k]; if(el){ if(el.type==='checkbox')el.checked=!!r[k]; else el.value=r[k]??''; }}); document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth'}); }
+    function collectCrudForm(form){ const obj={}; Array.from(form.elements).forEach(el=>{ if(!el.name)return; let v=el.type==='checkbox'?el.checked:el.value.trim(); if(v!=='' || el.type==='checkbox') obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v; }); return obj; }
+    async function salvarCrud(e,name){ e.preventDefault(); const cfg=CRUD_TABLES[name], form=e.currentTarget, body=collectCrudForm(form), idx=form.dataset.editIndex; try{ if(idx!==''){ const old=crudCache[name][Number(idx)]; if(!old?.id)throw new Error('Registro sem ID'); await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(old.id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)}); } else { await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)}); } showToast('Sucesso','Cadastro salvo com sucesso.'); await renderCrudModule(name); }catch(err){ console.error(err); alert('Não foi possível salvar. '+(err.message||'')); } }
+    async function excluirCrud(name,index){ const old=(crudCache[name]||[])[index]; if(!old?.id){ alert('Não foi possível identificar o registro.'); return; } if(!confirm('Deseja realmente excluir este cadastro?'))return; const cfg=CRUD_TABLES[name]; try{ await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(old.id),{method:'DELETE'}); showToast('Excluído','Registro removido com sucesso.'); await renderCrudModule(name); }catch(err){ console.error(err); alert('Não foi possível excluir. '+(err.message||'')); } }
 
     function renderPlaceholderModule(name) {
       const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
