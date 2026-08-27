@@ -539,13 +539,15 @@
       <form id="loginForm">
 
         <div class="field">
-          <label for="email">E-mail</label>
+          <label for="username">Usuário</label>
           <input
-            type="email"
-            id="email"
-            placeholder="Digite seu e-mail"
+            type="text"
+            id="username"
+            placeholder="Digite seu usuário"
             required
-            autocomplete="email"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
           >
         </div>
 
@@ -640,8 +642,8 @@
 
         <div class="user-info">
           <div class="user-label">USUÁRIO LOGADO</div>
-          <div class="user-email" id="userEmail">
-            Carregando...
+          <div class="user-email" id="userName">
+            Usuário
           </div>
         </div>
 
@@ -881,6 +883,36 @@
         SUPABASE_KEY
       );
 
+    /*
+      =====================================================
+      USUÁRIOS DE LOGIN
+      =====================================================
+
+      O usuário informa somente o nome de usuário na tela.
+      O e-mail continua sendo usado internamente pelo Supabase Auth.
+
+      Para cadastrar outro usuário futuramente, adicione:
+      'novo_usuario': 'email-do-usuario@dominio.com',
+    */
+    const USUARIOS_LOGIN = {
+      'robesusa': 'robesusa@gmail.com'
+    };
+
+    function normalizarUsuario(usuario) {
+      return (usuario || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
+    }
+
+    function obterNomeUsuarioPorEmail(email) {
+      const usuario = Object.keys(USUARIOS_LOGIN).find(function(nome) {
+        return USUARIOS_LOGIN[nome] === email;
+      });
+
+      return usuario || 'Usuário';
+    }
+
 
     /* =====================================================
        ELEMENTOS
@@ -958,11 +990,27 @@
 
         loginError.style.display = 'none';
 
-        const email =
-          document.getElementById('email').value.trim();
+        const username =
+          normalizarUsuario(
+            document.getElementById('username').value
+          );
 
         const password =
           document.getElementById('password').value;
+
+        const email =
+          USUARIOS_LOGIN[username];
+
+        if (!email) {
+
+          loginError.textContent =
+            'Usuário ou senha inválidos.';
+
+          loginError.style.display = 'block';
+
+          return;
+
+        }
 
         loginButton.disabled = true;
 
@@ -990,7 +1038,7 @@
           console.error(error);
 
           loginError.textContent =
-            'Não foi possível entrar. Verifique o e-mail e a senha.';
+            'Usuário ou senha inválidos.';
 
           loginError.style.display = 'block';
 
@@ -1017,8 +1065,11 @@
 
       appScreen.style.display = 'block';
 
-      document.getElementById('userEmail').textContent =
-        user.email || 'Usuário';
+      const nomeUsuario =
+        obterNomeUsuarioPorEmail(user.email);
+
+      document.getElementById('userName').textContent =
+        nomeUsuario;
 
     }
 
@@ -1035,7 +1086,7 @@
 
       loginScreen.style.display = 'flex';
 
-      document.getElementById('email').value = '';
+      document.getElementById('username').value = '';
 
       document.getElementById('password').value = '';
 
