@@ -631,6 +631,60 @@
       line-height:1.35;
     }
 
+
+    .card-novos-destaque{
+      position:relative;
+      overflow:visible;
+      border:2px solid rgba(174,0,35,.82) !important;
+      animation:kukiCardPulse 1.15s ease-in-out infinite;
+    }
+    .card-novos-destaque::before{
+      content:'';
+      position:absolute;
+      inset:-5px;
+      border-radius:inherit;
+      pointer-events:none;
+      box-shadow:0 0 0 0 rgba(174,0,35,.34);
+      animation:kukiRingPulse 1.15s ease-out infinite;
+    }
+    .card-novos-destaque.card-normalizado{
+      animation:none;
+      border-color:var(--borda) !important;
+    }
+    .card-novos-destaque.card-normalizado::before{
+      animation:none;
+      box-shadow:none;
+    }
+    .novo-alerta-pulse{
+      position:absolute;
+      top:16px;
+      right:16px;
+      width:12px;
+      height:12px;
+      border-radius:50%;
+      background:#b00020;
+      box-shadow:0 0 0 0 rgba(176,0,32,.5);
+      animation:kukiDotPulse 1.15s infinite;
+    }
+    .card-normalizado .novo-alerta-pulse{ display:none; }
+    @keyframes kukiCardPulse{
+      0%,100%{ transform:translateY(0); }
+      50%{ transform:translateY(-3px); }
+    }
+    @keyframes kukiRingPulse{
+      0%{ box-shadow:0 0 0 0 rgba(174,0,35,.34); }
+      70%{ box-shadow:0 0 0 13px rgba(174,0,35,0); }
+      100%{ box-shadow:0 0 0 0 rgba(174,0,35,0); }
+    }
+    @keyframes kukiDotPulse{
+      0%{ box-shadow:0 0 0 0 rgba(176,0,32,.48); }
+      70%{ box-shadow:0 0 0 10px rgba(176,0,32,0); }
+      100%{ box-shadow:0 0 0 0 rgba(176,0,32,0); }
+    }
+    @media (prefers-reduced-motion: reduce){
+      .card-novos-destaque,.card-novos-destaque::before,.novo-alerta-pulse{animation:none !important;}
+    }
+
 </style>
 </head>
 
@@ -811,20 +865,18 @@
 
       <div id="dashboardContent">
 
-        <div class="cards">
+        <div class="cards"><button class="card dashboard-card-action card-novos-destaque" type="button" onclick="abrirPedidosFiltrados('NOVOS')">
+            <div class="novo-alerta-pulse" aria-hidden="true"></div><div class="card-icon">🔔</div>
+            <div class="card-label">PEDIDOS NOVOS</div>
+            <div class="card-value" id="pedidosNovos">0</div>
+            <div class="card-hint">Ver somente pedidos com status NOVO</div>
+          </button>
 
           <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('HOJE')">
             <div class="card-icon">📦</div>
             <div class="card-label">PEDIDOS HOJE</div>
             <div class="card-value" id="pedidosHoje">0</div>
             <div class="card-hint">Ver todos os pedidos de hoje</div>
-          </button>
-
-          <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('NOVOS')">
-            <div class="card-icon">🔔</div>
-            <div class="card-label">PEDIDOS NOVOS</div>
-            <div class="card-value" id="pedidosNovos">0</div>
-            <div class="card-hint">Ver somente pedidos com status NOVO</div>
           </button>
 
         </div>
@@ -1099,13 +1151,24 @@
 
       const novos = pedidosCache.filter(p => {
         const st = String(getValue(p,['status','STATUS'],'')).toUpperCase().trim();
-        return ['NOVO','NOVOS','PENDENTE','ABERTO','RECEBIDO'].includes(st);
+        return ['NOVO','NOVOS'].includes(st);
       }).length;
 
       const pedidosHojeEl = document.getElementById('pedidosHoje');
       const pedidosNovosEl = document.getElementById('pedidosNovos');
       if (pedidosHojeEl) pedidosHojeEl.textContent = pedidosHoje.length;
       if (pedidosNovosEl) pedidosNovosEl.textContent = novos;
+
+      const cardNovos = document.querySelector('.card-novos-destaque');
+      if (cardNovos) {
+        cardNovos.classList.toggle('card-normalizado', novos <= 0);
+        cardNovos.setAttribute(
+          'aria-label',
+          novos > 0
+            ? `Há ${novos} pedido${novos === 1 ? '' : 's'} novo${novos === 1 ? '' : 's'} aguardando atenção`
+            : 'Não há pedidos novos'
+        );
+      }
     }
 
     function renderRecentOrders() {
@@ -1517,6 +1580,12 @@
 
     function abrirPedidosFiltrados(tipo) {
       filtroPedidosAtivo = tipo === 'HOJE' ? 'HOJE' : 'NOVOS';
+
+      if (filtroPedidosAtivo === 'NOVOS') {
+        const cardNovos = document.querySelector('.card-novos-destaque');
+        if (cardNovos) cardNovos.classList.add('card-normalizado');
+      }
+
       selectMenuByName('Pedidos');
     }
 
