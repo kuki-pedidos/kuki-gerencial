@@ -586,22 +586,7 @@
       }
     }
       .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}.form-grid label{display:flex;flex-direction:column;gap:7px;font-weight:600}.form-grid input{padding:11px;border:1px solid var(--borda);border-radius:9px}.danger-button{padding:9px 12px;border:none;border-radius:8px;background:#b42318;color:#fff;cursor:pointer;margin-left:5px}@media(max-width:760px){.data-table{font-size:12px}.data-table th,.data-table td{padding:9px 6px}.form-grid{grid-template-columns:1fr}}
-
-    /* CONFIRMAÇÃO E AÇÕES */
-    .actions-inline{display:flex;gap:8px;align-items:center;justify-content:flex-start;white-space:nowrap}
-    .actions-inline button{margin:0!important;min-width:92px}
-    .crud-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-    .crud-actions button{margin:0!important;min-width:120px}
-    .confirm-overlay{position:fixed;inset:0;background:rgba(30,20,20,.48);display:none;align-items:center;justify-content:center;padding:20px;z-index:99999}
-    .confirm-overlay.show{display:flex}
-    .confirm-dialog{width:min(100%,420px);background:#fff;border-radius:20px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25);border:1px solid var(--borda)}
-    .confirm-dialog h3{font-size:22px;margin-bottom:10px;color:var(--texto)}
-    .confirm-dialog p{color:var(--cinza);line-height:1.5;margin-bottom:22px}
-    .confirm-buttons{display:flex;gap:10px;justify-content:flex-end}
-    .confirm-buttons button{margin:0!important;min-width:110px}
-    @media(max-width:600px){.actions-inline{flex-direction:column;align-items:stretch}.actions-inline button{width:100%}.confirm-buttons{flex-direction:column-reverse}.confirm-buttons button{width:100%}}
-
-  </style>
+</style>
 </head>
 
 <body>
@@ -849,18 +834,6 @@
 
   <div class="toast-container" id="toastContainer"></div>
 
-
-  <div id="confirmOverlay" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-    <div class="confirm-dialog">
-      <h3 id="confirmTitle">Confirmar ação</h3>
-      <p id="confirmMessage">Deseja continuar?</p>
-      <div class="confirm-buttons">
-        <button type="button" class="secondary-button" id="confirmCancel">Cancelar</button>
-        <button type="button" class="primary-button" id="confirmOk">Confirmar</button>
-      </div>
-    </div>
-  </div>
-
   <script>
 
     /* =====================================================
@@ -1012,21 +985,59 @@
     }
 
     async function carregarPedidos(initial=false) {
-      try {
-        const rows = await getTable('PEDIDOS', '?select=*');
-        pedidosCache = Array.isArray(rows) ? sortPedidos(rows) : [];
-        const latest = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
-        if (!initial && ultimoPedidoChave && latest && latest !== ultimoPedidoChave) {
-          const novos = pedidosCache.filter(p => pedidoKey(p) !== ultimoPedidoChave);
-          if (novos.length) notificarNovoPedido(novos.length, novos[0]);
+      let rows = null;
+      const erros = [];
+
+      // Primeiro usa o cliente oficial do Supabase.
+      for (const tabela of ['PEDIDOS', 'pedidos']) {
+        try {
+          const resultado = await supabaseClient.from(tabela).select('*');
+          if (!resultado.error) {
+            rows = Array.isArray(resultado.data) ? resultado.data : [];
+            break;
+          }
+          erros.push(tabela + ': ' + resultado.error.message);
+        } catch (erro) {
+          erros.push(tabela + ': ' + (erro.message || String(erro)));
         }
-        ultimoPedidoChave = latest;
-        atualizarDashboard();
-        if (moduloAtual === 'Pedidos') renderPedidosModule();
-      } catch (error) {
-        console.error('Pedidos:', error);
-        document.getElementById('recentOrders').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Confira o acesso à tabela PEDIDOS.</p></div>';
       }
+
+      // Mantém o REST como segunda tentativa, para compatibilidade com o projeto atual.
+      if (rows === null) {
+        for (const tabela of ['PEDIDOS', 'pedidos']) {
+          try {
+            const resultado = await restRequest(tabela, '?select=*');
+            rows = Array.isArray(resultado) ? resultado : [];
+            break;
+          } catch (erro) {
+            erros.push('REST ' + tabela + ': ' + (erro.message || String(erro)));
+          }
+        }
+      }
+
+      if (rows === null) {
+        const detalhe = erros.join(' | ') || 'Erro desconhecido ao consultar a tabela PEDIDOS.';
+        console.error('Erro ao carregar PEDIDOS:', detalhe);
+        pedidosCache = [];
+        atualizarDashboard();
+        if (moduloAtual === 'Pedidos') {
+          const c = document.getElementById('moduleContent');
+          if (c) c.innerHTML = '<div class="module-panel"><div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;word-break:break-word;">' + escapeHtml(detalhe) + '</p><button class="primary-button" style="margin-top:16px" onclick="carregarPedidos(false)">↻ Tentar novamente</button></div></div>';
+        }
+        const recent = document.getElementById('recentOrders');
+        if (recent) recent.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Verifique a mensagem no módulo Pedidos.</p></div>';
+        return;
+      }
+
+      pedidosCache = sortPedidos(rows);
+      const latest = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
+      if (!initial && ultimoPedidoChave && latest && latest !== ultimoPedidoChave) {
+        const novos = pedidosCache.filter(p => pedidoKey(p) !== ultimoPedidoChave);
+        if (novos.length) notificarNovoPedido(novos.length, novos[0]);
+      }
+      ultimoPedidoChave = latest;
+      atualizarDashboard();
+      if (moduloAtual === 'Pedidos') renderPedidosModule();
     }
 
     function atualizarDashboard() {
@@ -1165,8 +1176,6 @@
     }
 
     async function salvarHorario(index) {
-      const confirmar = await confirmarAcao('Confirmar alteração','Deseja realmente salvar as alterações deste horário?','Salvar alterações');
-      if (!confirmar) return;
       const h = horariosCache[index];
       const row = document.querySelector('#horariosBody tr[data-index="'+index+'"]');
       const id = getValue(h,['id','ID']);
@@ -1193,26 +1202,24 @@
 
     /* =====================================================
        STATUS DOS PEDIDOS
+       Correção adicionada sem alterar o carregamento dos pedidos
     ====================================================== */
     async function atualizarStatusPedido(index) {
-      const pedido = pedidosCache[index];
+      const pedido = pedidosCache[Number(index)];
       if (!pedido) {
-        showToast('Erro', 'Pedido não encontrado. Atualize a lista e tente novamente.');
+        alert('Pedido não encontrado. Clique em Atualizar e tente novamente.');
         return;
       }
 
-      const statusAtual = String(getValue(pedido,['status','STATUS'],'NOVO') || 'NOVO');
-      const id = getValue(pedido,['id','ID'],null);
-      const idField = Object.prototype.hasOwnProperty.call(pedido,'ID') ? 'ID' : 'id';
-
+      const statusAtual = String(getValue(pedido, ['status','STATUS'], 'NOVO') || 'NOVO');
+      const id = getValue(pedido, ['id','ID'], null);
       if (id === null || id === undefined || id === '') {
-        showToast('Erro', 'Não foi possível identificar o pedido para alterar o status.');
+        alert('Não foi possível identificar o ID deste pedido.');
         return;
       }
 
-      const encerrado = ['CONCLUIDO','CONCLUÍDO'].includes(statusAtual.toUpperCase());
-      if (encerrado) {
-        showToast('Pedido encerrado', 'Pedidos concluídos ficam somente para consulta.');
+      if (['CONCLUIDO','CONCLUÍDO'].includes(statusAtual.toUpperCase())) {
+        alert('Este pedido já está concluído e permanece somente para consulta.');
         return;
       }
 
@@ -1227,70 +1234,60 @@
       ];
 
       const novoStatus = window.prompt(
-        'Informe o novo status do pedido.\n\nOpções sugeridas:\n' + opcoes.join('\n') + '\n\nStatus atual: ' + statusAtual,
+        'Digite o novo status do pedido.\n\nOpções sugeridas:\n' + opcoes.join('\n') + '\n\nStatus atual: ' + statusAtual,
         statusAtual
       );
-
       if (novoStatus === null) return;
 
       const status = String(novoStatus).trim().toUpperCase();
       if (!status) {
-        showToast('Atenção', 'Informe um status válido.');
+        alert('Informe um status válido.');
         return;
       }
-
       if (status === statusAtual.toUpperCase()) {
-        showToast('Sem alteração', 'O pedido já está com esse status.');
+        alert('O pedido já está com esse status.');
         return;
       }
+      if (!window.confirm('Confirma alterar o pedido #' + id + ' de "' + statusAtual + '" para "' + status + '"?')) return;
 
-      const confirmar = await confirmarAcao(
-        'Confirmar alteração de status',
-        'Alterar o status do pedido #' + id + ' de "' + statusAtual + '" para "' + status + '"?',
-        'Alterar status'
-      );
-      if (!confirmar) return;
+      const camposId = [];
+      if (Object.prototype.hasOwnProperty.call(pedido, 'ID')) camposId.push('ID');
+      if (Object.prototype.hasOwnProperty.call(pedido, 'id')) camposId.push('id');
+      if (!camposId.length) camposId.push('id','ID');
 
-      try {
-        let atualizado = false;
-        let ultimoErro = null;
-
-        const tentativas = [
-          { table:'PEDIDOS', field:idField, body:{ STATUS: status } },
-          { table:'PEDIDOS', field:idField, body:{ status: status } },
-          { table:'pedidos', field:idField.toLowerCase(), body:{ status: status } },
-          { table:'pedidos', field:'id', body:{ status: status } }
-        ];
-
-        for (const t of tentativas) {
-          try {
-            await restRequest(
-              t.table,
-              '?' + encodeURIComponent(t.field) + '=eq.' + encodeURIComponent(id),
-              {
-                method:'PATCH',
-                headers:{ 'Prefer':'return=representation' },
-                body:JSON.stringify(t.body)
-              }
-            );
-            atualizado = true;
-            break;
-          } catch (e) {
-            ultimoErro = e;
-          }
+      const tentativas = [];
+      for (const tabela of ['PEDIDOS','pedidos']) {
+        for (const campoId of camposId) {
+          tentativas.push({ tabela, campoId, corpo: { STATUS: status } });
+          tentativas.push({ tabela, campoId, corpo: { status: status } });
         }
-
-        if (!atualizado) throw ultimoErro || new Error('Não foi possível alterar o status.');
-
-        pedido.status = status;
-        pedido.STATUS = status;
-        showToast('Status atualizado!', 'O pedido #' + id + ' agora está: ' + status + '.');
-        await carregarPedidos(true);
-        if (moduloAtual === 'Pedidos') renderPedidosModule();
-      } catch (error) {
-        console.error('Erro ao alterar status do pedido:', error);
-        showToast('Erro ao alterar status', error && error.message ? error.message : 'Não foi possível salvar a alteração.');
       }
+
+      let ultimoErro = null;
+      for (const t of tentativas) {
+        try {
+          await restRequest(
+            t.tabela,
+            '?' + encodeURIComponent(t.campoId) + '=eq.' + encodeURIComponent(id),
+            {
+              method: 'PATCH',
+              headers: { 'Prefer': 'return=representation' },
+              body: JSON.stringify(t.corpo)
+            }
+          );
+
+          // Atualiza a lista original do jeito que já funcionava antes.
+          await carregarPedidos(true);
+          if (moduloAtual === 'Pedidos') renderPedidosModule();
+          showToast('Status atualizado!', 'O pedido #' + id + ' agora está: ' + status + '.');
+          return;
+        } catch (erro) {
+          ultimoErro = erro;
+        }
+      }
+
+      console.error('Erro ao alterar status:', ultimoErro);
+      alert('Não foi possível alterar o status. ' + (ultimoErro && ultimoErro.message ? ultimoErro.message : ''));
     }
 
     /* =====================================================
@@ -1318,50 +1315,54 @@
       (rows||[]).forEach(r=>Object.keys(r||{}).forEach(k=>{ if(!isSystemField(k)) set.add(k); }));
       return [...set];
     }
-    async function confirmarAcao(titulo, mensagem, textoConfirmar='Confirmar'){
-      const overlay=document.getElementById('confirmOverlay');
-      const title=document.getElementById('confirmTitle');
-      const message=document.getElementById('confirmMessage');
-      const ok=document.getElementById('confirmOk');
-      const cancel=document.getElementById('confirmCancel');
-      title.textContent=titulo; message.textContent=mensagem; ok.textContent=textoConfirmar;
-      overlay.classList.add('show');
-      return new Promise(resolve=>{
-        const finish=v=>{overlay.classList.remove('show'); ok.onclick=null; cancel.onclick=null; resolve(v);};
-        ok.onclick=()=>finish(true); cancel.onclick=()=>finish(false);
-        overlay.onclick=e=>{if(e.target===overlay) finish(false);};
-      });
-    }
-
-    function getRecordId(record){ return getValue(record,['id','ID'],null); }
-
     async function renderCrudModule(name){
-      const c=document.getElementById('moduleContent'); const cfg=CRUD_TABLES[name]; if(!cfg)return;
-      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
-      let rows=[],loadError=''; try{rows=await carregarCrud(name);}catch(e){console.error(e);loadError='Não foi possível carregar os dados desta tabela.';}
-      const fields=crudFields(name,rows); const cols=rows.length?Object.keys(rows[0]).filter(k=>!['created_at','updated_at'].includes(String(k).toLowerCase())):fields;
-      const form=fields.map(f=>{const type=isBoolField(f)?'checkbox':(isNumberField(f)?'number':'text'); const step=isNumberField(f)?' step="0.01"':''; if(type==='checkbox')return '<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>'; return '<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>';}).join('');
-      const header=cols.map(k=>'<th>'+escapeHtml(prettyField(k))+'</th>').join('');
-      const body=rows.length?rows.map((r,i)=>{const cells=cols.map(k=>'<td>'+escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??''))+'</td>').join(''); const actions='<td><div class="actions-inline"><button type="button" class="secondary-button" data-crud-action="edit" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">✏️ Editar</button><button type="button" class="danger-button" data-crud-action="delete" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">🗑️ Excluir</button></div></td>'; return '<tr>'+cells+actions+'</tr>';}).join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
-      c.innerHTML='<div class="module-panel">'+
-        '<div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div><div class="actions-inline"><button type="button" class="primary-button" data-crud-action="new" data-crud-name="'+escapeHtml(name)+'">＋ Novo</button><button type="button" class="secondary-button" data-crud-action="refresh" data-crud-name="'+escapeHtml(name)+'">↻ Atualizar</button></div></div>'+
-        (loadError?'<div class="empty-module"><p>'+escapeHtml(loadError)+'</p></div>':'')+
-        '<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm">'+form+'<div class="crud-actions"><button type="submit" class="primary-button">💾 Salvar</button><button type="button" class="secondary-button" data-crud-action="cancel">Cancelar</button></div></form></div>'+
-        '<div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
-      const formEl=document.getElementById('crudForm'); if(formEl)formEl.addEventListener('submit',e=>salvarCrud(e,name));
+      const c = document.getElementById('moduleContent');
+      const cfg = CRUD_TABLES[name];
+      if (!cfg) return;
+      c.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
+      let rows = [];
+      let loadError = '';
+      try { rows = await carregarCrud(name); }
+      catch(e) { console.error(e); loadError = 'Não foi possível carregar os dados desta tabela.'; }
+
+      const fields = crudFields(name, rows);
+      const cols = rows.length ? Object.keys(rows[0]).filter(k => !['created_at','updated_at'].includes(String(k).toLowerCase())) : fields;
+      const nameJs = JSON.stringify(name);
+      const form = fields.map(f => {
+        const type = isBoolField(f) ? 'checkbox' : (isNumberField(f) ? 'number' : 'text');
+        const step = isNumberField(f) ? ' step="0.01"' : '';
+        if (type === 'checkbox') return '<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>';
+        return '<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>';
+      }).join('');
+
+      const header = cols.map(k => '<th>'+escapeHtml(prettyField(k))+'</th>').join('');
+      const body = rows.length ? rows.map((r,i) => {
+        const cells = cols.map(k => '<td>'+escapeHtml(isBoolField(k) ? (r[k] ? 'Sim' : 'Não') : (r[k] ?? ''))+'</td>').join('');
+        const actions = '<td><button class="secondary-button" onclick="editarCrud('+nameJs+','+i+')">Editar</button> <button class="danger-button" onclick="excluirCrud('+nameJs+','+i+')">Excluir</button></td>';
+        return '<tr>'+cells+actions+'</tr>';
+      }).join('') : '<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
+
+      c.innerHTML = '<div class="module-panel">'
+        + '<div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div>'
+        + '<div><button class="primary-button" id="crudNewButton">＋ Novo</button> <button class="secondary-button" id="crudRefreshButton">↻ Atualizar</button></div></div>'
+        + (loadError ? '<div class="empty-module"><p>'+escapeHtml(loadError)+'</p></div>' : '')
+        + '<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm">'+form+'<div class="crud-actions"><button type="submit" class="primary-button">Salvar</button><button type="button" class="secondary-button" onclick="fecharFormularioCrud()">Cancelar</button></div></form></div>'
+        + '<div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+        + '</div>';
+
+      const formEl = document.getElementById('crudForm');
+      if (formEl) formEl.addEventListener('submit', e => salvarCrud(e, name));
+      const newBtn = document.getElementById('crudNewButton');
+      if (newBtn) newBtn.addEventListener('click', () => abrirFormularioCrud(name));
+      const refreshBtn = document.getElementById('crudRefreshButton');
+      if (refreshBtn) refreshBtn.addEventListener('click', () => renderCrudModule(name));
     }
-
-    function abrirFormularioCrud(name){const box=document.getElementById('crudFormBox'); const f=document.getElementById('crudForm'); if(!box||!f)return; box.style.display='block'; document.getElementById('crudFormTitle').textContent='Novo cadastro'; f.dataset.editIndex=''; f.reset();}
-    function fecharFormularioCrud(){const b=document.getElementById('crudFormBox');if(b)b.style.display='none';}
-    function editarCrud(name,index){const r=(crudCache[name]||[])[Number(index)];if(!r)return;abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);Object.keys(r).forEach(k=>{const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}});document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});}
-    function collectCrudForm(form){const obj={};Array.from(form.elements).forEach(el=>{if(!el.name)return;let v=el.type==='checkbox'?el.checked:el.value.trim();if(v!==''||el.type==='checkbox')obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v;});return obj;}
-    async function salvarCrud(e,name){
-      e.preventDefault(); const cfg=CRUD_TABLES[name],form=e.currentTarget,body=collectCrudForm(form),idx=form.dataset.editIndex; const editing=idx!=='';
-      const ok=await confirmarAcao(editing?'Confirmar alteração':'Confirmar inclusão',editing?'Deseja realmente salvar as alterações deste cadastro?':'Deseja realmente incluir este novo cadastro?',editing?'Salvar alterações':'Inserir cadastro'); if(!ok)return;
-      try{if(editing){const old=crudCache[name][Number(idx)];const id=getRecordId(old);if(id===null||id===undefined)throw new Error('Registro sem ID');await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});}else{await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});}showToast('Sucesso',editing?'Alterações salvas com sucesso.':'Cadastro incluído com sucesso.');await renderCrudModule(name);}catch(err){console.error(err);alert('Não foi possível salvar. '+(err.message||''));}}
-    async function excluirCrud(name,index){const old=(crudCache[name]||[])[Number(index)],id=getRecordId(old);if(id===null||id===undefined){alert('Não foi possível identificar o registro.');return;}const ok=await confirmarAcao('Confirmar exclusão','Deseja realmente excluir este cadastro? Esta ação não poderá ser desfeita.','Excluir');if(!ok)return;const cfg=CRUD_TABLES[name];try{await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'DELETE'});showToast('Excluído','Registro removido com sucesso.');await renderCrudModule(name);}catch(err){console.error(err);alert('Não foi possível excluir. '+(err.message||''));}}
-
-    document.getElementById('moduleContent').addEventListener('click',function(e){const b=e.target.closest('[data-crud-action]');if(!b)return;const action=b.dataset.crudAction,name=b.dataset.crudName,index=Number(b.dataset.crudIndex);if(action==='new')abrirFormularioCrud(name);else if(action==='refresh')renderCrudModule(name);else if(action==='edit')editarCrud(name,index);else if(action==='delete')excluirCrud(name,index);else if(action==='cancel')fecharFormularioCrud();});
+    function abrirFormularioCrud(name){ document.getElementById('crudFormBox').style.display='block'; document.getElementById('crudFormTitle').textContent='Novo cadastro'; document.getElementById('crudForm').dataset.editIndex=''; document.getElementById('crudForm').reset(); }
+    function fecharFormularioCrud(){ const b=document.getElementById('crudFormBox'); if(b)b.style.display='none'; }
+    function editarCrud(name,index){ const r=(crudCache[name]||[])[index]; if(!r)return; abrirFormularioCrud(name); document.getElementById('crudFormTitle').textContent='Editar cadastro'; const f=document.getElementById('crudForm'); f.dataset.editIndex=index; Object.keys(r).forEach(k=>{const el=f.elements[k]; if(el){ if(el.type==='checkbox')el.checked=!!r[k]; else el.value=r[k]??''; }}); document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth'}); }
+    function collectCrudForm(form){ const obj={}; Array.from(form.elements).forEach(el=>{ if(!el.name)return; let v=el.type==='checkbox'?el.checked:el.value.trim(); if(v!=='' || el.type==='checkbox') obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v; }); return obj; }
+    async function salvarCrud(e,name){ e.preventDefault(); const cfg=CRUD_TABLES[name], form=e.currentTarget, body=collectCrudForm(form), idx=form.dataset.editIndex; try{ if(idx!==''){ const old=crudCache[name][Number(idx)]; if(!old?.id)throw new Error('Registro sem ID'); await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(old.id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)}); } else { await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)}); } showToast('Sucesso','Cadastro salvo com sucesso.'); await renderCrudModule(name); }catch(err){ console.error(err); alert('Não foi possível salvar. '+(err.message||'')); } }
+    async function excluirCrud(name,index){ const old=(crudCache[name]||[])[index]; if(!old?.id){ alert('Não foi possível identificar o registro.'); return; } if(!confirm('Deseja realmente excluir este cadastro?'))return; const cfg=CRUD_TABLES[name]; try{ await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(old.id),{method:'DELETE'}); showToast('Excluído','Registro removido com sucesso.'); await renderCrudModule(name); }catch(err){ console.error(err); alert('Não foi possível excluir. '+(err.message||'')); } }
 
     function renderPlaceholderModule(name) {
       const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
