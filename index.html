@@ -680,6 +680,70 @@
     .crud-form-box h3{margin-bottom:14px}.crud-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-weight:700}.crud-field input{padding:12px;border:1px solid #d9c8bb;border-radius:10px;font:inherit}.check-field{flex-direction:row;align-items:center}.crud-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.actions-inline{display:flex;gap:8px;align-items:center;justify-content:flex-start;flex-wrap:nowrap}.actions-inline button{margin:0!important;min-width:92px}.crud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.crud-grid .crud-field{margin-bottom:0}
     @media(max-width:700px){.actions-inline{gap:6px}.actions-inline button{min-width:0;padding:9px 8px;font-size:12px}.crud-grid{grid-template-columns:1fr}}
 
+
+
+/* =========================
+   CORREÇÃO DEFINITIVA DO MOBILE
+========================= */
+@media (max-width: 760px) {
+  .mobile-header {
+    display:grid !important;
+    grid-template-columns:46px minmax(0,1fr) auto !important;
+    align-items:center !important;
+    gap:10px !important;
+    min-height:74px;
+    padding:12px 14px !important;
+    background:var(--vermelho) !important;
+    border-radius:16px !important;
+    margin:0 0 24px !important;
+  }
+  .mobile-menu-button {
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+    width:46px !important;
+    height:46px !important;
+    padding:0 !important;
+    font-size:24px !important;
+    line-height:1 !important;
+  }
+  .mobile-header img {
+    display:block !important;
+    width:112px !important;
+    max-width:100% !important;
+    height:auto !important;
+    justify-self:center !important;
+    margin:0 !important;
+  }
+  .mobile-header > button:last-child {
+    display:block !important;
+    width:auto !important;
+    min-width:72px;
+    white-space:nowrap;
+    padding:10px 14px !important;
+  }
+  .mobile-menu-overlay {
+    display:block !important;
+  }
+  .mobile-menu-overlay:not(.open) {
+    visibility:hidden !important;
+  }
+  .mobile-menu-overlay.open {
+    visibility:visible !important;
+    opacity:1 !important;
+    pointer-events:auto !important;
+  }
+  .mobile-drawer {
+    display:block !important;
+    width:min(86vw,360px) !important;
+    z-index:4001 !important;
+  }
+  .mobile-nav button {
+    display:block !important;
+    min-height:48px;
+  }
+}
+
 </style>
 </head>
 
