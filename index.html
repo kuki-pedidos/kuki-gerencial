@@ -426,15 +426,6 @@
     /* =========================
        BEM-VINDO / NOTIFICAÇÕES / MÓDULOS
     ========================= */
-    .sidebar-welcome {
-      margin: 6px 6px 22px;
-      padding: 18px 15px;
-      border-radius: 16px;
-      background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.16);
-    }
-    .sidebar-welcome strong { display:block; font-size:18px; margin-bottom:6px; }
-    .sidebar-welcome span { font-size:12px; line-height:1.45; opacity:.88; }
 
     .notification-button {
       border: 1px solid var(--borda);
@@ -506,6 +497,10 @@
     }
 
     @media (max-width: 760px) {
+      .welcome-top { display:block; padding:22px; }
+      .welcome-top h1 { font-size:22px; }
+      .welcome-top .topbar-actions { margin-top:18px; justify-content:space-between; }
+
       .sidebar {
         display: none;
       }
@@ -662,11 +657,6 @@
 
     <aside class="sidebar">
 
-      <div class="sidebar-welcome">
-        <strong>Bem-vindo! 🍪</strong>
-        <span>Gerencie sua KUKI, acompanhe os pedidos e mantenha a loja sempre atualizada.</span>
-      </div>
-
       <nav class="menu">
 
         <button class="active" onclick="selectMenu(this, 'Dashboard')">
@@ -742,19 +732,18 @@
       </div>
 
 
-      <div class="topbar">
+      <div class="topbar" id="topbar">
 
-        <div class="page-title">
-          <h1 id="pageTitle">Dashboard</h1>
+        <div class="welcome-top">
+          <div>
+            <h1 id="pageTitle">Bem-vindo ao KUKI Gerencial! 🍪</h1>
+            <p id="pageSubtitle">Tenha uma visão completa da sua loja e gerencie tudo em um só lugar.</p>
+          </div>
 
-          <p id="pageSubtitle">
-            Visão geral da sua loja
-          </p>
-        </div>
-
-        <div class="topbar-actions">
-          <div class="date-box" id="currentDate"></div>
-          <button class="notification-button" type="button" onclick="marcarNotificacoesLidas()" title="Novos pedidos">🔔<span class="notification-badge" id="notificationBadge">0</span></button>
+          <div class="topbar-actions">
+            <div class="date-box" id="currentDate"></div>
+            <button class="notification-button" type="button" onclick="marcarNotificacoesLidas()" title="Novos pedidos">🔔<span class="notification-badge" id="notificationBadge">0</span></button>
+          </div>
         </div>
 
       </div>
@@ -764,39 +753,28 @@
 
       <div id="dashboardContent">
 
-        <div class="welcome">
-
-          <h2>Bem-vindo ao KUKI Gerencial! 🍪</h2>
-
-          <p>
-            Aqui você poderá acompanhar os pedidos e gerenciar
-            todos os dados da sua loja.
-          </p>
-
-        </div>
-
 
         <div class="cards">
 
-          <div class="card">
+          <div class="card card-clickable" onclick="abrirDashboardModulo('Pedidos')" title="Ver pedidos de hoje">
             <div class="card-icon">📦</div>
             <div class="card-label">PEDIDOS HOJE</div>
             <div class="card-value" id="pedidosHoje">0</div>
           </div>
 
-          <div class="card">
+          <div class="card card-clickable" onclick="abrirDashboardModulo('Pedidos')" title="Ver pedidos novos">
             <div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
           </div>
 
-          <div class="card">
+          <div class="card card-clickable" onclick="abrirDashboardModulo('Pedidos')" title="Ver faturamento e pedidos">
             <div class="card-icon">💰</div>
             <div class="card-label">FATURAMENTO HOJE</div>
             <div class="card-value" id="faturamentoHoje">R$ 0,00</div>
           </div>
 
-          <div class="card">
+          <div class="card card-clickable" onclick="abrirDashboardModulo('Clientes')" title="Ver clientes">
             <div class="card-icon">👥</div>
             <div class="card-label">CLIENTES</div>
             <div class="card-value" id="totalClientes">0</div>
@@ -1288,6 +1266,10 @@
       document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
       button.classList.add('active'); abrirModulo(name);
     }
+    function abrirDashboardModulo(name) {
+      selectMenuByName(name);
+    }
+
     function selectMenuByName(name) {
       document.querySelectorAll('.menu button').forEach(botao => {
         if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
@@ -1298,9 +1280,9 @@
       moduloAtual = name;
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
-      document.getElementById('pageTitle').textContent = name;
+      document.getElementById('pageTitle').textContent = name === 'Dashboard' ? 'Bem-vindo ao KUKI Gerencial! 🍪' : name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema'
+        'Dashboard':'Tenha uma visão completa da sua loja e gerencie tudo em um só lugar.','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
