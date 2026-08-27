@@ -174,6 +174,8 @@
       flex-direction: column;
       z-index: 1000;
       box-shadow: 3px 0 20px rgba(0,0,0,0.08);
+      overflow-y: auto;
+      overflow-x: hidden;
     }
 
     .sidebar-logo {
@@ -807,8 +809,7 @@
           <span>📦</span> Pedidos
         </button>
 
-        <!-- FINANCEIRO: mantido em posição alta e ainda acima de Configurações -->
-        <button class="financeiro-menu-button" type="button" onclick="selectMenu(this, 'Financeiro')">
+        <button type="button" class="financeiro-menu-button" onclick="selectMenu(this, 'Financeiro')">
           <span>💰</span> Financeiro
         </button>
 
@@ -831,6 +832,7 @@
         <button onclick="selectMenu(this, 'Horários')">
           <span>🕐</span> Horários
         </button>
+
         <button onclick="selectMenu(this, 'Configurações')">
           <span>⚙️</span> Configurações
         </button>
@@ -1094,17 +1096,9 @@
     }
 
     async function restRequest(table, path='', options={}) {
-      // Usa o token do usuário logado. A chave publishable continua no header apikey,
-      // mas o Authorization precisa representar o usuário autenticado para respeitar RLS.
-      let accessToken = SUPABASE_KEY;
-      try {
-        const { data } = await supabaseClient.auth.getSession();
-        if (data && data.session && data.session.access_token) accessToken = data.session.access_token;
-      } catch(e) {}
-
       const headers = {
         'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + accessToken,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
         'Content-Type': 'application/json',
         ...(options.headers || {})
       };
@@ -1114,10 +1108,8 @@
       let body = null;
       try { body = text ? JSON.parse(text) : null; } catch(e) { body = text; }
       if (!response.ok) {
-        const details = body && typeof body === 'object'
-          ? [body.message, body.details, body.hint, body.code].filter(Boolean).join(' | ')
-          : text;
-        throw new Error('Tabela ' + table + ' — HTTP ' + response.status + ': ' + (details || text || 'Erro ao consultar dados.'));
+        const message = body && body.message ? body.message : (body && body.hint ? body.hint : text || 'Erro ao consultar dados.');
+        throw new Error(message);
       }
       return body;
     }
@@ -1818,21 +1810,12 @@
     }
 
     async function carregarFinanceiroDados() {
-      // Carrega cada fonte separadamente para identificar exatamente qual tabela falhou.
-      const resultados = await Promise.allSettled([
-        getTable('FINANCEIRO_DESPESAS', '?select=*'),
-        getTable('FINANCEIRO_CATEGORIAS', '?select=*&ativo=eq.true&order=nome.asc'),
+      const [despesas, categorias, formas] = await Promise.all([
+        getTable('FINANCEIRO_DESPESAS', '?select=*&order=DATA.desc'),
+        getTable('FINANCEIRO_CATEGORIAS', '?select=*&ATIVO=eq.true&order=NOME.asc'),
         getTable('FORMAS_PAGAMENTO', '?select=*')
       ]);
-      const nomes = ['FINANCEIRO_DESPESAS','FINANCEIRO_CATEGORIAS','FORMAS_PAGAMENTO'];
-      const erros = resultados.map((r,i) => r.status === 'rejected' ? nomes[i] + ': ' + (r.reason?.message || r.reason) : null).filter(Boolean);
-      if (erros.length) throw new Error(erros.join(' — '));
-      const [despesas, categorias, formas] = resultados.map(r => r.value);
-      financeiroDespesasCache = (Array.isArray(despesas) ? despesas : []).sort((a,b) => {
-        const da = new Date(getField(a,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
-        const db = new Date(getField(b,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
-        return db - da;
-      });
+      financeiroDespesasCache = Array.isArray(despesas) ? despesas : [];
       financeiroCategoriasCache = Array.isArray(categorias) ? categorias : [];
       financeiroFormasCache = (Array.isArray(formas) ? formas : []).filter(f => {
         const a = getField(f,['ATIVO','ativo'],true);
@@ -1875,7 +1858,7 @@
       container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
       carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
         console.error('Financeiro:', error);
-        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">'+escapeHtml(error.message || 'Erro desconhecido')+'</p></div>';
+        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">Confira o acesso às tabelas FINANCEIRO_DESPESAS e FINANCEIRO_CATEGORIAS.</p></div>';
       });
     }
 
@@ -1910,115 +1893,47 @@
               return `<tr>
                 <td>${formatDateTime(dataDespesa(d)).split(',')[0]}</td>
                 <td>${escapeHtml(getField(d,['DESCRICAO','descricao'],'-'))}</td>
-                <td>${escapeHtml(getField(d,['CATEGORIA','categoria'],'-'))}</td>
-                <td>${escapeHtml(getField(d,['FORMA_PAGAMENTO','forma_pagamento'],'-'))}</td>
+                <td>${escapeHtml(getField(d,['CATEGORIA','categoria'], categoriaNome(getField(d,['CATEGORIA_ID','categoria_id'])) || '-'))}</td>
+                <td>${escapeHtml(getField(d,['FORMA_PAGAMENTO','forma_pagamento'], formaNome(getField(d,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])) || '-'))}</td>
                 <td><strong>${formatMoney(valorDespesa(d))}</strong></td>
-                <td><div class="actions-inline"><button type="button" class="secondary-button btn-editar-despesa" data-despesa-id="${escapeHtml(String(id))}">✏️ Editar</button><button type="button" class="danger-button btn-excluir-despesa" data-despesa-id="${escapeHtml(String(id))}">🗑️ Excluir</button></div></td>
+                <td><div class="actions-inline"><button class="secondary-button" onclick="editarDespesa('${id}')">✏️ Editar</button><button class="danger-button" onclick="excluirDespesa('${id}')">🗑️ Excluir</button></div></td>
               </tr>`;
             }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}</tbody>
           </table>
         </div>`;
-
-      // Eventos adicionados após renderizar a tabela para evitar problemas com onclick inline.
-      body.querySelectorAll('.btn-editar-despesa').forEach(botao => {
-        botao.addEventListener('click', () => {
-          const id = botao.dataset.despesaId;
-          if (id === undefined || id === null || id === '') {
-            showToast('Erro ao editar', 'Não foi possível identificar a despesa selecionada.');
-            return;
-          }
-          abrirFormDespesa(id);
-        });
-      });
-      body.querySelectorAll('.btn-excluir-despesa').forEach(botao => {
-        botao.addEventListener('click', () => excluirDespesa(botao.dataset.despesaId));
-      });
     }
 
     function abrirFormDespesa(id=null) {
       const atual = id == null ? null : financeiroDespesasCache.find(d => String(getField(d,['ID','id'])) === String(id));
-      if (id != null && !atual) {
-        showToast('Despesa não encontrada', 'Atualize a tela e tente editar novamente.');
-        return;
-      }
       const titulo = atual ? '✏️ Editar despesa' : '➕ Nova despesa';
-      const categoriaOptions = financeiroCategoriasCache.map(c => { const nome = getField(c,['NOME','nome']); return `<option value="${escapeHtml(String(nome || ''))}" ${atual && String(getField(atual,['CATEGORIA','categoria'],'')).trim()===String(nome || '').trim()?'selected':''}>${escapeHtml(nome || '')}</option>`; }).join('');
+      // FINANCEIRO_DESPESAS armazena os nomes de categoria e forma de pagamento,
+      // não os IDs das tabelas auxiliares.
+      const categoriaAtual = atual ? String(getField(atual,['CATEGORIA','categoria'], categoriaNome(getField(atual,['CATEGORIA_ID','categoria_id'])) || '')).trim() : '';
+      const formaAtual = atual ? String(getField(atual,['FORMA_PAGAMENTO','forma_pagamento'], formaNome(getField(atual,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])) || '')).trim() : '';
+      const categoriaOptions = financeiroCategoriasCache.map(c => {
+        const nome = String(getField(c,['NOME','nome'],'')).trim();
+        return `<option value="${escapeHtml(nome)}" ${categoriaAtual===nome?'selected':''}>${escapeHtml(nome)}</option>`;
+      }).join('');
       const formaOptions = financeiroFormasCache.map(f => {
-        const fn=getField(f,['NOME','nome','DESCRICAO','descricao']);
-        return `<option value="${escapeHtml(String(fn || ''))}" ${atual && String(getField(atual,['FORMA_PAGAMENTO','forma_pagamento'],'')).trim()===String(fn || '').trim()?'selected':''}>${escapeHtml(fn || '')}</option>`;
+        const fn=String(getField(f,['NOME','nome','DESCRICAO','descricao'],'')).trim();
+        return `<option value="${escapeHtml(fn)}" ${formaAtual===fn?'selected':''}>${escapeHtml(fn)}</option>`;
       }).join('');
       const dataAtual = atual ? localDateKey(dataDespesa(atual)) : dataHojeISO();
       const modal = document.createElement('div');
       modal.className = 'modal-overlay';
       modal.id = 'modalDespesa';
-      // Trava visual e funcional: clicar fora do popup não fecha a edição.
-      modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
-      modal.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" aria-label="${titulo}" style="background:#fff;max-width:640px;width:100%;max-height:92vh;overflow:auto;border-radius:18px;padding:24px;box-shadow:0 24px 70px rgba(0,0,0,.35);">
-        <div class="modal-header"><h2>${titulo}</h2><button type="button" class="icon-button" id="fecharModalDespesaBtn">✕</button></div>
-        <form id="formDespesa">
-          <div class="field"><label>Data</label><input type="date" id="despesaData" value="${dataAtual}" required></div>
-          <div class="field"><label>Descrição</label><input type="text" id="despesaDescricao" value="${escapeHtml(atual?getField(atual,['DESCRICAO','descricao'],''):'')}" placeholder="Ex.: Compra de chocolate" required></div>
-          <div class="field"><label>Categoria</label><select id="despesaCategoria"><option value="">Selecione</option>${categoriaOptions}</select></div>
-          <div class="field"><label>Forma de pagamento</label><select id="despesaForma"><option value="">Selecione</option>${formaOptions}</select></div>
-          <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="despesaValor" value="${atual?valorDespesa(atual):''}" placeholder="0,00" required></div>
-          <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
-          <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="cancelarDespesaBtn">Cancelar</button><button type="submit" class="primary-button">💾 Confirmar</button></div>
-        </form>
-      </div>`;
-      const modalStyle = document.createElement('style');
-      modalStyle.id = 'modalDespesaStyle';
-      modalStyle.textContent = `
-        #modalDespesa, #modalDespesa * { box-sizing:border-box !important; }
-        #modalDespesa .modal-card { color:#30343b !important; font-family:inherit !important; }
-        #modalDespesa .modal-header { display:flex !important; align-items:center !important; justify-content:space-between !important; gap:16px !important; margin-bottom:20px !important; }
-        #modalDespesa .modal-header h2 { margin:0 !important; font-size:26px !important; line-height:1.2 !important; }
-        #modalDespesa .icon-button { width:42px !important; height:42px !important; min-width:42px !important; border:0 !important; border-radius:10px !important; cursor:pointer !important; font-size:20px !important; background:#f1ece7 !important; color:#8c0b1f !important; }
-        #modalDespesa .field { display:flex !important; flex-direction:column !important; gap:7px !important; width:100% !important; margin:0 0 16px !important; }
-        #modalDespesa .field label { display:block !important; width:100% !important; font-weight:700 !important; font-size:15px !important; }
-        #modalDespesa .field input, #modalDespesa .field select, #modalDespesa .field textarea { display:block !important; width:100% !important; min-width:0 !important; min-height:52px !important; padding:12px 14px !important; border:1px solid #d8d0c8 !important; border-radius:12px !important; font:inherit !important; font-size:16px !important; background:#fff !important; color:#30343b !important; }
-        #modalDespesa .field textarea { min-height:92px !important; resize:vertical !important; }
-        #modalDespesa .actions-inline { display:flex !important; flex-wrap:wrap !important; gap:10px !important; align-items:center !important; }
-        #modalDespesa button { min-height:44px !important; padding:10px 18px !important; }
-        @media (max-width:700px) { #modalDespesa { padding:8px !important; align-items:flex-start !important; overflow:auto !important; } #modalDespesa .modal-card { margin:8px 0 !important; max-height:none !important; min-height:calc(100vh - 16px) !important; padding:18px !important; } #modalDespesa .modal-header h2 { font-size:22px !important; } }
-      `;
-      document.head.appendChild(modalStyle);
+      modal.innerHTML = `<div class="modal-card"><div class="modal-header"><h2>${titulo}</h2><button class="icon-button" onclick="fecharModalDespesa()">✕</button></div>
+        <div class="field"><label>Data</label><input type="date" id="despesaData" value="${dataAtual}" required></div>
+        <div class="field"><label>Descrição</label><input type="text" id="despesaDescricao" value="${escapeHtml(atual?getField(atual,['DESCRICAO','descricao'],''):'')}" placeholder="Ex.: Compra de chocolate" required></div>
+        <div class="field"><label>Categoria</label><select id="despesaCategoria"><option value="">Selecione</option>${categoriaOptions}</select></div>
+        <div class="field"><label>Forma de pagamento</label><select id="despesaForma"><option value="">Selecione</option>${formaOptions}</select></div>
+        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="despesaValor" value="${atual?valorDespesa(atual):''}" placeholder="0,00" required></div>
+        <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button class="secondary-button" onclick="fecharModalDespesa()">Cancelar</button><button class="primary-button" onclick="salvarDespesa(${id===null?'null':JSON.stringify(String(id))})">💾 Confirmar</button></div></div>`;
       document.body.appendChild(modal);
-
-      // Impede que clique fora, inclusive eventos propagados, feche o modal.
-      modal.addEventListener('click', event => {
-        if (event.target === modal) { event.preventDefault(); event.stopPropagation(); }
-      });
-      modal.addEventListener('mousedown', event => {
-        if (event.target === modal) { event.preventDefault(); event.stopPropagation(); }
-      });
-      const formDespesa = modal.querySelector('#formDespesa');
-      const solicitarFechamento = () => {
-        if (confirm('Cancelar esta edição? As alterações não salvas serão perdidas.')) fecharModalDespesa(true);
-      };
-      modal.querySelector('#cancelarDespesaBtn').addEventListener('click', solicitarFechamento);
-      modal.querySelector('#fecharModalDespesaBtn').addEventListener('click', solicitarFechamento);
-      modal.addEventListener('keydown', event => {
-        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
-      });
-      formDespesa.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        const botao = formDespesa.querySelector('button[type="submit"]');
-        if (botao) { botao.disabled = true; botao.dataset.originalText = botao.textContent; botao.textContent = 'Salvando...'; }
-        try {
-          await salvarDespesa(id);
-        } finally {
-          if (botao && document.body.contains(botao)) { botao.disabled = false; botao.textContent = botao.dataset.originalText || '💾 Confirmar'; }
-        }
-      });
-      // Foco inicial na descrição para facilitar a edição.
-      setTimeout(() => modal.querySelector('#despesaDescricao')?.focus(), 0);
     }
 
-    function fecharModalDespesa(forcar=false){
-      const modal = document.getElementById('modalDespesa');
-      if (modal) modal.remove();
-      document.getElementById('modalDespesaStyle')?.remove();
-    }
+    function fecharModalDespesa(){ document.getElementById('modalDespesa')?.remove(); }
 
     async function salvarDespesa(id) {
       const data = document.getElementById('despesaData').value;
@@ -2029,7 +1944,8 @@
       const observacao = document.getElementById('despesaObs').value.trim() || null;
       if (!data || !descricao || !(valor > 0)) { showToast('Dados obrigatórios','Informe data, descrição e valor válido.'); return; }
       if (!confirm(id ? 'Confirmar alteração desta despesa?' : 'Confirmar inclusão desta despesa?')) return;
-      // Não envia ATIVO porque a tabela FINANCEIRO_DESPESAS atual não possui essa coluna.
+      // A tabela FINANCEIRO_DESPESAS NÃO possui CATEGORIA_ID, FORMA_PAGAMENTO_ID nem ATIVO.
+      // Ela grava diretamente os nomes selecionados.
       const payload = {
         DATA: data+'T12:00:00',
         DESCRICAO: descricao,
@@ -2039,27 +1955,12 @@
         OBSERVACAO: observacao
       };
       try {
-        if (id == null) {
-          await restRequest('FINANCEIRO_DESPESAS', '', {
-            method:'POST',
-            headers:{'Prefer':'return=representation'},
-            body: JSON.stringify(payload)
-          });
-        } else {
-          await restRequest('FINANCEIRO_DESPESAS', '?id=eq.'+encodeURIComponent(id), {
-            method:'PATCH',
-            headers:{'Prefer':'return=representation'},
-            body: JSON.stringify(payload)
-          });
-        }
+        if (id == null) await restRequest('FINANCEIRO_DESPESAS', '', {method:'POST', body:payload});
+        else await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
         fecharModalDespesa();
         showToast('Financeiro atualizado', id == null ? 'Despesa cadastrada com sucesso.' : 'Despesa alterada com sucesso.');
-        await renderFinanceiroModule();
-      } catch(e) {
-        console.error('Erro ao salvar despesa:', e);
-        showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.');
-        throw e;
-      }
+        renderFinanceiroModule();
+      } catch(e) { console.error(e); showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.'); }
     }
 
     function editarDespesa(id){ abrirFormDespesa(id); }
