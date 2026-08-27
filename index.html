@@ -1173,7 +1173,7 @@
     };
     const crudCache = {};
     function normKey(k){ return String(k||'').toUpperCase(); }
-    function prettyField(k){ return String(k).replace(/_/g,' ').replace(/\w/g,c=>c.toUpperCase()); }
+    function prettyField(k){ return String(k).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
     function isSystemField(k){ return ['ID','CREATED_AT','UPDATED_AT'].includes(normKey(k)); }
     function isBoolField(k){ return ['ATIVO','ABERTO','DISPONIVEL','HABILITADO'].includes(normKey(k)); }
     function isNumberField(k){ return ['PRECO','VALOR','TOTAL','TAXA','ESTOQUE','QUANTIDADE'].some(x=>normKey(k).includes(x)); }
@@ -1188,26 +1188,46 @@
       return [...set];
     }
     async function renderCrudModule(name){
-      const c=document.getElementById('moduleContent'); const cfg=CRUD_TABLES[name];
-      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
-      let rows=[]; let loadError='';
-      try{ rows=await carregarCrud(name); }catch(e){ loadError='Não foi possível carregar os dados desta tabela.'; }
-      const fields=crudFields(name,rows);
-      const cols=rows.length ? Object.keys(rows[0]).filter(k=>!['created_at','updated_at'].includes(String(k).toLowerCase())) : fields;
-      const form=fields.map(f=>{
-        const type=isBoolField(f)?'checkbox':(isNumberField(f)?'number':'text');
-        const step=isNumberField(f)?'step="0.01"':'';
-        if(type==='checkbox') return '<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>';
-        return '<label class="crud-field">'+escapeHtml(prettyField(f))+'<input '+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>';
+      const c = document.getElementById('moduleContent');
+      const cfg = CRUD_TABLES[name];
+      if (!cfg) return;
+      c.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
+      let rows = [];
+      let loadError = '';
+      try { rows = await carregarCrud(name); }
+      catch(e) { console.error(e); loadError = 'Não foi possível carregar os dados desta tabela.'; }
+
+      const fields = crudFields(name, rows);
+      const cols = rows.length ? Object.keys(rows[0]).filter(k => !['created_at','updated_at'].includes(String(k).toLowerCase())) : fields;
+      const nameJs = JSON.stringify(name);
+      const form = fields.map(f => {
+        const type = isBoolField(f) ? 'checkbox' : (isNumberField(f) ? 'number' : 'text');
+        const step = isNumberField(f) ? ' step="0.01"' : '';
+        if (type === 'checkbox') return '<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>';
+        return '<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>';
       }).join('');
-      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div><div><button class="primary-button" onclick="abrirFormularioCrud(''+name.replace(/'/g,"\'")+ '')">＋ Novo</button> <button class="secondary-button" onclick="renderCrudModule(''+name.replace(/'/g,"\'")+ '')">↻ Atualizar</button></div></div>' +
-        (loadError?'<div class="empty-module"><p>'+escapeHtml(loadError)+'</p></div>':'')+
-        '<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm">'+form+'<div class="crud-actions"><button type="submit" class="primary-button">Salvar</button><button type="button" class="secondary-button" onclick="fecharFormularioCrud()">Cancelar</button></div></form></div>'+
-        '<div class="table-wrap"><table class="data-table"><thead><tr>'+cols.map(k=>'<th>'+escapeHtml(prettyField(k))+'</th>').join('')+'<th>Ações</th></tr></thead><tbody>'+
-        (rows.length?rows.map((r,i)=>'<tr>'+cols.map(k=>'<td>'+escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??''))+'</td>').join('')+'<td><button class="secondary-button" onclick="editarCrud(''+name.replace(/'/g,"\'")+ '','+i+')">Editar</button> <button class="danger-button" onclick="excluirCrud(''+name.replace(/'/g,"\'")+ '','+i+')">Excluir</button></td></tr>').join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>')+
-        '</tbody></table></div></div>';
-      const formEl=document.getElementById('crudForm');
-      formEl.addEventListener('submit',e=>salvarCrud(e,name));
+
+      const header = cols.map(k => '<th>'+escapeHtml(prettyField(k))+'</th>').join('');
+      const body = rows.length ? rows.map((r,i) => {
+        const cells = cols.map(k => '<td>'+escapeHtml(isBoolField(k) ? (r[k] ? 'Sim' : 'Não') : (r[k] ?? ''))+'</td>').join('');
+        const actions = '<td><button class="secondary-button" onclick="editarCrud('+nameJs+','+i+')">Editar</button> <button class="danger-button" onclick="excluirCrud('+nameJs+','+i+')">Excluir</button></td>';
+        return '<tr>'+cells+actions+'</tr>';
+      }).join('') : '<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
+
+      c.innerHTML = '<div class="module-panel">'
+        + '<div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div>'
+        + '<div><button class="primary-button" id="crudNewButton">＋ Novo</button> <button class="secondary-button" id="crudRefreshButton">↻ Atualizar</button></div></div>'
+        + (loadError ? '<div class="empty-module"><p>'+escapeHtml(loadError)+'</p></div>' : '')
+        + '<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm">'+form+'<div class="crud-actions"><button type="submit" class="primary-button">Salvar</button><button type="button" class="secondary-button" onclick="fecharFormularioCrud()">Cancelar</button></div></form></div>'
+        + '<div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+        + '</div>';
+
+      const formEl = document.getElementById('crudForm');
+      if (formEl) formEl.addEventListener('submit', e => salvarCrud(e, name));
+      const newBtn = document.getElementById('crudNewButton');
+      if (newBtn) newBtn.addEventListener('click', () => abrirFormularioCrud(name));
+      const refreshBtn = document.getElementById('crudRefreshButton');
+      if (refreshBtn) refreshBtn.addEventListener('click', () => renderCrudModule(name));
     }
     function abrirFormularioCrud(name){ document.getElementById('crudFormBox').style.display='block'; document.getElementById('crudFormTitle').textContent='Novo cadastro'; document.getElementById('crudForm').dataset.editIndex=''; document.getElementById('crudForm').reset(); }
     function fecharFormularioCrud(){ const b=document.getElementById('crudFormBox'); if(b)b.style.display='none'; }
