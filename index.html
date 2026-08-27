@@ -2215,10 +2215,19 @@
       const observacao = document.getElementById('despesaObs').value.trim() || null;
       if (!data || !descricao || !(valor > 0)) { showToast('Dados obrigatórios','Informe data, descrição e valor válido.'); return; }
       if (!confirm(id ? 'Confirmar alteração desta despesa?' : 'Confirmar inclusão desta despesa?')) return;
-      const payload = { DATA:data+'T12:00:00', DESCRICAO:descricao, CATEGORIA_ID:categoria?Number(categoria):null, FORMA_PAGAMENTO_ID:forma?Number(forma):null, VALOR:valor, OBSERVACAO:observacao, ATIVO:true };
+      // As colunas do Supabase/PostgreSQL foram criadas em minúsculas.
+      // O payload precisa usar exatamente os nomes reais das colunas.
+      const payload = {
+        data: data+'T12:00:00',
+        descricao: descricao,
+        categoria_id: categoria ? Number(categoria) : null,
+        forma_pagamento_id: forma ? Number(forma) : null,
+        valor: valor,
+        observacao: observacao
+      };
       try {
         if (id == null) await restRequest('FINANCEIRO_DESPESAS', '', {method:'POST', body:payload});
-        else await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
+        else await restRequest('FINANCEIRO_DESPESAS', '?id=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
         fecharModalDespesa();
         showToast('Financeiro atualizado', id == null ? 'Despesa cadastrada com sucesso.' : 'Despesa alterada com sucesso.');
         renderFinanceiroModule();
@@ -2230,7 +2239,7 @@
     async function excluirDespesa(id) {
       if (!confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
       try {
-        await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'DELETE'});
+        await restRequest('FINANCEIRO_DESPESAS', '?id=eq.'+encodeURIComponent(id), {method:'DELETE'});
         showToast('Despesa excluída','O lançamento foi removido.');
         renderFinanceiroModule();
       } catch(e) { console.error(e); showToast('Erro ao excluir', e.message || 'Não foi possível excluir a despesa.'); }
