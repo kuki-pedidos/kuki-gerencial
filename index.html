@@ -1010,7 +1010,7 @@
 
     // Webhook do n8n responsável por enviar a atualização do status ao WhatsApp do cliente.
     // O workflow precisa estar publicado neste endpoint no n8n.
-    const STATUS_PEDIDO_WEBHOOK_URL = 'https://rikasolucoes.app.n8n.cloud/webhook/kuki/status-pedido';
+    const STATUS_PEDIDO_WEBHOOK_URL = 'https://rikasolucoes.app.n8n.cloud/webhook/kuki-status-pedido';
 
     function getValue(obj, names, fallback='') {
       if (!obj) return fallback;
@@ -1309,60 +1309,93 @@
       return numero;
     }
 
+    function normalizarTextoComparacao(valor) {
+      return String(valor ?? '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .toUpperCase().trim().replace(/\s+/g,' ');
+    }
+
+    function pontuarClienteDoPedido(cliente, pedido) {
+      let pontos = 0;
+      const cCep = String(getValue(cliente,['CEP','cep'],'')).replace(/\D/g,'');
+      const pCep = String(getValue(pedido,['CEP','cep'],'')).replace(/\D/g,'');
+      if (cCep && pCep && cCep === pCep) pontos += 4;
+
+      const cEndereco = normalizarTextoComparacao(getValue(cliente,['ENDERECO','endereco','RUA','rua'],''));
+      const pEndereco = normalizarTextoComparacao(getValue(pedido,['ENDERECO','endereco','RUA','rua'],''));
+      if (cEndereco && pEndereco && cEndereco === pEndereco) pontos += 4;
+
+      const cNumero = normalizarTextoComparacao(getValue(cliente,['NUMERO','numero'],''));
+      const pNumero = normalizarTextoComparacao(getValue(pedido,['NUMERO','numero'],''));
+      if (cNumero && pNumero && cNumero === pNumero) pontos += 2;
+
+      const cBairro = normalizarTextoComparacao(getValue(cliente,['BAIRRO','bairro'],''));
+      const pBairro = normalizarTextoComparacao(getValue(pedido,['BAIRRO','bairro'],''));
+      if (cBairro && pBairro && cBairro === pBairro) pontos += 2;
+
+      const cCidade = normalizarTextoComparacao(getValue(cliente,['CIDADE','cidade'],''));
+      const pCidade = normalizarTextoComparacao(getValue(pedido,['CIDADE','cidade'],''));
+      if (cCidade && pCidade && cCidade === pCidade) pontos += 1;
+
+      return pontos;
+    }
+
+    function montarClienteResolvido(c, origem) {
+      if (!c) return null;
+      const telefone = getValue(c,['WHATSAPP','whatsapp','TELEFONE','telefone','CELULAR','celular','PHONE','phone'],'');
+      if (!normalizarTelefoneWhatsApp(telefone)) return null;
+      return {
+        id: getValue(c,['ID','id'],null),
+        whatsapp: telefone,
+        nome: getValue(c,['NOME','nome','CLIENTE_NOME','cliente_nome'],'Cliente'),
+        origem: origem || 'CLIENTES'
+      };
+    }
+
     async function obterClienteDoPedido(pedido) {
-      // 1) Primeiro procura telefone diretamente no próprio pedido.
-      const direto = getValue(pedido,[
-        'WHATSAPP','whatsapp','TELEFONE','telefone','CELULAR','celular','PHONE','phone'
-      ], '');
-      const nomeDireto = getValue(pedido,[
-        'CLIENTE_NOME','cliente_nome','NOME_CLIENTE','nome_cliente','NOME','nome'
-      ], '');
+      // 1) Telefone diretamente no pedido.
+      const direto = getValue(pedido,['WHATSAPP','whatsapp','TELEFONE','telefone','CELULAR','celular','PHONE','phone'],'');
+      const nomeDireto = getValue(pedido,['CLIENTE_NOME','cliente_nome','NOME_CLIENTE','nome_cliente','NOME','nome'],'');
       if (normalizarTelefoneWhatsApp(direto)) {
-        return { whatsapp: direto, nome: nomeDireto, origem: 'PEDIDO' };
+        return { id:getValue(pedido,['CLIENTE_ID','cliente_id'],null), whatsapp:direto, nome:nomeDireto || 'Cliente', origem:'PEDIDO' };
       }
 
-      // 2) Depois usa o CLIENTE_ID gravado no pedido para localizar o cliente.
-      const clienteId = getValue(pedido,['CLIENTE_ID','cliente_id'], null);
+      const clientes = await getTable('CLIENTES','?select=*');
+      const lista = Array.isArray(clientes) ? clientes : [];
+
+      // 2) CLIENTE_ID gravado no pedido.
+      const clienteId = getValue(pedido,['CLIENTE_ID','cliente_id'],null);
       if (clienteId !== null && clienteId !== undefined && String(clienteId) !== '') {
-        try {
-          // Busca sem depender de maiúsculas/minúsculas no objeto retornado.
-          const rows = await getTable('CLIENTES', '?select=*');
-          const c = (Array.isArray(rows) ? rows : []).find(item =>
-            String(getValue(item,['ID','id'],'')) === String(clienteId)
-          );
-          if (c) {
-            const telefoneCliente = getValue(c,[
-              'WHATSAPP','whatsapp','TELEFONE','telefone','CELULAR','celular','PHONE','phone'
-            ], '');
-            if (normalizarTelefoneWhatsApp(telefoneCliente)) {
-              return {
-                whatsapp: telefoneCliente,
-                nome: getValue(c,['NOME','nome','CLIENTE_NOME','cliente_nome'],'Cliente'),
-                origem: 'CLIENTES'
-              };
-            }
-          }
-        } catch(e) {
-          console.error('Cliente do pedido:', e);
+        const encontrado = lista.find(c => String(getValue(c,['ID','id'],'')) === String(clienteId));
+        const resolvido = montarClienteResolvido(encontrado,'CLIENTE_ID');
+        if (resolvido) return resolvido;
+      }
+
+      // 3) Pedidos antigos podem estar sem CLIENTE_ID. Procura um cliente pelo endereço.
+      // Só aceita um resultado inequivocamente melhor para evitar notificação para pessoa errada.
+      const candidatos = lista
+        .map(c => ({ cliente:c, pontos:pontuarClienteDoPedido(c,pedido) }))
+        .filter(x => x.pontos >= 8)
+        .sort((a,b) => b.pontos - a.pontos);
+
+      if (candidatos.length) {
+        const melhor = candidatos[0];
+        const segundo = candidatos[1];
+        if (!segundo || melhor.pontos > segundo.pontos) {
+          const resolvido = montarClienteResolvido(melhor.cliente,'ENDERECO');
+          if (resolvido) return resolvido;
         }
       }
 
       return null;
     }
 
-    function normalizarTelefoneWhatsApp(valor) {
-      let numero = String(valor || '').replace(/\D/g, '');
-      if (!numero) return '';
-      // Brasil: adiciona DDI quando o número vier apenas com DDD + número.
-      if (numero.length === 10 || numero.length === 11) numero = '55' + numero;
-      return numero;
-    }
-
-    async function enviarStatusWhatsApp(pedido, statusAnterior, novoStatus) {
-      const cliente = await obterClienteDoPedido(pedido);
+    async function enviarStatusWhatsApp(pedido, statusAnterior, novoStatus, clienteResolvido=null) {
+      const cliente = clienteResolvido || await obterClienteDoPedido(pedido);
       const telefone = cliente && cliente.whatsapp ? normalizarTelefoneWhatsApp(cliente.whatsapp) : '';
-      if (!telefone) throw new Error('O cliente deste pedido não possui WhatsApp/telefone cadastrado.');
-
+      if (!telefone) {
+        throw new Error('Não foi possível localizar um cliente com TELEFONE/WHATSAPP para este pedido. Cadastre ou vincule o cliente antes de enviar a notificação.');
+      }
       const numeroPedido = getValue(pedido,['NUMERO_PEDIDO','numero_pedido','ID','id'],'');
       const payload = {
         evento: 'STATUS_PEDIDO_ATUALIZADO',
@@ -1371,39 +1404,28 @@
         status_anterior: statusAnterior,
         novo_status: novoStatus,
         status: novoStatus,
-        cliente_id: getValue(pedido,['CLIENTE_ID','cliente_id'],null),
-        cliente_nome: cliente.nome || '',
+        cliente_id: cliente.id ?? getValue(pedido,['CLIENTE_ID','cliente_id'],null),
+        cliente: cliente.nome || 'Cliente',
+        cliente_nome: cliente.nome || 'Cliente',
         telefone: telefone,
         whatsapp: telefone,
+        endereco: getValue(pedido,['ENDERECO','endereco'],''),
+        numero: getValue(pedido,['NUMERO','numero'],''),
+        complemento: getValue(pedido,['COMPLEMENTO','complemento'],''),
+        bairro: getValue(pedido,['BAIRRO','bairro'],''),
+        cidade: getValue(pedido,['CIDADE','cidade'],''),
+        cep: getValue(pedido,['CEP','cep'],''),
         valor_total: getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],null),
         observacao: getValue(pedido,['OBSERVACAO','observacao'],'')
       };
-
-      // IMPORTANTE:
-      // application/json provoca um preflight OPTIONS no navegador. Se o webhook do
-      // n8n não responder CORS ao OPTIONS, o POST nunca chega ao n8n.
-      // Enviamos como application/x-www-form-urlencoded + no-cors, que é um POST
-      // simples e chega diretamente ao webhook de produção.
-      const form = new URLSearchParams();
-      Object.entries(payload).forEach(([key, value]) => {
-        form.append(key, value === null || value === undefined ? '' : String(value));
+      const response = await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload)
       });
-
-      try {
-        await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
-          },
-          body: form.toString(),
-          keepalive: true
-        });
-      } catch (error) {
-        throw new Error('Não foi possível disparar o webhook do n8n: ' + (error.message || error));
-      }
-
-      return { enviado: true, payload };
+      const respostaTexto = await response.text();
+      if (!response.ok) throw new Error('Webhook respondeu HTTP '+response.status+(respostaTexto ? ': '+respostaTexto : ''));
+      return true;
     }
 
     async function atualizarStatusPedido(id) {
@@ -1416,11 +1438,25 @@
       if (!novoStatus) { showToast('Status obrigatório','Escolha o novo status.'); return; }
       if (normalizarStatus(novoStatus) === normalizarStatus(statusAtual)) { showToast('Sem alteração','Escolha um status diferente do atual.'); return; }
       if (!confirm('Confirmar alteração do status do pedido #'+id+' de "'+statusAtual+'" para "'+novoStatus+'"?')) return;
+
       try {
-        await patchPedido(id, { STATUS: novoStatus, DATA_ATUALIZACAO: new Date().toISOString() });
-        // Atualiza a mensagem via workflow n8n; a falha é informada sem desfazer a atualização do pedido.
+        // Resolve o cliente antes de atualizar. Se o pedido antigo estiver sem CLIENTE_ID,
+        // tenta identificá-lo pelo endereço e passa a gravar o vínculo automaticamente.
+        let clienteResolvido = null;
+        try { clienteResolvido = await obterClienteDoPedido(pedido); }
+        catch (e) { console.error('Erro ao localizar cliente:',e); }
+
+        const payloadUpdate = { STATUS: novoStatus, DATA_ATUALIZACAO: new Date().toISOString() };
+        const clienteIdAtual = getValue(pedido,['CLIENTE_ID','cliente_id'],null);
+        if ((clienteIdAtual === null || clienteIdAtual === undefined || clienteIdAtual === '') && clienteResolvido && clienteResolvido.id !== null && clienteResolvido.id !== undefined) {
+          payloadUpdate.CLIENTE_ID = clienteResolvido.id;
+          pedido.CLIENTE_ID = clienteResolvido.id;
+        }
+
+        await patchPedido(id, payloadUpdate);
+
         try {
-          await enviarStatusWhatsApp(pedido, statusAtual, novoStatus);
+          await enviarStatusWhatsApp(pedido, statusAtual, novoStatus, clienteResolvido);
           showToast('Status atualizado','Pedido atualizado e mensagem enviada ao WhatsApp do cliente.');
         } catch (zapError) {
           console.error('WhatsApp:', zapError);
