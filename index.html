@@ -1192,6 +1192,108 @@
 
 
     /* =====================================================
+       STATUS DOS PEDIDOS
+    ====================================================== */
+    async function atualizarStatusPedido(index) {
+      const pedido = pedidosCache[index];
+      if (!pedido) {
+        showToast('Erro', 'Pedido não encontrado. Atualize a lista e tente novamente.');
+        return;
+      }
+
+      const statusAtual = String(getValue(pedido,['status','STATUS'],'NOVO') || 'NOVO');
+      const id = getValue(pedido,['id','ID'],null);
+      const idField = Object.prototype.hasOwnProperty.call(pedido,'ID') ? 'ID' : 'id';
+
+      if (id === null || id === undefined || id === '') {
+        showToast('Erro', 'Não foi possível identificar o pedido para alterar o status.');
+        return;
+      }
+
+      const encerrado = ['CONCLUIDO','CONCLUÍDO'].includes(statusAtual.toUpperCase());
+      if (encerrado) {
+        showToast('Pedido encerrado', 'Pedidos concluídos ficam somente para consulta.');
+        return;
+      }
+
+      const opcoes = [
+        'NOVO',
+        'RECEBIDO',
+        'EM PREPARO',
+        'PRONTO',
+        'SAIU PARA ENTREGA',
+        'CONCLUÍDO',
+        'CANCELADO'
+      ];
+
+      const novoStatus = window.prompt(
+        'Informe o novo status do pedido.\n\nOpções sugeridas:\n' + opcoes.join('\n') + '\n\nStatus atual: ' + statusAtual,
+        statusAtual
+      );
+
+      if (novoStatus === null) return;
+
+      const status = String(novoStatus).trim().toUpperCase();
+      if (!status) {
+        showToast('Atenção', 'Informe um status válido.');
+        return;
+      }
+
+      if (status === statusAtual.toUpperCase()) {
+        showToast('Sem alteração', 'O pedido já está com esse status.');
+        return;
+      }
+
+      const confirmar = await confirmarAcao(
+        'Confirmar alteração de status',
+        'Alterar o status do pedido #' + id + ' de "' + statusAtual + '" para "' + status + '"?',
+        'Alterar status'
+      );
+      if (!confirmar) return;
+
+      try {
+        let atualizado = false;
+        let ultimoErro = null;
+
+        const tentativas = [
+          { table:'PEDIDOS', field:idField, body:{ STATUS: status } },
+          { table:'PEDIDOS', field:idField, body:{ status: status } },
+          { table:'pedidos', field:idField.toLowerCase(), body:{ status: status } },
+          { table:'pedidos', field:'id', body:{ status: status } }
+        ];
+
+        for (const t of tentativas) {
+          try {
+            await restRequest(
+              t.table,
+              '?' + encodeURIComponent(t.field) + '=eq.' + encodeURIComponent(id),
+              {
+                method:'PATCH',
+                headers:{ 'Prefer':'return=representation' },
+                body:JSON.stringify(t.body)
+              }
+            );
+            atualizado = true;
+            break;
+          } catch (e) {
+            ultimoErro = e;
+          }
+        }
+
+        if (!atualizado) throw ultimoErro || new Error('Não foi possível alterar o status.');
+
+        pedido.status = status;
+        pedido.STATUS = status;
+        showToast('Status atualizado!', 'O pedido #' + id + ' agora está: ' + status + '.');
+        await carregarPedidos(true);
+        if (moduloAtual === 'Pedidos') renderPedidosModule();
+      } catch (error) {
+        console.error('Erro ao alterar status do pedido:', error);
+        showToast('Erro ao alterar status', error && error.message ? error.message : 'Não foi possível salvar a alteração.');
+      }
+    }
+
+    /* =====================================================
        CRUD DOS MÓDULOS
     ====================================================== */
     const CRUD_TABLES = {
