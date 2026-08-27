@@ -157,7 +157,7 @@
     ========================= */
 
     #appScreen {
-      display: none;
+      display: block;
       min-height: 100vh;
     }
 
@@ -590,69 +590,6 @@
 </head>
 
 <body>
-
-  <!-- =========================
-       LOGIN
-  ========================== -->
-
-  <section id="loginScreen">
-
-    <div class="login-card">
-
-      <img
-        src="logo-kuki-transparente.png"
-        alt="KUKI Cookies"
-        class="login-logo"
-      >
-
-      <h1 class="login-title">KUKI GERENCIAL</h1>
-
-      <p class="login-subtitle">
-        Acesse o sistema de gerenciamento da loja
-      </p>
-
-      <form id="loginForm">
-
-        <div class="field">
-          <label for="username">Usuário</label>
-          <input
-            type="text"
-            id="username"
-            placeholder="Digite seu usuário"
-            required
-            autocomplete="username"
-            autocapitalize="none"
-            spellcheck="false"
-          >
-        </div>
-
-        <div class="field">
-          <label for="password">Senha</label>
-          <input
-            type="password"
-            id="password"
-            placeholder="Digite sua senha"
-            required
-            autocomplete="current-password"
-          >
-        </div>
-
-        <button
-          type="submit"
-          class="login-button"
-          id="loginButton"
-        >
-          ENTRAR
-        </button>
-
-      </form>
-
-      <div id="loginError" class="login-error"></div>
-
-    </div>
-
-  </section>
-
 
   <!-- =========================
        SISTEMA
@@ -1285,44 +1222,12 @@
     }
 
     /* =====================================================
-       VERIFICAR LOGIN EXISTENTE
+       ACESSO TEMPORARIAMENTE SEM LOGIN
     ====================================================== */
-    async function verificarSessao() {
-      const { data, error } = await supabaseClient.auth.getSession();
-      if (error) { console.error(error); return; }
-      if (data.session) abrirSistema(data.session.user);
-    }
-
-    /* =====================================================
-       LOGIN
-    ====================================================== */
-    loginForm.addEventListener('submit', async function(event) {
-      event.preventDefault();
-      loginError.style.display = 'none';
-      const username = normalizarUsuario(document.getElementById('username').value);
-      const password = document.getElementById('password').value;
-      const email = USUARIOS_LOGIN[username];
-      if (!email) {
-        loginError.textContent = 'Usuário ou senha inválidos.';
-        loginError.style.display = 'block'; return;
-      }
-      loginButton.disabled = true; loginButton.textContent = 'ENTRANDO...';
-      try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({email, password});
-        if (error) throw error;
-        abrirSistema(data.user);
-      } catch(error) {
-        console.error(error); loginError.textContent = 'Usuário ou senha inválidos.'; loginError.style.display = 'block';
-      } finally { loginButton.disabled = false; loginButton.textContent = 'ENTRAR'; }
-    });
-
-    /* =====================================================
-       ABRIR SISTEMA / LOGOUT
-    ====================================================== */
-    async function abrirSistema(user) {
-      loginScreen.style.display = 'none';
+    async function abrirSistemaSemLogin() {
       appScreen.style.display = 'block';
-      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
+      const nome = document.getElementById('userName');
+      if (nome) nome.textContent = 'KUKI Gerencial';
       await pedirPermissaoNotificacao();
       history.replaceState({kukiGerencial:true, modulo:'Dashboard'}, '', '#dashboard');
       abrirModulo('Dashboard', false);
@@ -1331,12 +1236,11 @@
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
     }
 
-    async function logout() {
-      if (pollingTimer) clearInterval(pollingTimer);
-      pollingTimer = null;
-      await supabaseClient.auth.signOut();
-      appScreen.style.display = 'none'; loginScreen.style.display = 'flex';
-      document.getElementById('username').value = ''; document.getElementById('password').value = '';
+    function logout() {
+      if (confirm('Deseja sair da tela atual?')) {
+        abrirModulo('Dashboard', false);
+        window.scrollTo({top:0, behavior:'smooth'});
+      }
     }
 
     /* =====================================================
@@ -1398,7 +1302,7 @@
     /* =====================================================
        INICIAR
     ====================================================== */
-    verificarSessao();
+    abrirSistemaSemLogin();
 
   </script>
 
