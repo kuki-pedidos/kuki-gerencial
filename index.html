@@ -1301,23 +1301,65 @@
       return pedidosCache.find(p => String(getPedidoId(p)) === String(id)) || null;
     }
 
+    function normalizarTelefoneWhatsApp(valor) {
+      let numero = String(valor ?? '').replace(/\D/g, '');
+      if (!numero) return '';
+      // Se vier apenas DDD + número, acrescenta o DDI do Brasil.
+      if (numero.length === 10 || numero.length === 11) numero = '55' + numero;
+      return numero;
+    }
+
     async function obterClienteDoPedido(pedido) {
+      // 1) Primeiro procura telefone diretamente no próprio pedido.
+      const direto = getValue(pedido,[
+        'WHATSAPP','whatsapp','TELEFONE','telefone','CELULAR','celular','PHONE','phone'
+      ], '');
+      const nomeDireto = getValue(pedido,[
+        'CLIENTE_NOME','cliente_nome','NOME_CLIENTE','nome_cliente','NOME','nome'
+      ], '');
+      if (normalizarTelefoneWhatsApp(direto)) {
+        return { whatsapp: direto, nome: nomeDireto, origem: 'PEDIDO' };
+      }
+
+      // 2) Depois usa o CLIENTE_ID gravado no pedido para localizar o cliente.
       const clienteId = getValue(pedido,['CLIENTE_ID','cliente_id'], null);
-      const direto = getValue(pedido,['WHATSAPP','whatsapp','TELEFONE','telefone'], '');
-      if (direto) return { whatsapp: direto, nome: getValue(pedido,['CLIENTE_NOME','cliente_nome','NOME_CLIENTE','nome_cliente'],'') };
-      if (clienteId === null || clienteId === undefined || clienteId === '') return null;
-      try {
-        const rows = await getTable('CLIENTES', '?select=*&id=eq.'+encodeURIComponent(clienteId));
-        const c = Array.isArray(rows) ? rows[0] : null;
-        if (!c) return null;
-        return { whatsapp: getValue(c,['WHATSAPP','whatsapp','TELEFONE','telefone'],''), nome: getValue(c,['NOME','nome','CLIENTE_NOME','cliente_nome'],'') };
-      } catch(e) { console.error('Cliente do pedido:',e); return null; }
+      if (clienteId !== null && clienteId !== undefined && String(clienteId) !== '') {
+        try {
+          // Busca sem depender de maiúsculas/minúsculas no objeto retornado.
+          const rows = await getTable('CLIENTES', '?select=*');
+          const c = (Array.isArray(rows) ? rows : []).find(item =>
+            String(getValue(item,['ID','id'],'')) === String(clienteId)
+          );
+          if (c) {
+            const telefoneCliente = getValue(c,[
+              'WHATSAPP','whatsapp','TELEFONE','telefone','CELULAR','celular','PHONE','phone'
+            ], '');
+            if (normalizarTelefoneWhatsApp(telefoneCliente)) {
+              return {
+                whatsapp: telefoneCliente,
+                nome: getValue(c,['NOME','nome','CLIENTE_NOME','cliente_nome'],'Cliente'),
+                origem: 'CLIENTES'
+              };
+            }
+          }
+        } catch(e) {
+          console.error('Cliente do pedido:', e);
+        }
+      }
+
+      return null;
     }
 
     async function enviarStatusWhatsApp(pedido, statusAnterior, novoStatus) {
       const cliente = await obterClienteDoPedido(pedido);
-      const telefone = cliente && cliente.whatsapp ? String(cliente.whatsapp).replace(/\D/g,'') : '';
-      if (!telefone) throw new Error('O cliente deste pedido não possui WhatsApp/telefone cadastrado.');
+      const telefone = cliente && cliente.whatsapp ? normalizarTelefoneWhatsApp(cliente.whatsapp) : '';
+      if (!telefone) {
+        const clienteId = getValue(pedido,['CLIENTE_ID','cliente_id'], null);
+        if (clienteId === null || clienteId === undefined || String(clienteId) === '') {
+          throw new Error('Este pedido não possui CLIENTE_ID vinculado. Vincule o cliente ao pedido para localizar o TELEFONE automaticamente.');
+        }
+        throw new Error('O cliente vinculado ao pedido não possui TELEFONE/WHATSAPP válido.');
+      }
       const numeroPedido = getValue(pedido,['NUMERO_PEDIDO','numero_pedido','ID','id'],'');
       const payload = {
         evento: 'STATUS_PEDIDO_ATUALIZADO',
