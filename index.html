@@ -170,13 +170,10 @@
       background: var(--vermelho);
       color: white;
       padding: 22px 15px;
-      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       z-index: 1000;
       box-shadow: 3px 0 20px rgba(0,0,0,0.08);
-      overflow-y: auto;
-      overflow-x: hidden;
     }
 
     .sidebar-logo {
@@ -204,8 +201,6 @@
       display: flex;
       flex-direction: column;
       gap: 7px;
-      flex: 0 0 auto;
-      min-height: max-content;
     }
 
     .menu button {
@@ -236,7 +231,6 @@
     .sidebar-bottom {
       margin-top: auto;
       padding-top: 20px;
-      flex-shrink: 0;
     }
 
     .user-info {
@@ -720,213 +714,7 @@
       opacity:1 !important;
     }
 
-    /* MENU MOBILE COMPLETO */
-    .mobile-menu-toggle{font-size:22px;line-height:1;min-width:46px}
-    .mobile-menu-overlay{position:fixed;inset:0;background:rgba(30,20,20,.45);z-index:3000;display:none;align-items:stretch;justify-content:flex-end}
-    .mobile-menu-overlay.open{display:flex}
-    .mobile-menu-drawer{width:min(86vw,360px);height:100%;background:#fff;box-shadow:-12px 0 35px rgba(0,0,0,.18);padding:18px 14px;overflow:auto;animation:slideInMobile .2s ease-out}
-    @keyframes slideInMobile{from{transform:translateX(100%)}to{transform:translateX(0)}}
-    .mobile-menu-head{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 14px;border-bottom:1px solid var(--borda);margin-bottom:10px}
-    .mobile-menu-head strong{font-size:20px;color:var(--vermelho)}
-    .mobile-menu-close{border:0;background:#f1e8e2;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer}
-    .mobile-menu-list{display:grid;gap:7px}
-    .mobile-menu-list button{width:100%;border:0;background:#fff;text-align:left;padding:14px 12px;border-radius:12px;font-weight:800;color:var(--texto);font-size:15px;cursor:pointer}
-    .mobile-menu-list button:hover,.mobile-menu-list button.active{background:#f7e7ea;color:var(--vermelho)}
-    @media(min-width:761px){.mobile-menu-overlay{display:none!important}.mobile-menu-toggle{display:none!important}}
-
-
-
 </style>
-
-<style id="kuki-menu-fix">
-/* =====================================================
-   MENU DEFINITIVO - DESKTOP E MOBILE
-===================================================== */
-
-/* DESKTOP */
-.sidebar{
-  display:flex !important;
-  flex-direction:column !important;
-  height:100vh !important;
-  max-height:100vh !important;
-  overflow-y:auto !important;
-  overflow-x:hidden !important;
-  box-sizing:border-box !important;
-  padding-bottom:16px !important;
-}
-
-.sidebar .menu{
-  display:flex !important;
-  flex-direction:column !important;
-  flex:none !important;
-  gap:6px !important;
-  width:100% !important;
-}
-
-.sidebar .menu button{
-  display:flex !important;
-  align-items:center !important;
-  width:100% !important;
-  min-height:46px !important;
-  box-sizing:border-box !important;
-  visibility:visible !important;
-  opacity:1 !important;
-}
-
-.sidebar .menu button:nth-child(3),
-.sidebar .menu button:nth-child(9){
-  display:flex !important;
-  visibility:visible !important;
-  opacity:1 !important;
-}
-
-.sidebar-bottom{
-  margin-top:16px !important;
-  flex:none !important;
-}
-
-/* MOBILE */
-.mobile-menu-toggle{
-  display:none;
-}
-
-.mobile-menu-overlay{
-  position:fixed !important;
-  inset:0 !important;
-  z-index:999999 !important;
-  background:rgba(20,10,10,.55) !important;
-  display:none !important;
-  align-items:stretch !important;
-  justify-content:flex-end !important;
-}
-
-.mobile-menu-overlay.open{
-  display:flex !important;
-}
-
-.mobile-menu-drawer{
-  width:min(92vw,390px) !important;
-  height:100vh !important;
-  max-height:100vh !important;
-  box-sizing:border-box !important;
-  background:#fff !important;
-  overflow-y:auto !important;
-  overflow-x:hidden !important;
-  -webkit-overflow-scrolling:touch !important;
-  padding:18px 14px 32px !important;
-}
-
-.mobile-menu-list{
-  display:flex !important;
-  flex-direction:column !important;
-  gap:8px !important;
-  width:100% !important;
-  padding-bottom:28px !important;
-}
-
-.mobile-menu-list button{
-  display:block !important;
-  width:100% !important;
-  min-height:52px !important;
-  box-sizing:border-box !important;
-  visibility:visible !important;
-  opacity:1 !important;
-}
-
-@media (max-width:760px){
-  .sidebar{
-    display:none !important;
-  }
-
-  .main{
-    margin-left:0 !important;
-    padding:16px !important;
-    width:100% !important;
-    box-sizing:border-box !important;
-  }
-
-  .mobile-header{
-    display:flex !important;
-    position:relative !important;
-    z-index:10 !important;
-    align-items:center !important;
-    justify-content:space-between !important;
-  }
-
-  .mobile-menu-toggle{
-    display:inline-flex !important;
-    align-items:center !important;
-    justify-content:center !important;
-    width:48px !important;
-    height:48px !important;
-    font-size:26px !important;
-    cursor:pointer !important;
-  }
-}
-
-@media (min-width:761px){
-  .mobile-header{
-    display:none !important;
-  }
-}
-</style>
-
-
-<style id="kuki-financeiro-modal-fix">
-.modal-overlay{
-  position:fixed !important;
-  inset:0 !important;
-  z-index:10000 !important;
-  display:flex !important;
-  align-items:center !important;
-  justify-content:center !important;
-  padding:18px !important;
-  background:rgba(20,15,12,.58) !important;
-  box-sizing:border-box !important;
-  overflow:auto !important;
-}
-.modal-card{
-  width:min(100%,620px) !important;
-  max-height:calc(100vh - 36px) !important;
-  overflow-y:auto !important;
-  box-sizing:border-box !important;
-  background:#fff !important;
-  border-radius:18px !important;
-  padding:22px !important;
-  box-shadow:0 20px 60px rgba(0,0,0,.28) !important;
-}
-.modal-header{
-  display:flex !important;
-  align-items:center !important;
-  justify-content:space-between !important;
-  gap:16px !important;
-  margin-bottom:18px !important;
-}
-.modal-header h2{margin:0 !important;}
-.modal-card .field{margin:12px 0 !important;}
-.modal-card label{display:block !important;font-weight:800 !important;margin-bottom:6px !important;}
-.modal-card input,.modal-card select,.modal-card textarea{
-  width:100% !important;
-  box-sizing:border-box !important;
-  padding:11px 12px !important;
-  border:1px solid var(--borda) !important;
-  border-radius:10px !important;
-  font:inherit !important;
-}
-.modal-card textarea{min-height:90px !important;resize:vertical !important;}
-@media(max-width:760px){
-  .modal-overlay{align-items:flex-end !important;padding:0 !important;}
-  .modal-card{
-    width:100% !important;
-    max-height:92vh !important;
-    border-radius:20px 20px 0 0 !important;
-    padding:20px 16px 28px !important;
-  }
-  .modal-card .actions-inline{justify-content:stretch !important;}
-  .modal-card .actions-inline button{flex:1 !important;}
-}
-</style>
-
 </head>
 
 <body>
@@ -1069,34 +857,22 @@
 
     </aside>
 
-    <!-- MENU COMPLETO PARA CELULAR -->
-    <div class="mobile-menu-overlay" id="mobileMenuOverlay" onclick="if(event.target===this)fecharMenuMobile()">
-      <aside class="mobile-menu-drawer" aria-label="Menu principal">
-        <div class="mobile-menu-head"><strong>🍪 KUKI Gerencial</strong><button class="mobile-menu-close" type="button" onclick="fecharMenuMobile()">✕</button></div>
-        <div class="mobile-menu-list">
-          <button type="button" onclick="abrirModuloMobile('Dashboard')">📊 Dashboard</button>
-          <button type="button" onclick="abrirModuloMobile('Pedidos')">📦 Pedidos</button>
-          <button type="button" onclick="abrirModuloMobile('Financeiro')">💰 Financeiro</button>
-          <button type="button" onclick="abrirModuloMobile('Produtos')">🍪 Produtos</button>
-          <button type="button" onclick="abrirModuloMobile('Clientes')">👥 Clientes</button>
-          <button type="button" onclick="abrirModuloMobile('Formas de pagamento')">💳 Pagamentos</button>
-          <button type="button" onclick="abrirModuloMobile('Formas de entrega')">🛵 Entregas</button>
-          <button type="button" onclick="abrirModuloMobile('Horários')">🕐 Horários</button>
-          <button type="button" onclick="abrirModuloMobile('Configurações')">⚙️ Configurações</button>
-        </div>
-      </aside>
-    </div>
 
     <!-- CONTEÚDO -->
 
     <main class="main">
 
       <div class="mobile-header">
-        <img src="logo-kuki-transparente.png" alt="KUKI">
-        <div style="display:flex;gap:8px;align-items:center">
-          <button class="mobile-menu-toggle" type="button" onclick="abrirMenuMobile()" aria-label="Abrir menu">☰</button>
-          <button onclick="logout()">SAIR</button>
-        </div>
+
+        <img
+          src="logo-kuki-transparente.png"
+          alt="KUKI"
+        >
+
+        <button onclick="logout()">
+          SAIR
+        </button>
+
       </div>
 
 
@@ -1333,18 +1109,7 @@
         ...(options.headers || {})
       };
       const url = SUPABASE_URL + '/rest/v1/' + encodeURIComponent(table) + path;
-
-      // O fetch não transforma objetos JavaScript em JSON automaticamente.
-      // Sem isso o Supabase recebe "[object Object]" e retorna PGRST102.
-      const requestOptions = {...options, headers};
-      if (requestOptions.body && typeof requestOptions.body === 'object' &&
-          !(requestOptions.body instanceof FormData) &&
-          !(requestOptions.body instanceof Blob) &&
-          !(requestOptions.body instanceof URLSearchParams)) {
-        requestOptions.body = JSON.stringify(requestOptions.body);
-      }
-
-      const response = await fetch(url, requestOptions);
+      const response = await fetch(url, {...options, headers});
       const text = await response.text();
       let body = null;
       try { body = text ? JSON.parse(text) : null; } catch(e) { body = text; }
@@ -1952,9 +1717,7 @@
       'Produtos': { table:'PRODUTOS', icon:'🍪', fields:['NOME','DESCRICAO','PRECO','ATIVO'] },
       'Clientes': { table:'CLIENTES', icon:'👥', fields:['NOME','TELEFONE','WHATSAPP','CEP','ENDERECO','NUMERO','COMPLEMENTO','BAIRRO','CIDADE'] },
       'Formas de pagamento': { table:'FORMAS_PAGAMENTO', icon:'💳', fields:['NOME','ATIVO'] },
-      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] },
-      'Configurações': { table:'CONFIGURACOES', icon:'⚙️', fields:[] },
-      'Categorias financeiras': { table:'FINANCEIRO_CATEGORIAS', icon:'🏷️', fields:['NOME','DESCRICAO','ATIVO'] }
+      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
     };
     const crudCache = {};
     function normKey(k){ return String(k||'').toUpperCase(); }
@@ -1986,7 +1749,7 @@
 
     function renderPlaceholderModule(name) {
       const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
-      document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Módulo em preparação.</p></div>';
+      document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Este módulo será conectado ao Supabase na próxima etapa.</p></div>';
     }
 
     /* =====================================================
@@ -2030,16 +1793,6 @@
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
       await carregarPedidos(true);
-
-      // Cria o estado inicial para que VOLTAR navegue dentro do sistema.
-      try {
-        const inicial = moduloDoHash() || 'Dashboard';
-        if (!history.state || !history.state.kukiModule) {
-          history.replaceState({kukiModule: inicial}, '', inicial === 'Dashboard' ? location.pathname + location.search : '#'+encodeURIComponent(inicial.toLowerCase().replace(/\s+/g,'-')));
-        }
-        if (inicial !== 'Dashboard') abrirModulo(inicial, {history:false});
-      } catch(e) {}
-
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = setInterval(() => carregarPedidos(false), 10000);
     }
@@ -2119,7 +1872,7 @@
 
     function renderFinanceiroModule() {
       const container = document.getElementById('moduleContent');
-      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="abrirCategoriasFinanceiras()">🏷️ Categorias</button><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button id="btnNovaDespesa" type="button" class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
       carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
         console.error('Financeiro:', error);
         document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">'+escapeHtml(error.message || 'Erro desconhecido')+'</p></div>';
@@ -2167,15 +1920,6 @@
         </div>`;
     }
 
-    function abrirCategoriasFinanceiras() {
-      const dashboard = document.getElementById('dashboardContent');
-      const moduleContent = document.getElementById('moduleContent');
-      dashboard.style.display='none'; moduleContent.style.display='block';
-      document.getElementById('pageTitle').textContent = 'Categorias financeiras';
-      document.getElementById('pageSubtitle').textContent = 'Cadastre e mantenha as categorias de despesas';
-      renderCrudModule('Categorias financeiras');
-    }
-
     function abrirFormDespesa(id=null) {
       const atual = id == null ? null : financeiroDespesasCache.find(d => String(getField(d,['ID','id'])) === String(id));
       const titulo = atual ? '✏️ Editar despesa' : '➕ Nova despesa';
@@ -2195,13 +1939,19 @@
         <div class="field"><label>Forma de pagamento</label><select id="despesaForma"><option value="">Selecione</option>${formaOptions}</select></div>
         <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="despesaValor" value="${atual?valorDespesa(atual):''}" placeholder="0,00" required></div>
         <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
-        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button class="secondary-button" onclick="fecharModalDespesa()">Cancelar</button><button class="primary-button" onclick="salvarDespesa(${id===null?'null':JSON.stringify(String(id))})">💾 Confirmar</button></div></div>`;
+        <form id="formDespesa"><div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" onclick="fecharModalDespesa()">Cancelar</button><button type="submit" class="primary-button">💾 Confirmar</button></div></form></div>`;
       document.body.appendChild(modal);
-      modal.addEventListener('click', function(ev){
-        if (ev.target === modal) fecharModalDespesa();
+      const formDespesa = modal.querySelector('#formDespesa');
+      formDespesa.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        const botao = formDespesa.querySelector('button[type="submit"]');
+        if (botao) { botao.disabled = true; botao.dataset.originalText = botao.textContent; botao.textContent = 'Salvando...'; }
+        try {
+          await salvarDespesa(id);
+        } finally {
+          if (botao && document.body.contains(botao)) { botao.disabled = false; botao.textContent = botao.dataset.originalText || '💾 Confirmar'; }
+        }
       });
-      // Garante foco visual no primeiro campo do formulário.
-      setTimeout(() => document.getElementById('despesaDescricao')?.focus(), 50);
     }
 
     function fecharModalDespesa(){ document.getElementById('modalDespesa')?.remove(); }
@@ -2215,23 +1965,37 @@
       const observacao = document.getElementById('despesaObs').value.trim() || null;
       if (!data || !descricao || !(valor > 0)) { showToast('Dados obrigatórios','Informe data, descrição e valor válido.'); return; }
       if (!confirm(id ? 'Confirmar alteração desta despesa?' : 'Confirmar inclusão desta despesa?')) return;
-      // As colunas do Supabase/PostgreSQL foram criadas em minúsculas.
-      // O payload precisa usar exatamente os nomes reais das colunas.
+      // Não envia ATIVO porque a tabela FINANCEIRO_DESPESAS atual não possui essa coluna.
       const payload = {
-        data: data+'T12:00:00',
-        descricao: descricao,
-        categoria_id: categoria ? Number(categoria) : null,
-        forma_pagamento_id: forma ? Number(forma) : null,
-        valor: valor,
-        observacao: observacao
+        DATA: data+'T12:00:00',
+        DESCRICAO: descricao,
+        CATEGORIA_ID: categoria ? Number(categoria) : null,
+        FORMA_PAGAMENTO_ID: forma ? Number(forma) : null,
+        VALOR: valor,
+        OBSERVACAO: observacao
       };
       try {
-        if (id == null) await restRequest('FINANCEIRO_DESPESAS', '', {method:'POST', body:payload});
-        else await restRequest('FINANCEIRO_DESPESAS', '?id=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
+        if (id == null) {
+          await restRequest('FINANCEIRO_DESPESAS', '', {
+            method:'POST',
+            headers:{'Prefer':'return=representation'},
+            body: JSON.stringify(payload)
+          });
+        } else {
+          await restRequest('FINANCEIRO_DESPESAS', '?id=eq.'+encodeURIComponent(id), {
+            method:'PATCH',
+            headers:{'Prefer':'return=representation'},
+            body: JSON.stringify(payload)
+          });
+        }
         fecharModalDespesa();
         showToast('Financeiro atualizado', id == null ? 'Despesa cadastrada com sucesso.' : 'Despesa alterada com sucesso.');
-        renderFinanceiroModule();
-      } catch(e) { console.error(e); showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.'); }
+        await renderFinanceiroModule();
+      } catch(e) {
+        console.error('Erro ao salvar despesa:', e);
+        showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.');
+        throw e;
+      }
     }
 
     function editarDespesa(id){ abrirFormDespesa(id); }
@@ -2239,16 +2003,12 @@
     async function excluirDespesa(id) {
       if (!confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
       try {
-        await restRequest('FINANCEIRO_DESPESAS', '?id=eq.'+encodeURIComponent(id), {method:'DELETE'});
+        await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'DELETE'});
         showToast('Despesa excluída','O lançamento foi removido.');
         renderFinanceiroModule();
       } catch(e) { console.error(e); showToast('Erro ao excluir', e.message || 'Não foi possível excluir a despesa.'); }
     }
 
-
-    function abrirMenuMobile(){ document.getElementById('mobileMenuOverlay')?.classList.add('open'); }
-    function fecharMenuMobile(){ document.getElementById('mobileMenuOverlay')?.classList.remove('open'); }
-    function abrirModuloMobile(name){ fecharMenuMobile(); selectMenuByName(name); }
 
     /* =====================================================
        MENU
@@ -2258,30 +2018,18 @@
       button.classList.add('active'); abrirModulo(name);
     }
     function selectMenuByName(name) {
-      const alvo = String(name).trim();
-      const botao = Array.from(document.querySelectorAll('.menu button')).find(b => b.textContent.replace(/\s+/g,' ').trim().endsWith(alvo));
-      if (botao) selectMenu(botao, alvo);
-      else abrirModulo(alvo);
+      document.querySelectorAll('.menu button').forEach(botao => {
+        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
+      });
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
-    let navegacaoInternaPorHistorico = false;
-
-    function abrirModulo(name, options={}) {
-      const moduloAnterior = moduloAtual;
+    function abrirModulo(name) {
       moduloAtual = name;
-
-      // Cada mudança de tela entra no histórico do navegador.
-      // Assim o botão VOLTAR funciona no desktop e no celular sem fechar o app.
-      if (options.history !== false && moduloAnterior !== name) {
-        try {
-          history.pushState({ kukiModule: name }, '', '#'+encodeURIComponent(String(name).toLowerCase().replace(/\s+/g,'-')));
-        } catch(e) {}
-      }
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro','Categorias financeiras':'Cadastre e mantenha as categorias de despesas'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
@@ -2292,60 +2040,6 @@
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
-
-
-    /* =====================================================
-       HISTÓRICO / BOTÃO VOLTAR
-    ====================================================== */
-    function moduloDoHash() {
-      const h = decodeURIComponent(String(location.hash || '').replace(/^#/,'')).trim().toLowerCase();
-      const mapa = {
-        'dashboard':'Dashboard',
-        'pedidos':'Pedidos',
-        'financeiro':'Financeiro',
-        'produtos':'Produtos',
-        'clientes':'Clientes',
-        'formas-de-pagamento':'Formas de pagamento',
-        'formas-de-entrega':'Formas de entrega',
-        'horarios':'Horários',
-        'horários':'Horários',
-        'configuracoes':'Configurações',
-        'configurações':'Configurações',
-        'categorias-financeiras':'Categorias financeiras'
-      };
-      return mapa[h] || null;
-    }
-
-    function restaurarModuloDoHistorico() {
-      const modulo = moduloDoHash() || 'Dashboard';
-      selectMenuByName(modulo);
-    }
-
-    function marcarMenuAtivo(nome) {
-      document.querySelectorAll('.menu button').forEach(item => {
-        item.classList.toggle('active', item.textContent.replace(/\s+/g,' ').trim().endsWith(String(nome).trim()));
-      });
-    }
-
-    window.addEventListener('popstate', function(){
-      const modulo = moduloDoHash() || 'Dashboard';
-      // Não cria nova entrada enquanto estamos respondendo ao botão VOLTAR.
-      marcarMenuAtivo(modulo);
-      abrirModulo(modulo, {history:false});
-    });
-
-    // Se o usuário abrir uma tela diretamente por URL, mostra a tela correspondente.
-    window.addEventListener('hashchange', function(){
-      const modulo = moduloDoHash();
-      if (modulo && modulo !== moduloAtual) abrirModulo(modulo, {history:false});
-    });
-
-
-    // Garantia extra para botões inline em todos os navegadores.
-    window.abrirFormDespesa = abrirFormDespesa;
-    window.fecharModalDespesa = fecharModalDespesa;
-    window.salvarDespesa = salvarDespesa;
-    window.abrirModulo = abrirModulo;
 
     /* =====================================================
        INICIAR
