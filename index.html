@@ -596,7 +596,13 @@
         padding: 15px;
       }
     }
-  </style>
+  
+    /* CRUD módulos */
+    .crud-form-box{margin:20px 0;padding:18px;border:1px solid #ead7c7;border-radius:16px;background:#fffaf6}
+    .crud-form-box h3{margin-bottom:14px}.crud-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-weight:700}.crud-field input{padding:12px;border:1px solid #d9c8bb;border-radius:10px;font:inherit}.check-field{flex-direction:row;align-items:center}.crud-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.actions-inline{display:flex;gap:8px;align-items:center;justify-content:flex-start;flex-wrap:nowrap}.actions-inline button{margin:0!important;min-width:92px}.crud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.crud-grid .crud-field{margin-bottom:0}
+    @media(max-width:700px){.actions-inline{gap:6px}.actions-inline button{min-width:0;padding:9px 8px;font-size:12px}.crud-grid{grid-template-columns:1fr}}
+
+</style>
 </head>
 
 <body>
@@ -1001,6 +1007,11 @@
     }
     atualizarData();
 
+
+    // Webhook do n8n responsável por enviar a atualização do status ao WhatsApp do cliente.
+    // O workflow precisa estar publicado neste endpoint no n8n.
+    const STATUS_PEDIDO_WEBHOOK_URL = 'https://rikasolucoes.app.n8n.cloud/webhook/kuki-status-pedido';
+
     function getValue(obj, names, fallback='') {
       if (!obj) return fallback;
       const map = {};
@@ -1290,29 +1301,67 @@
       return pedidosCache.find(p => String(getPedidoId(p)) === String(id)) || null;
     }
 
+    async function obterClienteDoPedido(pedido) {
+      const clienteId = getValue(pedido,['CLIENTE_ID','cliente_id'], null);
+      const direto = getValue(pedido,['WHATSAPP','whatsapp','TELEFONE','telefone'], '');
+      if (direto) return { whatsapp: direto, nome: getValue(pedido,['CLIENTE_NOME','cliente_nome','NOME_CLIENTE','nome_cliente'],'') };
+      if (clienteId === null || clienteId === undefined || clienteId === '') return null;
+      try {
+        const rows = await getTable('CLIENTES', '?select=*&id=eq.'+encodeURIComponent(clienteId));
+        const c = Array.isArray(rows) ? rows[0] : null;
+        if (!c) return null;
+        return { whatsapp: getValue(c,['WHATSAPP','whatsapp','TELEFONE','telefone'],''), nome: getValue(c,['NOME','nome','CLIENTE_NOME','cliente_nome'],'') };
+      } catch(e) { console.error('Cliente do pedido:',e); return null; }
+    }
+
+    async function enviarStatusWhatsApp(pedido, statusAnterior, novoStatus) {
+      const cliente = await obterClienteDoPedido(pedido);
+      const telefone = cliente && cliente.whatsapp ? String(cliente.whatsapp).replace(/\D/g,'') : '';
+      if (!telefone) throw new Error('O cliente deste pedido não possui WhatsApp/telefone cadastrado.');
+      const numeroPedido = getValue(pedido,['NUMERO_PEDIDO','numero_pedido','ID','id'],'');
+      const payload = {
+        evento: 'STATUS_PEDIDO_ATUALIZADO',
+        pedido_id: getPedidoId(pedido),
+        numero_pedido: numeroPedido,
+        status_anterior: statusAnterior,
+        novo_status: novoStatus,
+        status: novoStatus,
+        cliente_id: getValue(pedido,['CLIENTE_ID','cliente_id'],null),
+        cliente_nome: cliente.nome || '',
+        telefone: telefone,
+        whatsapp: telefone,
+        valor_total: getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],null),
+        observacao: getValue(pedido,['OBSERVACAO','observacao'],'')
+      };
+      const response = await fetch(STATUS_PEDIDO_WEBHOOK_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+      if (!response.ok) throw new Error('Webhook respondeu HTTP '+response.status);
+      return true;
+    }
+
     async function atualizarStatusPedido(id) {
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       const statusAtual = getPedidoStatus(pedido);
-      if (pedidoEstaBloqueado(statusAtual)) {
-        showToast('🔒 Pedido bloqueado','Pedidos concluídos, fechados ou finalizados não podem ser alterados.');
-        return;
-      }
-      const select = document.getElementById('statusPedido_' + id);
-      const novoStatus = select ? select.value : statusAtual;
-      if (normalizarStatus(novoStatus) === normalizarStatus(statusAtual)) return;
-      if (!confirm('Confirmar alteração do status do pedido #' + id + ' para "' + novoStatus + '"?\n\nAtenção: se o pedido for concluído/fechado/finalizado, ele ficará bloqueado para novas alterações.')) {
-        if (select) select.value = statusAtual;
-        return;
-      }
+      if (pedidoEstaBloqueado(statusAtual)) { showToast('🔒 Pedido bloqueado','Pedidos concluídos, fechados ou finalizados não podem ser alterados.'); return; }
+      const select = document.getElementById('statusPedido_'+id);
+      const novoStatus = select ? String(select.value || '').trim() : '';
+      if (!novoStatus) { showToast('Status obrigatório','Escolha o novo status.'); return; }
+      if (normalizarStatus(novoStatus) === normalizarStatus(statusAtual)) { showToast('Sem alteração','Escolha um status diferente do atual.'); return; }
+      if (!confirm('Confirmar alteração do status do pedido #'+id+' de "'+statusAtual+'" para "'+novoStatus+'"?')) return;
       try {
         await patchPedido(id, { STATUS: novoStatus, DATA_ATUALIZACAO: new Date().toISOString() });
-        showToast('Status atualizado','O pedido #' + id + ' foi atualizado com sucesso.');
+        // Atualiza a mensagem via workflow n8n; a falha é informada sem desfazer a atualização do pedido.
+        try {
+          await enviarStatusWhatsApp(pedido, statusAtual, novoStatus);
+          showToast('Status atualizado','Pedido atualizado e mensagem enviada ao WhatsApp do cliente.');
+        } catch (zapError) {
+          console.error('WhatsApp:', zapError);
+          showToast('Status atualizado','Pedido salvo, mas a mensagem do WhatsApp não foi enviada: '+zapError.message);
+        }
         await carregarPedidos(false);
       } catch (error) {
         console.error('Erro ao alterar status:', error);
         showToast('Erro ao atualizar','Não foi possível alterar o status: ' + error.message);
-        if (select) select.value = statusAtual;
       }
     }
 
@@ -1388,8 +1437,7 @@
           ? '<div class="action-group"><button class="locked-button" type="button" disabled title="Pedido bloqueado">🔒 '+escapeHtml(status)+'</button></div>'
           : '<div class="action-group">'
             + '<select id="statusPedido_'+escapeHtml(id)+'" class="status-select">'+options+'</select>'
-            + '<button class="secondary-button" type="button" onclick="atualizarStatusPedido(\''+escapeHtml(id)+'\')">Status</button>'
-            + '<button class="secondary-button" type="button" onclick="editarPedido(\''+escapeHtml(id)+'\')">✏️ Editar</button>'
+            + '<button class="primary-button" type="button" onclick="atualizarStatusPedido(\''+escapeHtml(id)+'\')">✓ Confirmar</button>'
             + '<button class="danger-button" type="button" onclick="excluirPedido(\''+escapeHtml(id)+'\')">🗑 Excluir</button>'
             + '</div>';
         return '<tr>'
@@ -1407,6 +1455,44 @@
         + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>CONCLUÍDOS, FECHADOS, FINALIZADOS ou ENCERRADOS</strong> não podem ser editados, ter o status alterado ou ser excluídos.</div>'
         + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
+
+
+    /* =====================================================
+       CRUD DOS MÓDULOS
+    ====================================================== */
+    const CRUD_TABLES = {
+      'Produtos': { table:'PRODUTOS', icon:'🍪', fields:['NOME','DESCRICAO','PRECO','ATIVO'] },
+      'Clientes': { table:'CLIENTES', icon:'👥', fields:['NOME','TELEFONE','WHATSAPP','CEP','ENDERECO','NUMERO','COMPLEMENTO','BAIRRO','CIDADE'] },
+      'Formas de pagamento': { table:'FORMAS_PAGAMENTO', icon:'💳', fields:['NOME','ATIVO'] },
+      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
+    };
+    const crudCache = {};
+    function normKey(k){ return String(k||'').toUpperCase(); }
+    function prettyField(k){ return String(k).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+    function isSystemField(k){ return ['ID','CREATED_AT','UPDATED_AT'].includes(normKey(k)); }
+    function isBoolField(k){ return ['ATIVO','ABERTO','DISPONIVEL','HABILITADO'].includes(normKey(k)); }
+    function isNumberField(k){ return ['PRECO','VALOR','TOTAL','TAXA','ESTOQUE','QUANTIDADE'].some(x=>normKey(k).includes(x)); }
+    async function carregarCrud(name){ const cfg=CRUD_TABLES[name]; if(!cfg)return[]; try{const rows=await getTable(cfg.table,'?select=*');crudCache[name]=Array.isArray(rows)?rows:[];return crudCache[name];}catch(e){console.error(e);throw e;} }
+    function crudFields(name,rows){ const cfg=CRUD_TABLES[name],set=new Set(cfg.fields); (rows||[]).forEach(r=>Object.keys(r||{}).forEach(k=>{if(!isSystemField(k))set.add(k)})); return [...set]; }
+    function getRecordId(record){ return getValue(record,['id','ID'],null); }
+    async function renderCrudModule(name){
+      const c=document.getElementById('moduleContent'),cfg=CRUD_TABLES[name]; if(!cfg)return;
+      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
+      let rows=[],loadError=''; try{rows=await carregarCrud(name)}catch(e){loadError='Não foi possível carregar '+cfg.table+': '+(e.message||'erro desconhecido')}
+      const fields=crudFields(name,rows), cols=rows.length?Object.keys(rows[0]).filter(k=>!isSystemField(k)):fields;
+      const form=fields.map(f=>{const type=isBoolField(f)?'checkbox':(isNumberField(f)?'number':'text');const step=isNumberField(f)?' step="0.01"':'';return type==='checkbox'?'<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>':'<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>'}).join('');
+      const header=cols.map(k=>'<th>'+escapeHtml(prettyField(k))+'</th>').join('');
+      const body=rows.length?rows.map((r,i)=>'<tr>'+cols.map(k=>'<td>'+escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??''))+'</td>').join('')+'<td><div class="actions-inline"><button type="button" class="secondary-button" data-crud-action="edit" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">✏️ Editar</button><button type="button" class="danger-button" data-crud-action="delete" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">🗑 Excluir</button></div></td></tr>').join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
+      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div><div class="actions-inline"><button class="primary-button" data-crud-action="new" data-crud-name="'+escapeHtml(name)+'">＋ Novo</button><button class="secondary-button" data-crud-action="refresh" data-crud-name="'+escapeHtml(name)+'">↻ Atualizar</button></div></div>'+(loadError?'<p style="color:#a20c23">'+escapeHtml(loadError)+'</p>':'')+'<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm"><div class="crud-grid">'+form+'</div><div class="crud-actions"><button type="submit" class="primary-button">💾 Salvar</button><button type="button" class="secondary-button" data-crud-action="cancel">Cancelar</button></div></form></div><div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+      const f=document.getElementById('crudForm'); if(f)f.addEventListener('submit',e=>salvarCrud(e,name));
+    }
+    function abrirFormularioCrud(name){const b=document.getElementById('crudFormBox'),f=document.getElementById('crudForm');if(!b||!f)return;b.style.display='block';document.getElementById('crudFormTitle').textContent='Novo cadastro';f.dataset.editIndex='';f.reset();}
+    function fecharFormularioCrud(){const b=document.getElementById('crudFormBox');if(b)b.style.display='none';}
+    function editarCrud(name,index){const r=(crudCache[name]||[])[Number(index)];if(!r)return;abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);Object.keys(r).forEach(k=>{const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}});document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});}
+    function collectCrudForm(form){const obj={};Array.from(form.elements).forEach(el=>{if(!el.name)return;let v=el.type==='checkbox'?el.checked:el.value.trim();if(v!==''||el.type==='checkbox')obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v;});return obj;}
+    async function salvarCrud(e,name){e.preventDefault();const cfg=CRUD_TABLES[name],form=e.currentTarget,body=collectCrudForm(form),idx=form.dataset.editIndex,editing=idx!=='';if(!confirm(editing?'Confirmar as alterações deste cadastro?':'Confirmar a inclusão deste novo cadastro?'))return;try{if(editing){const id=getRecordId(crudCache[name][Number(idx)]);if(id===null||id===undefined)throw new Error('Registro sem ID');await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});}else await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});showToast('Sucesso',editing?'Alterações salvas.':'Cadastro incluído.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível salvar: '+(err.message||''));}}
+    async function excluirCrud(name,index){const old=(crudCache[name]||[])[Number(index)],id=getRecordId(old);if(id===null||id===undefined){showToast('Erro','Não foi possível identificar o registro.');return;}if(!confirm('Confirmar exclusão? Esta ação não poderá ser desfeita.'))return;const cfg=CRUD_TABLES[name];try{await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'DELETE'});showToast('Excluído','Registro removido com sucesso.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível excluir: '+(err.message||''));}}
+    document.getElementById('moduleContent').addEventListener('click',function(e){const b=e.target.closest('[data-crud-action]');if(!b)return;const a=b.dataset.crudAction,n=b.dataset.crudName,i=Number(b.dataset.crudIndex);if(a==='new')abrirFormularioCrud(n);else if(a==='refresh')renderCrudModule(n);else if(a==='edit')editarCrud(n,i);else if(a==='delete')excluirCrud(n,i);else if(a==='cancel')fecharFormularioCrud();});
 
     function renderPlaceholderModule(name) {
       const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
@@ -1492,6 +1578,7 @@
       dashboard.style.display='none'; moduleContent.style.display='block';
       if (name === 'Horários') renderHorariosModule();
       else if (name === 'Pedidos') renderPedidosModule();
+      else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
 
