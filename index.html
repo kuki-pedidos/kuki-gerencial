@@ -1810,17 +1810,28 @@
     }
 
     async function carregarFinanceiroDados() {
+      // Não usamos filtros/order no servidor aqui porque as tabelas financeiras
+      // foram criadas com combinações diferentes de nomes maiúsculos/minúsculos.
+      // Isso evita que uma coluna inexistente derrube TODO o módulo Financeiro.
       const [despesas, categorias, formas] = await Promise.all([
-        getTable('FINANCEIRO_DESPESAS', '?select=*&order=DATA.desc'),
-        getTable('FINANCEIRO_CATEGORIAS', '?select=*&ATIVO=eq.true&order=NOME.asc'),
+        getTable('FINANCEIRO_DESPESAS', '?select=*'),
+        getTable('FINANCEIRO_CATEGORIAS', '?select=*'),
         getTable('FORMAS_PAGAMENTO', '?select=*')
       ]);
-      financeiroDespesasCache = Array.isArray(despesas) ? despesas : [];
-      financeiroCategoriasCache = Array.isArray(categorias) ? categorias : [];
-      financeiroFormasCache = (Array.isArray(formas) ? formas : []).filter(f => {
-        const a = getField(f,['ATIVO','ativo'],true);
+
+      const ativos = list => (Array.isArray(list) ? list : []).filter(item => {
+        const a = getField(item,['ATIVO','ativo'],true);
         return a !== false && String(a).toLowerCase() !== 'false' && a !== 0 && a !== '0';
       });
+
+      financeiroDespesasCache = Array.isArray(despesas) ? despesas : [];
+      financeiroDespesasCache.sort((a,b) => String(dataDespesa(b)||'').localeCompare(String(dataDespesa(a)||'')));
+
+      financeiroCategoriasCache = ativos(categorias);
+      financeiroCategoriasCache.sort((a,b) => String(getField(a,['NOME','nome'],'')).localeCompare(String(getField(b,['NOME','nome'],''))));
+
+      financeiroFormasCache = ativos(formas);
+      financeiroFormasCache.sort((a,b) => String(getField(a,['NOME','nome','DESCRICAO','descricao'],'')).localeCompare(String(getField(b,['NOME','nome','DESCRICAO','descricao'],''))));
     }
 
     function dataHojeISO() { return localDateKey(new Date()); }
