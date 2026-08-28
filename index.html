@@ -2048,36 +2048,36 @@
 
       const payload = { DATA:data+'T12:00:00', DESCRICAO:descricao, CATEGORIA:categoria, FORMA_PAGAMENTO:forma, VALOR:valor, OBSERVACAO:observacao };
       try {
-        // EDIÇÃO: sempre atualiza o registro pelo ID existente. Nunca faz POST.
-        // A tabela pode ter colunas em maiúsculo ou minúsculo; por isso tentamos
-        // as duas combinações sem perder o modo de edição.
         if (editando) {
-          // REGRA CRÍTICA: edição nunca faz POST. Usamos exatamente a chave/campo
-          // do registro original carregado do Supabase.
+          // REGRA CRÍTICA: editar NUNCA cria um registro novo. Se a atualização
+          // não puder ser confirmada por qualquer motivo, a função lança um erro
+          // e para aqui — não existe nenhum caminho de código depois deste bloco
+          // que faça um POST (criação) enquanto editando=true.
           const campoChave = String(modal.dataset.despesaKeyField || '').trim();
-          if (!campoChave || !id) throw new Error('Chave do lançamento não encontrada. A inclusão foi bloqueada.');
+          if (!campoChave || !id) throw new Error('Chave do lançamento não encontrada. A edição foi bloqueada para não criar um lançamento novo.');
 
-          const payloadLower = {};
-          Object.keys(payload).forEach(k => payloadLower[k.toLowerCase()] = payload[k]);
-          const filtros = [
-            { tabela:'FINANCEIRO_DESPESAS', corpo:payload },
-            { tabela:'financeiro_despesas', corpo:payloadLower }
-          ];
-          let atualizado = null;
-          let ultimoErro = null;
-          for (const tentativa of filtros) {
-            try {
-              const retorno = await restRequest(
-                tentativa.tabela,
-                '?'+encodeURIComponent(campoChave)+'=eq.'+encodeURIComponent(id),
-                { method:'PATCH', headers:{'Prefer':'return=representation','Accept':'application/json'}, body:JSON.stringify(tentativa.corpo) }
-              );
-              if (Array.isArray(retorno) && retorno.length === 1) { atualizado = retorno[0]; break; }
-              ultimoErro = new Error('Nenhum registro correspondente foi atualizado.');
-            } catch (erro) { ultimoErro = erro; }
+          // A tabela pode ter sido criada com colunas em maiúsculo ou minúsculo.
+          // Em vez de tentar adivinhar duas vezes, usamos a MESMA convenção de
+          // maiúsculas/minúsculas que o campo-chave já veio do Supabase — já que
+          // esse valor reflete exatamente como a tabela real está, evitando
+          // tentativas ambíguas.
+          const usarMinusculo = campoChave === campoChave.toLowerCase() && campoChave !== campoChave.toUpperCase();
+          const tabela = usarMinusculo ? 'financeiro_despesas' : 'FINANCEIRO_DESPESAS';
+          const corpo = usarMinusculo
+            ? Object.fromEntries(Object.entries(payload).map(([k,v]) => [k.toLowerCase(), v]))
+            : payload;
+
+          const retorno = await restRequest(
+            tabela,
+            '?'+encodeURIComponent(campoChave)+'=eq.'+encodeURIComponent(id),
+            { method:'PATCH', headers:{'Prefer':'return=representation','Accept':'application/json'}, body:JSON.stringify(corpo) }
+          );
+          if (!Array.isArray(retorno) || retorno.length !== 1) {
+            throw new Error('Nenhum lançamento correspondente foi encontrado para atualizar. Nada foi alterado ou criado.');
           }
-          if (!atualizado) throw (ultimoErro || new Error('A atualização foi cancelada. Nenhum novo lançamento foi criado.'));
+          // Atualização confirmada — a função termina aqui no modo edição.
         } else {
+          // Só chega aqui quando editando=false (ou seja, "Nova despesa").
           await restRequest('FINANCEIRO_DESPESAS', '', {
             method:'POST',
             headers:{'Prefer':'return=representation'},
@@ -2105,8 +2105,18 @@
 
     async function excluirDespesa(id) {
       if (!id || !confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
+      // Usa o mesmo campo-chave real (com a mesma maiúscula/minúscula) que foi
+      // identificado ao carregar o registro, em vez de supor "ID" fixo.
+      const registro = financeiroDespesasCache.find(d => {
+        const chave = getFinanceiroRecordKey(d);
+        return chave && String(chave.value) === String(id);
+      });
+      const chave = registro ? getFinanceiroRecordKey(registro) : null;
+      const campoChave = chave ? chave.field : 'ID';
+      const usarMinusculo = campoChave === campoChave.toLowerCase() && campoChave !== campoChave.toUpperCase();
+      const tabela = usarMinusculo ? 'financeiro_despesas' : 'FINANCEIRO_DESPESAS';
       try {
-        await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'DELETE'});
+        await restRequest(tabela, '?'+encodeURIComponent(campoChave)+'=eq.'+encodeURIComponent(id), {method:'DELETE'});
         showToast('Despesa excluída','O lançamento foi removido.');
         renderFinanceiroModule();
       } catch(e) { console.error(e); showToast('Erro ao excluir', e.message || 'Não foi possível excluir a despesa.'); }
