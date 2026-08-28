@@ -2001,8 +2001,33 @@
 
       const payload = { DATA:data+'T12:00:00', DESCRICAO:descricao, CATEGORIA:categoria, FORMA_PAGAMENTO:forma, VALOR:valor, OBSERVACAO:observacao };
       try {
-        if (editando) await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
-        else await restRequest('FINANCEIRO_DESPESAS', '', {method:'POST', body:payload});
+        // EDIÇÃO: sempre atualiza o registro pelo ID existente. Nunca faz POST.
+        // A tabela pode ter colunas em maiúsculo ou minúsculo; por isso tentamos
+        // as duas combinações sem perder o modo de edição.
+        if (editando) {
+          const bodyUpper = JSON.stringify(payload);
+          try {
+            await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {
+              method:'PATCH',
+              headers:{'Prefer':'return=representation'},
+              body:bodyUpper
+            });
+          } catch (erroUpper) {
+            const payloadLower = {};
+            Object.keys(payload).forEach(k => payloadLower[k.toLowerCase()] = payload[k]);
+            await restRequest('financeiro_despesas', '?id=eq.'+encodeURIComponent(id), {
+              method:'PATCH',
+              headers:{'Prefer':'return=representation'},
+              body:JSON.stringify(payloadLower)
+            });
+          }
+        } else {
+          await restRequest('FINANCEIRO_DESPESAS', '', {
+            method:'POST',
+            headers:{'Prefer':'return=representation'},
+            body:JSON.stringify(payload)
+          });
+        }
         fecharModalDespesa();
         showToast('Financeiro atualizado', editando ? 'Despesa alterada com sucesso.' : 'Despesa cadastrada com sucesso.');
         renderFinanceiroModule();
