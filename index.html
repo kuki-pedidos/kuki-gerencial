@@ -716,6 +716,75 @@
       opacity:1 !important;
     }
 
+
+    /* =====================================================
+       MODAL DO FINANCEIRO - SOBREPOSTO E RESPONSIVO
+       ====================================================== */
+    .modal-overlay{
+      position:fixed !important;
+      inset:0 !important;
+      width:100vw !important;
+      height:100vh !important;
+      min-height:100dvh !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      padding:20px !important;
+      background:rgba(35,22,16,.58) !important;
+      backdrop-filter:blur(3px);
+      -webkit-backdrop-filter:blur(3px);
+      z-index:99999 !important;
+      overflow-y:auto !important;
+      box-sizing:border-box !important;
+    }
+    .modal-card{
+      width:min(620px,100%) !important;
+      max-height:calc(100dvh - 40px) !important;
+      overflow-y:auto !important;
+      box-sizing:border-box !important;
+      background:#fff !important;
+      border:1px solid var(--borda) !important;
+      border-radius:18px !important;
+      box-shadow:0 24px 70px rgba(0,0,0,.30) !important;
+      padding:22px !important;
+      margin:auto !important;
+      position:relative !important;
+    }
+    .modal-header{
+      display:flex !important;
+      align-items:center !important;
+      justify-content:space-between !important;
+      gap:16px !important;
+      margin-bottom:18px !important;
+      padding-bottom:14px !important;
+      border-bottom:1px solid var(--borda) !important;
+    }
+    .modal-header h2{margin:0 !important;color:var(--vermelho) !important;font-size:22px !important;}
+    .icon-button{
+      width:38px !important;height:38px !important;min-width:38px !important;
+      border:none !important;border-radius:10px !important;background:#f0ebe6 !important;
+      color:var(--texto) !important;font-size:18px !important;font-weight:800 !important;cursor:pointer !important;
+    }
+    .modal-card .field{margin-bottom:14px !important;}
+    .modal-card .field label{display:block !important;margin-bottom:6px !important;font-weight:700 !important;}
+    .modal-card .field input,.modal-card .field select,.modal-card .field textarea{
+      width:100% !important;box-sizing:border-box !important;padding:12px !important;
+      border:1px solid var(--borda) !important;border-radius:10px !important;background:#fff !important;
+      font:inherit !important;color:var(--texto) !important;
+    }
+    .modal-card .field textarea{min-height:90px !important;resize:vertical !important;}
+    body.modal-open{overflow:hidden !important;}
+    @media(max-width:760px){
+      .modal-overlay{align-items:flex-end !important;padding:0 !important;}
+      .modal-card{
+        width:100% !important;max-height:92dvh !important;border-radius:20px 20px 0 0 !important;
+        padding:18px 16px calc(18px + env(safe-area-inset-bottom)) !important;margin:0 !important;
+      }
+      .modal-header{position:sticky !important;top:-18px !important;background:#fff !important;z-index:2 !important;padding-top:18px !important;}
+      .modal-card .actions-inline{justify-content:stretch !important;display:grid !important;grid-template-columns:1fr 1fr !important;}
+      .modal-card .actions-inline button{width:100% !important;min-width:0 !important;}
+    }
+
 </style>
 </head>
 
@@ -801,41 +870,38 @@
 
       <nav class="menu">
 
-        <button class="active" data-module="Dashboard" onclick="selectMenu(this, 'Dashboard')">
+        <button class="active" onclick="selectMenu(this, 'Dashboard')">
           <span>📊</span> Dashboard
         </button>
 
-        <button data-module="Pedidos" onclick="selectMenu(this, 'Pedidos')">
+        <button onclick="selectMenu(this, 'Pedidos')">
           <span>📦</span> Pedidos
         </button>
 
-        <button type="button" class="financeiro-menu-button" data-module="Financeiro" onclick="selectMenu(this, 'Financeiro')">
+        <button type="button" class="financeiro-menu-button" onclick="selectMenu(this, 'Financeiro')">
           <span>💰</span> Financeiro
         </button>
 
-        <button data-module="Produtos" onclick="selectMenu(this, 'Produtos')">
+        <button onclick="selectMenu(this, 'Produtos')">
           <span>🍪</span> Produtos
         </button>
 
-        <button data-module="Clientes" onclick="selectMenu(this, 'Clientes')">
+        <button onclick="selectMenu(this, 'Clientes')">
           <span>👥</span> Clientes
         </button>
 
-        <button data-module="Formas de pagamento" onclick="selectMenu(this, 'Formas de pagamento')">
+        <button onclick="selectMenu(this, 'Formas de pagamento')">
           <span>💳</span> Pagamentos
         </button>
 
-        <button data-module="Formas de entrega" onclick="selectMenu(this, 'Formas de entrega')">
+        <button onclick="selectMenu(this, 'Formas de entrega')">
           <span>🛵</span> Entregas
         </button>
 
-        <button data-module="Horários" onclick="selectMenu(this, 'Horários')">
+        <button onclick="selectMenu(this, 'Horários')">
           <span>🕐</span> Horários
         </button>
 
-        <button data-module="Configurações" onclick="selectMenu(this, 'Configurações')">
-          <span>⚙️</span> Configurações
-        </button>
 
       </nav>
 
@@ -890,7 +956,6 @@
 
         <div class="topbar-actions">
           <div class="date-box" id="currentDate"></div>
-          <button class="notification-button" type="button" onclick="marcarNotificacoesLidas()" title="Novos pedidos">🔔<span class="notification-badge" id="notificationBadge">0</span></button>
         </div>
 
       </div>
@@ -1010,32 +1075,19 @@
 
     /*
       =====================================================
-      USUÁRIOS E PERMISSÕES
+      USUÁRIOS DE LOGIN
       =====================================================
 
-      ADMIN:
-      - Acesso total ao sistema.
+      O usuário informa somente o nome de usuário na tela.
+      O e-mail continua sendo usado internamente pelo Supabase Auth.
 
-      OPERADOR:
-      - Não acessa Financeiro.
-      - Não acessa Configurações.
-      - Visualiza os demais módulos.
-      - Em Pedidos pode SOMENTE alterar o status e confirmar.
-      - Não pode excluir pedidos nem incluir/editar/excluir cadastros.
-
-      Para adicionar um novo usuário no futuro:
-      1. Crie o usuário no Supabase Auth com e-mail e senha.
-      2. Adicione o mesmo usuário abaixo, informando e-mail, nome e perfil.
+      Para cadastrar outro usuário futuramente, adicione:
+      'novo_usuario': 'email-do-usuario@dominio.com',
     */
     const USUARIOS_LOGIN = {
-      'admin': {
-        email: 'robesousa@gmail.com',
-        nome: 'Administrador',
-        perfil: 'admin'
-      }
+      'admin': 'robesousa@gmail.com',
+       'robesousa': 'robesousa@gmail.com'
     };
-
-    let usuarioAtual = null;
 
     function normalizarUsuario(usuario) {
       return (usuario || '')
@@ -1044,46 +1096,12 @@
         .replace(/\s+/g, '');
     }
 
-    function obterUsuarioPorEmail(email) {
-      const emailNormalizado = String(email || '').trim().toLowerCase();
-      const username = Object.keys(USUARIOS_LOGIN).find(function(nome) {
-        const dados = USUARIOS_LOGIN[nome];
-        return String(dados.email || '').trim().toLowerCase() === emailNormalizado;
-      });
-      if (!username) return null;
-      return { username, ...USUARIOS_LOGIN[username] };
-    }
-
     function obterNomeUsuarioPorEmail(email) {
-      return obterUsuarioPorEmail(email)?.nome || 'Usuário';
-    }
-
-    function usuarioEhAdmin() {
-      return usuarioAtual?.perfil === 'admin';
-    }
-
-    function podeAcessarModulo(nome) {
-      if (usuarioEhAdmin()) return true;
-      return !['Financeiro', 'Configurações'].includes(nome);
-    }
-
-    function podeAlterarCadastros() {
-      return usuarioEhAdmin();
-    }
-
-    function podeExcluirPedidos() {
-      return usuarioEhAdmin();
-    }
-
-    function podeAlterarStatusPedidos() {
-      return !!usuarioAtual;
-    }
-
-    function aplicarPermissoesInterface() {
-      document.querySelectorAll('.menu button[data-module]').forEach(botao => {
-        const modulo = botao.dataset.module;
-        botao.style.display = podeAcessarModulo(modulo) ? '' : 'none';
+      const usuario = Object.keys(USUARIOS_LOGIN).find(function(nome) {
+        return USUARIOS_LOGIN[nome] === email;
       });
+
+      return usuario || 'Usuário';
     }
 
 
@@ -1129,7 +1147,7 @@
 
     // Webhook do n8n responsável por enviar a atualização do status ao WhatsApp do cliente.
     // O workflow precisa estar publicado neste endpoint no n8n.
-    const STATUS_PEDIDO_WEBHOOK_URL = 'https://rikasolucoes.app.n8n.cloud/webhook/kuki-status-pedido';
+    const STATUS_PEDIDO_WEBHOOK_URL = 'https://n8n.rikasolucoes.com.br/webhook/kuki/status-pedido';
 
     function getValue(obj, names, fallback='') {
       if (!obj) return fallback;
@@ -1346,8 +1364,7 @@
           const aberto = !!getValue(h,['ABERTO','aberto'],false);
           const abertura = normalizeTime(getValue(h,['HORA_ABERTURA','hora_abertura'],''));
           const fechamento = normalizeTime(getValue(h,['HORA_FECHAMENTO','hora_fechamento'],''));
-          const somenteLeitura = !podeAlterarCadastros();
-           return '<tr data-index="'+i+'"><td><strong>'+escapeHtml(dia)+'</strong></td><td><label class="switch"><input class="h-aberto" type="checkbox" '+(aberto?'checked':'')+' '+(somenteLeitura?'disabled':'')+' onchange="toggleHorarioInputs('+i+')"><span class="slider"></span></label></td><td><input class="time-input h-abertura" type="time" value="'+escapeHtml(abertura)+'" '+((!aberto || somenteLeitura)?'disabled':'')+'></td><td><input class="time-input h-fechamento" type="time" value="'+escapeHtml(fechamento)+'" '+((!aberto || somenteLeitura)?'disabled':'')+'></td><td>'+(somenteLeitura?'<span style="color:var(--cinza);font-size:12px;">Somente visualização</span>':'<button class="primary-button" onclick="salvarHorario('+i+')">Salvar</button>')+'</td></tr>';
+          return '<tr data-index="'+i+'"><td><strong>'+escapeHtml(dia)+'</strong></td><td><label class="switch"><input class="h-aberto" type="checkbox" '+(aberto?'checked':'')+' onchange="toggleHorarioInputs('+i+')"><span class="slider"></span></label></td><td><input class="time-input h-abertura" type="time" value="'+escapeHtml(abertura)+'" '+(!aberto?'disabled':'')+'></td><td><input class="time-input h-fechamento" type="time" value="'+escapeHtml(fechamento)+'" '+(!aberto?'disabled':'')+'></td><td><button class="primary-button" onclick="salvarHorario('+i+')">Salvar</button></td></tr>';
         }).join('');
       } catch(error) {
         container.querySelector('#horariosBody').innerHTML = '<tr><td colspan="5">Erro ao carregar horários: '+escapeHtml(error.message)+'</td></tr>';
@@ -1362,7 +1379,6 @@
     }
 
     async function salvarHorario(index) {
-      if (!podeAlterarCadastros()) { showToast('Acesso restrito','Seu perfil pode apenas visualizar esta tela.'); return; }
       const h = horariosCache[index];
       const row = document.querySelector('#horariosBody tr[data-index="'+index+'"]');
       const id = getValue(h,['id','ID']);
@@ -1559,17 +1575,18 @@
         observacao: getValue(pedido,['OBSERVACAO','observacao'],'')
       };
       const response = await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(payload)
-      });
-      const respostaTexto = await response.text();
-      if (!response.ok) throw new Error('Webhook respondeu HTTP '+response.status+(respostaTexto ? ': '+respostaTexto : ''));
-      return true;
+  method: 'POST',
+  mode: 'no-cors',
+  headers: {
+    'Content-Type': 'text/plain'
+  },
+  body: JSON.stringify(payload)
+});
+
+return true;
     }
 
     async function atualizarStatusPedido(id) {
-      if (!podeAlterarStatusPedidos()) { showToast('Acesso restrito','Seu perfil não pode alterar pedidos.'); return; }
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       const statusAtual = getPedidoStatus(pedido);
@@ -1611,7 +1628,6 @@
     }
 
     async function editarPedido(id) {
-      if (!usuarioEhAdmin()) { showToast('Acesso restrito','Somente administradores podem editar pedidos.'); return; }
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       if (pedidoEstaBloqueado(getPedidoStatus(pedido))) {
@@ -1647,7 +1663,6 @@
     }
 
     async function excluirPedido(id) {
-      if (!podeExcluirPedidos()) { showToast('Acesso restrito','Somente administradores podem excluir pedidos.'); return; }
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       if (pedidoEstaBloqueado(getPedidoStatus(pedido))) {
@@ -1718,13 +1733,11 @@
           .map(st => '<option value="'+escapeHtml(st)+'" '+(normalizarStatus(st)===normalizarStatus(status)?'selected':'')+'>'+escapeHtml(st)+'</option>').join('');
         const actions = bloqueado
           ? '<div class="action-group"><button class="locked-button" type="button" disabled title="Pedido bloqueado">🔒 '+escapeHtml(status)+'</button></div>'
-          : (podeAlterarStatusPedidos()
-            ? '<div class="action-group">'
-              + '<select id="statusPedido_'+escapeHtml(id)+'" class="status-select">'+options+'</select>'
-              + '<button class="primary-button" type="button" onclick="atualizarStatusPedido(\''+escapeHtml(id)+'\')">✓ Confirmar</button>'
-              + (podeExcluirPedidos() ? '<button class="danger-button" type="button" onclick="excluirPedido(\''+escapeHtml(id)+'\')">🗑 Excluir</button>' : '')
-              + '</div>'
-            : '<span style="color:var(--cinza);font-size:12px;">Somente visualização</span>');
+          : '<div class="action-group">'
+            + '<select id="statusPedido_'+escapeHtml(id)+'" class="status-select">'+options+'</select>'
+            + '<button class="primary-button" type="button" onclick="atualizarStatusPedido(\''+escapeHtml(id)+'\')">✓ Confirmar</button>'
+            + '<button class="danger-button" type="button" onclick="excluirPedido(\''+escapeHtml(id)+'\')">🗑 Excluir</button>'
+            + '</div>';
         return '<tr>'
           + '<td><strong>#'+escapeHtml(numero)+'</strong></td>'
           + '<td>'+escapeHtml(cliente)+'</td>'
@@ -1781,21 +1794,16 @@
       const fields=crudFields(name,rows), cols=rows.length?Object.keys(rows[0]).filter(k=>!isSystemField(k)):fields;
       const form=fields.map(f=>{const type=isBoolField(f)?'checkbox':(isNumberField(f)?'number':'text');const step=isNumberField(f)?' step="0.01"':'';return type==='checkbox'?'<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>':'<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>'}).join('');
       const header=cols.map(k=>'<th>'+escapeHtml(prettyField(k))+'</th>').join('');
-      const somenteLeitura = !podeAlterarCadastros();
-      const body=rows.length?rows.map((r,i)=>'<tr>'+cols.map(k=>'<td>'+escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??''))+'</td>').join('')+'<td>'+(somenteLeitura?'<span style="color:var(--cinza);font-size:12px;">Somente visualização</span>':'<div class="actions-inline"><button type="button" class="secondary-button" data-crud-action="edit" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">✏️ Editar</button><button type="button" class="danger-button" data-crud-action="delete" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">🗑 Excluir</button></div>')+'</td></tr>').join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado.</td></tr>';
-      const descricaoModulo = somenteLeitura ? 'Visualização disponível para seu perfil.' : 'Visualize, cadastre, edite ou exclua informações.';
-      const botoesCrud = somenteLeitura
-        ? '<div class="actions-inline"><button class="secondary-button" data-crud-action="refresh" data-crud-name="'+escapeHtml(name)+'">↻ Atualizar</button></div>'
-        : '<div class="actions-inline"><button class="primary-button" data-crud-action="new" data-crud-name="'+escapeHtml(name)+'">＋ Novo</button><button class="secondary-button" data-crud-action="refresh" data-crud-name="'+escapeHtml(name)+'">↻ Atualizar</button></div>';
-      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoModulo+'</p></div>'+botoesCrud+'</div>'+(loadError?'<p style="color:#a20c23">'+escapeHtml(loadError)+'</p>':'')+(somenteLeitura?'':'<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm"><div class="crud-grid">'+form+'</div><div class="crud-actions"><button type="submit" class="primary-button">💾 Salvar</button><button type="button" class="secondary-button" data-crud-action="cancel">Cancelar</button></div></form></div>')+'<div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+      const body=rows.length?rows.map((r,i)=>'<tr>'+cols.map(k=>'<td>'+escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??''))+'</td>').join('')+'<td><div class="actions-inline"><button type="button" class="secondary-button" data-crud-action="edit" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">✏️ Editar</button><button type="button" class="danger-button" data-crud-action="delete" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">🗑 Excluir</button></div></td></tr>').join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
+      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div><div class="actions-inline"><button class="primary-button" data-crud-action="new" data-crud-name="'+escapeHtml(name)+'">＋ Novo</button><button class="secondary-button" data-crud-action="refresh" data-crud-name="'+escapeHtml(name)+'">↻ Atualizar</button></div></div>'+(loadError?'<p style="color:#a20c23">'+escapeHtml(loadError)+'</p>':'')+'<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm"><div class="crud-grid">'+form+'</div><div class="crud-actions"><button type="submit" class="primary-button">💾 Salvar</button><button type="button" class="secondary-button" data-crud-action="cancel">Cancelar</button></div></form></div><div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
       const f=document.getElementById('crudForm'); if(f)f.addEventListener('submit',e=>salvarCrud(e,name));
     }
-    function abrirFormularioCrud(name){if(!podeAlterarCadastros()){showToast('Acesso restrito','Seu perfil pode apenas visualizar este módulo.');return;}const b=document.getElementById('crudFormBox'),f=document.getElementById('crudForm');if(!b||!f)return;b.style.display='block';document.getElementById('crudFormTitle').textContent='Novo cadastro';f.dataset.editIndex='';f.reset();}
+    function abrirFormularioCrud(name){const b=document.getElementById('crudFormBox'),f=document.getElementById('crudForm');if(!b||!f)return;b.style.display='block';document.getElementById('crudFormTitle').textContent='Novo cadastro';f.dataset.editIndex='';f.reset();}
     function fecharFormularioCrud(){const b=document.getElementById('crudFormBox');if(b)b.style.display='none';}
-    function editarCrud(name,index){if(!podeAlterarCadastros()){showToast('Acesso restrito','Seu perfil pode apenas visualizar este módulo.');return;}const r=(crudCache[name]||[])[Number(index)];if(!r)return;abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);Object.keys(r).forEach(k=>{const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}});document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});}
+    function editarCrud(name,index){const r=(crudCache[name]||[])[Number(index)];if(!r)return;abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);Object.keys(r).forEach(k=>{const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}});document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});}
     function collectCrudForm(form){const obj={};Array.from(form.elements).forEach(el=>{if(!el.name)return;let v=el.type==='checkbox'?el.checked:el.value.trim();if(v!==''||el.type==='checkbox')obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v;});return obj;}
-    async function salvarCrud(e,name){e.preventDefault();if(!podeAlterarCadastros()){showToast('Acesso restrito','Seu perfil não pode salvar alterações.');return;}const cfg=CRUD_TABLES[name],form=e.currentTarget,body=collectCrudForm(form),idx=form.dataset.editIndex,editing=idx!=='';if(!confirm(editing?'Confirmar as alterações deste cadastro?':'Confirmar a inclusão deste novo cadastro?'))return;try{if(editing){const id=getRecordId(crudCache[name][Number(idx)]);if(id===null||id===undefined)throw new Error('Registro sem ID');await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});}else await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});showToast('Sucesso',editing?'Alterações salvas.':'Cadastro incluído.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível salvar: '+(err.message||''));}}
-    async function excluirCrud(name,index){if(!podeAlterarCadastros()){showToast('Acesso restrito','Seu perfil não pode excluir registros.');return;}const old=(crudCache[name]||[])[Number(index)],id=getRecordId(old);if(id===null||id===undefined){showToast('Erro','Não foi possível identificar o registro.');return;}if(!confirm('Confirmar exclusão? Esta ação não poderá ser desfeita.'))return;const cfg=CRUD_TABLES[name];try{await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'DELETE'});showToast('Excluído','Registro removido com sucesso.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível excluir: '+(err.message||''));}}
+    async function salvarCrud(e,name){e.preventDefault();const cfg=CRUD_TABLES[name],form=e.currentTarget,body=collectCrudForm(form),idx=form.dataset.editIndex,editing=idx!=='';if(!confirm(editing?'Confirmar as alterações deste cadastro?':'Confirmar a inclusão deste novo cadastro?'))return;try{if(editing){const id=getRecordId(crudCache[name][Number(idx)]);if(id===null||id===undefined)throw new Error('Registro sem ID');await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});}else await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});showToast('Sucesso',editing?'Alterações salvas.':'Cadastro incluído.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível salvar: '+(err.message||''));}}
+    async function excluirCrud(name,index){const old=(crudCache[name]||[])[Number(index)],id=getRecordId(old);if(id===null||id===undefined){showToast('Erro','Não foi possível identificar o registro.');return;}if(!confirm('Confirmar exclusão? Esta ação não poderá ser desfeita.'))return;const cfg=CRUD_TABLES[name];try{await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'DELETE'});showToast('Excluído','Registro removido com sucesso.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível excluir: '+(err.message||''));}}
     document.getElementById('moduleContent').addEventListener('click',function(e){const b=e.target.closest('[data-crud-action]');if(!b)return;const a=b.dataset.crudAction,n=b.dataset.crudName,i=Number(b.dataset.crudIndex);if(a==='new')abrirFormularioCrud(n);else if(a==='refresh')renderCrudModule(n);else if(a==='edit')editarCrud(n,i);else if(a==='delete')excluirCrud(n,i);else if(a==='cancel')fecharFormularioCrud();});
 
     function renderPlaceholderModule(name) {
@@ -1820,8 +1828,7 @@
       loginError.style.display = 'none';
       const username = normalizarUsuario(document.getElementById('username').value);
       const password = document.getElementById('password').value;
-      const usuarioCadastro = USUARIOS_LOGIN[username];
-      const email = usuarioCadastro?.email;
+      const email = USUARIOS_LOGIN[username];
       if (!email) {
         loginError.textContent = 'Usuário ou senha inválidos.';
         loginError.style.display = 'block'; return;
@@ -1840,20 +1847,9 @@
        ABRIR SISTEMA / LOGOUT
     ====================================================== */
     async function abrirSistema(user) {
-      const cadastro = obterUsuarioPorEmail(user?.email);
-      if (!cadastro) {
-        await supabaseClient.auth.signOut();
-        loginError.textContent = 'Seu usuário não está autorizado no KUKI Gerencial.';
-        loginError.style.display = 'block';
-        loginScreen.style.display = 'flex';
-        appScreen.style.display = 'none';
-        return;
-      }
-      usuarioAtual = { ...cadastro, email: user.email };
       loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
-      document.getElementById('userName').textContent = usuarioAtual.nome + (usuarioEhAdmin() ? ' · ADMIN' : ' · OPERADOR');
-      aplicarPermissoesInterface();
+      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
       await carregarPedidos(true);
       if (pollingTimer) clearInterval(pollingTimer);
@@ -1864,263 +1860,407 @@
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = null;
       await supabaseClient.auth.signOut();
-      usuarioAtual = null;
       appScreen.style.display = 'none'; loginScreen.style.display = 'flex';
       document.getElementById('username').value = ''; document.getElementById('password').value = '';
     }
 
 
     /* =====================================================
-       FINANCEIRO
+       FINANCEIRO - REFEITO DO ZERO
     ====================================================== */
-    let financeiroDespesasCache = [];
-    let financeiroCategoriasCache = [];
-    let financeiroFormasCache = [];
+    const financeiroState = {
+      despesas: [],
+      categorias: [],
+      formas: [],
+      tabelaDespesas: null,
+      tabelaCategorias: null,
+      tabelaFormas: null
+    };
 
-    function getField(obj, names, fallback='') {
+    function finField(obj, names, fallback='') {
       return getValue(obj, names, fallback);
     }
 
-    async function carregarFinanceiroDados() {
-      // Não usamos filtros/order no servidor aqui porque as tabelas financeiras
-      // foram criadas com combinações diferentes de nomes maiúsculos/minúsculos.
-      // Isso evita que uma coluna inexistente derrube TODO o módulo Financeiro.
+    function finColumnName(row, candidates, fallback) {
+      if (!row || typeof row !== 'object') return fallback;
+      const keys = Object.keys(row);
+      for (const candidate of candidates) {
+        const found = keys.find(k => k.toLowerCase() === String(candidate).toLowerCase());
+        if (found) return found;
+      }
+      return fallback;
+    }
+
+    async function finResolveTable(candidates) {
+      let lastError;
+      for (const table of candidates) {
+        try {
+          await restRequest(table, '?select=*&limit=1');
+          return table;
+        } catch (e) {
+          lastError = e;
+        }
+      }
+      throw lastError || new Error('Tabela financeira não encontrada.');
+    }
+
+    async function finLoad() {
+      // Descobre uma única vez o nome REAL das tabelas e guarda o resultado.
+      // Depois disso, listar, inserir, editar e excluir usam exatamente o mesmo nome.
+      financeiroState.tabelaDespesas = await finResolveTable(['FINANCEIRO_DESPESAS','financeiro_despesas']);
+      financeiroState.tabelaCategorias = await finResolveTable(['FINANCEIRO_CATEGORIAS','financeiro_categorias']);
+      financeiroState.tabelaFormas = await finResolveTable(['FORMAS_PAGAMENTO','formas_pagamento']);
+
       const [despesas, categorias, formas] = await Promise.all([
-        getTable('FINANCEIRO_DESPESAS', '?select=*'),
-        getTable('FINANCEIRO_CATEGORIAS', '?select=*'),
-        getTable('FORMAS_PAGAMENTO', '?select=*')
+        restRequest(financeiroState.tabelaDespesas, '?select=*'),
+        restRequest(financeiroState.tabelaCategorias, '?select=*'),
+        restRequest(financeiroState.tabelaFormas, '?select=*')
       ]);
 
-      const ativos = list => (Array.isArray(list) ? list : []).filter(item => {
-        const a = getField(item,['ATIVO','ativo'],true);
-        return a !== false && String(a).toLowerCase() !== 'false' && a !== 0 && a !== '0';
+      financeiroState.despesas = Array.isArray(despesas) ? despesas : [];
+      financeiroState.categorias = (Array.isArray(categorias) ? categorias : []).filter(x => {
+        const ativo = finField(x,['ATIVO','ativo'],true);
+        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
+      });
+      financeiroState.formas = (Array.isArray(formas) ? formas : []).filter(x => {
+        const ativo = finField(x,['ATIVO','ativo'],true);
+        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
       });
 
-      financeiroDespesasCache = Array.isArray(despesas) ? despesas : [];
-      financeiroDespesasCache.sort((a,b) => String(dataDespesa(b)||'').localeCompare(String(dataDespesa(a)||'')));
-
-      financeiroCategoriasCache = ativos(categorias);
-      financeiroCategoriasCache.sort((a,b) => String(getField(a,['NOME','nome'],'')).localeCompare(String(getField(b,['NOME','nome'],''))));
-
-      financeiroFormasCache = ativos(formas);
-      financeiroFormasCache.sort((a,b) => String(getField(a,['NOME','nome','DESCRICAO','descricao'],'')).localeCompare(String(getField(b,['NOME','nome','DESCRICAO','descricao'],''))));
+      financeiroState.despesas.sort((a,b) => String(finDate(b)||'').localeCompare(String(finDate(a)||'')));
     }
 
-    function dataHojeISO() { return localDateKey(new Date()); }
-
-    function valorDespesa(d) {
-      return Number(String(getField(d,['VALOR','valor'],0)).replace(',','.')) || 0;
+    function finDate(row) { return finField(row,['DATA','data','CREATED_AT','created_at'],''); }
+    function finValue(row) { return Number(String(finField(row,['VALOR','valor'],0)).replace(',','.')) || 0; }
+    function finToday() { return localDateKey(new Date()); }
+    function finId(row) {
+      if (!row || typeof row !== 'object') return null;
+      const field = finColumnName(row,['ID','id'],null);
+      if (!field) return null;
+      const value = row[field];
+      if (value === null || value === undefined || String(value).trim()==='') return null;
+      return {field, value};
     }
 
-    function dataDespesa(d) {
-      return getField(d,['DATA','data','CREATED_AT','created_at'],'');
+    function finCategoryName(id) {
+      const row = financeiroState.categorias.find(x => String(finField(x,['ID','id']))===String(id));
+      return row ? finField(row,['NOME','nome'],'-') : '-';
     }
-
-    function categoriaNome(id) {
-      const c = financeiroCategoriasCache.find(x => String(getField(x,['ID','id'])) === String(id));
-      return c ? getField(c,['NOME','nome'],'-') : '-';
+    function finPaymentName(id) {
+      const row = financeiroState.formas.find(x => String(finField(x,['ID','id']))===String(id));
+      return row ? finField(row,['NOME','nome','DESCRICAO','descricao'],'-') : '-';
     }
-
-    function formaNome(id) {
-      const f = financeiroFormasCache.find(x => String(getField(x,['ID','id'])) === String(id));
-      return f ? getField(f,['NOME','nome','DESCRICAO','descricao'],'-') : '-';
-    }
-
-    function despesasDoPeriodo(inicio, fim) {
-      return financeiroDespesasCache.filter(d => {
-        const dt = localDateKey(dataDespesa(d));
-        if (!dt) return false;
-        if (inicio && dt < inicio) return false;
-        if (fim && dt > fim) return false;
-        return true;
+    function finRows(startDate, endDate) {
+      return financeiroState.despesas.filter(row => {
+        const d=localDateKey(finDate(row));
+        return d && (!startDate || d>=startDate) && (!endDate || d<=endDate);
       });
     }
 
     function renderFinanceiroModule() {
-      if (!podeAcessarModulo('Financeiro')) {
-        abrirModulo('Dashboard');
-        return;
-      }
-      const container = document.getElementById('moduleContent');
-      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
-      carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
-        console.error('Financeiro:', error);
-        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">Confira o acesso às tabelas FINANCEIRO_DESPESAS e FINANCEIRO_CATEGORIAS.</p></div>';
+      const container=document.getElementById('moduleContent');
+      container.innerHTML=`<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button type="button" class="secondary-button" id="finRefresh">↻ Atualizar</button><button type="button" class="secondary-button" id="finCategories">🏷️ Categorias</button><button type="button" class="primary-button" id="finNew">＋ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>`;
+      document.getElementById('finRefresh').addEventListener('click', renderFinanceiroModule);
+      document.getElementById('finCategories').addEventListener('click', finOpenCategories);
+      document.getElementById('finNew').addEventListener('click', () => finOpenForm(null));
+      finLoad().then(finRender).catch(err => {
+        console.error('FINANCEIRO:',err);
+        const body=document.getElementById('financeiroBody');
+        if(body) body.innerHTML=`<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o Financeiro.</strong><p style="margin-top:8px;">${escapeHtml(err.message||'Erro de conexão.')}</p></div>`;
       });
     }
 
-    function renderFinanceiroBody() {
-      const body = document.getElementById('financeiroBody');
-      if (!body) return;
-      const hoje = dataHojeISO();
-      const inicioMes = hoje.slice(0,7) + '-01';
-      const hojeDespesas = despesasDoPeriodo(hoje,hoje).reduce((s,d)=>s+valorDespesa(d),0);
-      const mesDespesas = despesasDoPeriodo(inicioMes,hoje).reduce((s,d)=>s+valorDespesa(d),0);
-      const inicio = document.getElementById('finInicio')?.value || inicioMes;
-      const fim = document.getElementById('finFim')?.value || hoje;
-      const lista = despesasDoPeriodo(inicio,fim);
-      const totalPeriodo = lista.reduce((s,d)=>s+valorDespesa(d),0);
-
-      body.innerHTML = `
+    function finRender() {
+      const body=document.getElementById('financeiroBody'); if(!body) return;
+      const today=finToday(), monthStart=today.slice(0,7)+'-01';
+      const oldStart=document.getElementById('finStart')?.value;
+      const oldEnd=document.getElementById('finEnd')?.value;
+      const start=oldStart||monthStart, end=oldEnd||today;
+      const todayTotal=finRows(today,today).reduce((s,x)=>s+finValue(x),0);
+      const monthTotal=finRows(monthStart,today).reduce((s,x)=>s+finValue(x),0);
+      const rows=finRows(start,end);
+      const total=rows.reduce((s,x)=>s+finValue(x),0);
+      body.innerHTML=`
         <div class="financeiro-grid">
-          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(hojeDespesas)}</div><div class="hint">${hoje}</div></div>
-          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(mesDespesas)}</div><div class="hint">Do dia 1 até hoje</div></div>
-          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(totalPeriodo)}</div><div class="hint">${lista.length} lançamento(s)</div></div>
+          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(todayTotal)}</div><div class="hint">${today}</div></div>
+          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(monthTotal)}</div><div class="hint">Do dia 1 até hoje</div></div>
+          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(total)}</div><div class="hint">${rows.length} lançamento(s)</div></div>
         </div>
         <div class="financeiro-filtros">
-          <div class="field"><label>Data inicial</label><input type="date" id="finInicio" value="${inicio}"></div>
-          <div class="field"><label>Data final</label><input type="date" id="finFim" value="${fim}"></div>
-          <button type="button" class="secondary-button" id="btnFiltrarFinanceiro">🔎 Filtrar</button>
+          <div class="field"><label>Data inicial</label><input type="date" id="finStart" value="${start}"></div>
+          <div class="field"><label>Data final</label><input type="date" id="finEnd" value="${end}"></div>
+          <button type="button" class="secondary-button" id="finFilter">🔎 Filtrar</button>
         </div>
-        <div class="table-wrap">
-          <table class="financeiro-tabela">
-            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead>
-            <tbody>${lista.length ? lista.map(d => {
-              const id = getField(d,['ID','id']);
-              const idSeguro = String(id ?? '');
-              return `<tr>
-                <td>${formatDateTime(dataDespesa(d)).split(',')[0]}</td>
-                <td>${escapeHtml(getField(d,['DESCRICAO','descricao'],'-'))}</td>
-                <td>${escapeHtml(getField(d,['CATEGORIA','categoria'], categoriaNome(getField(d,['CATEGORIA_ID','categoria_id'])) || '-'))}</td>
-                <td>${escapeHtml(getField(d,['FORMA_PAGAMENTO','forma_pagamento'], formaNome(getField(d,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])) || '-'))}</td>
-                <td><strong>${formatMoney(valorDespesa(d))}</strong></td>
-                <td><div class="actions-inline"><button type="button" class="secondary-button btn-editar-despesa" data-despesa-id="${escapeHtml(idSeguro)}">✏️ Editar</button><button type="button" class="danger-button btn-excluir-despesa" data-despesa-id="${escapeHtml(idSeguro)}">🗑️ Excluir</button></div></td>
-              </tr>`;
-            }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}</tbody>
-          </table>
-        </div>`;
-
-      document.getElementById('btnFiltrarFinanceiro')?.addEventListener('click', renderFinanceiroBody);
-      body.querySelectorAll('.btn-editar-despesa').forEach(botao => {
-        botao.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const id = String(botao.dataset.despesaId ?? '').trim();
-          if (!id) { showToast('Erro ao editar','Não foi possível identificar esta despesa.'); return; }
-          abrirFormDespesa(id);
-        });
-      });
-      body.querySelectorAll('.btn-excluir-despesa').forEach(botao => {
-        botao.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const id = String(botao.dataset.despesaId ?? '').trim();
-          if (!id) { showToast('Erro ao excluir','Não foi possível identificar esta despesa.'); return; }
-          excluirDespesa(id);
-        });
-      });
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead><tbody>
+        ${rows.length ? rows.map(row => {
+          const index=financeiroState.despesas.indexOf(row);
+          return `<tr><td>${formatDateTime(finDate(row)).split(',')[0]}</td><td>${escapeHtml(finField(row,['DESCRICAO','descricao'],'-'))}</td><td>${escapeHtml(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'-'))}</td><td>${escapeHtml(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'-'))}</td><td><strong>${formatMoney(finValue(row))}</strong></td><td><div class="actions-inline"><button type="button" class="secondary-button fin-edit" data-index="${index}">✏️ Editar</button><button type="button" class="danger-button fin-delete" data-index="${index}">🗑️ Excluir</button></div></td></tr>`;
+        }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}
+        </tbody></table></div>`;
+      document.getElementById('finFilter').addEventListener('click', finRender);
+      body.querySelectorAll('.fin-edit').forEach(btn=>btn.addEventListener('click',()=>{
+        const row=financeiroState.despesas[Number(btn.dataset.index)];
+        if(!row) return showToast('Erro','Despesa não encontrada.');
+        finOpenForm(row);
+      }));
+      body.querySelectorAll('.fin-delete').forEach(btn=>btn.addEventListener('click',()=>{
+        const row=financeiroState.despesas[Number(btn.dataset.index)];
+        if(!row) return showToast('Erro','Despesa não encontrada.');
+        finDelete(row);
+      }));
     }
 
-    function abrirFormDespesa(id=null) {
-      const editando = id !== null && id !== undefined && String(id).trim() !== '';
-      const atual = editando ? financeiroDespesasCache.find(d => String(getField(d,['ID','id'])) === String(id)) : null;
-      if (editando && !atual) {
-        showToast('Despesa não encontrada','Atualize o financeiro e tente novamente.');
-        return;
-      }
-      const titulo = editando ? '✏️ Editar despesa' : '➕ Nova despesa';
-      const categoriaAtual = atual ? String(getField(atual,['CATEGORIA','categoria'], categoriaNome(getField(atual,['CATEGORIA_ID','categoria_id'])) || '')).trim() : '';
-      const formaAtual = atual ? String(getField(atual,['FORMA_PAGAMENTO','forma_pagamento'], formaNome(getField(atual,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])) || '')).trim() : '';
-      const categoriaOptions = financeiroCategoriasCache.map(c => {
-        const nome = String(getField(c,['NOME','nome'],'')).trim();
-        return `<option value="${escapeHtml(nome)}" ${categoriaAtual===nome?'selected':''}>${escapeHtml(nome)}</option>`;
+    function finOptions(list,current,names) {
+      // O select exibe o nome, mas envia o ID. A tabela FINANCEIRO_DESPESAS
+      // usa chaves estrangeiras (CATEGORIA_ID / FORMA_PAGAMENTO_ID), não os nomes.
+      return list.map(row=>{
+        const id=finField(row,['ID','id'],'');
+        const name=String(finField(row,names,'')).trim();
+        const selected=String(id)===String(current)?'selected':'';
+        return `<option value="${escapeHtml(String(id))}" ${selected}>${escapeHtml(name)}</option>`;
       }).join('');
-      const formaOptions = financeiroFormasCache.map(f => {
-        const nome = String(getField(f,['NOME','nome','DESCRICAO','descricao'],'')).trim();
-        return `<option value="${escapeHtml(nome)}" ${formaAtual===nome?'selected':''}>${escapeHtml(nome)}</option>`;
-      }).join('');
-      const dataAtual = atual ? localDateKey(dataDespesa(atual)) : dataHojeISO();
-      document.getElementById('modalDespesa')?.remove();
-      const modal = document.createElement('div');
-      modal.className = 'modal-overlay';
-      modal.id = 'modalDespesa';
-      modal.dataset.mode = editando ? 'edit' : 'create';
-      modal.dataset.despesaId = editando ? String(id) : '';
-      modal.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true"><div class="modal-header"><h2>${titulo}</h2><button type="button" class="icon-button" id="btnFecharDespesa">✕</button></div>
-        <div class="field"><label>Data</label><input type="date" id="despesaData" value="${dataAtual}" required></div>
-        <div class="field"><label>Descrição</label><input type="text" id="despesaDescricao" value="${escapeHtml(atual?getField(atual,['DESCRICAO','descricao'],''):'')}" placeholder="Ex.: Compra de chocolate" required></div>
-        <div class="field"><label>Categoria</label><select id="despesaCategoria"><option value="">Selecione</option>${categoriaOptions}</select></div>
-        <div class="field"><label>Forma de pagamento</label><select id="despesaForma"><option value="">Selecione</option>${formaOptions}</select></div>
-        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="despesaValor" value="${atual?valorDespesa(atual):''}" placeholder="0,00" required></div>
-        <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
-        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="btnCancelarDespesa">Cancelar</button><button type="button" class="primary-button" id="btnSalvarDespesa">💾 Confirmar</button></div></div>`;
-      document.body.appendChild(modal);
-      modal.querySelector('#btnFecharDespesa').addEventListener('click', fecharModalDespesa);
-      modal.querySelector('#btnCancelarDespesa').addEventListener('click', fecharModalDespesa);
-      modal.querySelector('#btnSalvarDespesa').addEventListener('click', salvarDespesa);
-      // Não fecha ao clicar fora: evita perder a edição acidentalmente.
-      modal.addEventListener('click', event => { if (event.target === modal) event.stopPropagation(); });
-    }
-
-    function fecharModalDespesa(){ document.getElementById('modalDespesa')?.remove(); }
-
-    async function salvarDespesa(event) {
-      event?.preventDefault?.();
-      const modal = document.getElementById('modalDespesa');
-      if (!modal) return;
-      const editando = modal.dataset.mode === 'edit';
-      const id = String(modal.dataset.despesaId ?? '').trim();
-      if (editando && !id) { showToast('Erro ao salvar','Registro de edição inválido. Nenhuma despesa foi criada.'); return; }
-
-      const data = document.getElementById('despesaData')?.value;
-      const descricao = document.getElementById('despesaDescricao')?.value.trim();
-      const categoria = document.getElementById('despesaCategoria')?.value || null;
-      const forma = document.getElementById('despesaForma')?.value || null;
-      const valor = Number(document.getElementById('despesaValor')?.value);
-      const observacao = document.getElementById('despesaObs')?.value.trim() || null;
-      if (!data || !descricao || !(valor > 0)) { showToast('Dados obrigatórios','Informe data, descrição e valor válido.'); return; }
-      if (!confirm(editando ? 'Confirmar alteração desta despesa?' : 'Confirmar inclusão desta despesa?')) return;
-
-      const botao = modal.querySelector('#btnSalvarDespesa');
-      if (botao?.dataset.saving === '1') return;
-      if (botao) { botao.dataset.saving='1'; botao.disabled=true; botao.textContent='Salvando...'; }
-
-      const payload = { DATA:data+'T12:00:00', DESCRICAO:descricao, CATEGORIA:categoria, FORMA_PAGAMENTO:forma, VALOR:valor, OBSERVACAO:observacao };
-      try {
-        if (editando) await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
-        else await restRequest('FINANCEIRO_DESPESAS', '', {method:'POST', body:payload});
-        fecharModalDespesa();
-        showToast('Financeiro atualizado', editando ? 'Despesa alterada com sucesso.' : 'Despesa cadastrada com sucesso.');
-        renderFinanceiroModule();
-      } catch(e) {
-        console.error(e);
-        showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.');
-        if (botao) { botao.dataset.saving='0'; botao.disabled=false; botao.textContent='💾 Confirmar'; }
-      }
-    }
-
-    function editarDespesa(id){
-      if (id === null || id === undefined || String(id).trim() === '') { showToast('Erro ao editar','Não foi possível identificar a despesa.'); return; }
-      abrirFormDespesa(String(id));
-    }
-
-    async function excluirDespesa(id) {
-      if (!id || !confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
-      try {
-        await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'DELETE'});
-        showToast('Despesa excluída','O lançamento foi removido.');
-        renderFinanceiroModule();
-      } catch(e) { console.error(e); showToast('Erro ao excluir', e.message || 'Não foi possível excluir a despesa.'); }
     }
 
     /* =====================================================
-       MENU
+       FINANCEIRO - CATEGORIAS (CRUD)
     ====================================================== */
+    async function finReloadCategories() {
+      const categorias = await restRequest(financeiroState.tabelaCategorias, '?select=*');
+      financeiroState.categorias = (Array.isArray(categorias) ? categorias : []).filter(x => {
+        const ativo = finField(x,['ATIVO','ativo'],true);
+        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
+      });
+    }
+
+    function finOpenCategories() {
+      if (!financeiroState.tabelaCategorias) {
+        showToast('Aguarde','As categorias ainda estão sendo carregadas.');
+        return;
+      }
+      document.getElementById('modalCategorias')?.remove();
+      const modal=document.createElement('div');
+      modal.className='modal-overlay';
+      modal.id='modalCategorias';
+      document.body.classList.add('modal-open');
+      modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true">
+        <div class="modal-header"><h2>🏷️ Categorias de despesas</h2><button type="button" class="icon-button" id="finCatClose">✕</button></div>
+        <div id="finCategoriesContent"></div>
+      </div>`;
+      document.body.appendChild(modal);
+      const close=()=>{ modal.remove(); document.body.classList.remove('modal-open'); };
+      modal.querySelector('#finCatClose').addEventListener('click',close);
+      modal.addEventListener('click',event=>{ if(event.target===modal) close(); });
+      finRenderCategoriesManager();
+    }
+
+    function finRenderCategoriesManager() {
+      const content=document.getElementById('finCategoriesContent');
+      if(!content) return;
+      const rows=[...financeiroState.categorias].sort((a,b)=>String(finField(a,['NOME','nome'],'')).localeCompare(String(finField(b,['NOME','nome'],''))));
+      content.innerHTML=`
+        <div class="actions-inline" style="justify-content:flex-end;margin-bottom:14px">
+          <button type="button" class="primary-button" id="finCatNew">＋ Nova categoria</button>
+        </div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Categoria</th><th>Ações</th></tr></thead><tbody>
+          ${rows.length ? rows.map((row,index)=>`<tr><td>${escapeHtml(finField(row,['NOME','nome'],'-'))}</td><td><div class="actions-inline"><button type="button" class="secondary-button fin-cat-edit" data-index="${index}">✏️ Editar</button><button type="button" class="danger-button fin-cat-delete" data-index="${index}">🗑️ Excluir</button></div></td></tr>`).join('') : '<tr><td colspan="2">Nenhuma categoria cadastrada.</td></tr>'}
+        </tbody></table></div>`;
+      content.querySelector('#finCatNew').addEventListener('click',()=>finCategoryForm(null));
+      content.querySelectorAll('.fin-cat-edit').forEach(btn=>btn.addEventListener('click',()=>finCategoryForm(rows[Number(btn.dataset.index)])));
+      content.querySelectorAll('.fin-cat-delete').forEach(btn=>btn.addEventListener('click',()=>finDeleteCategory(rows[Number(btn.dataset.index)])));
+    }
+
+    function finCategoryForm(row) {
+      const content=document.getElementById('finCategoriesContent');
+      if(!content) return;
+      const editing=!!row;
+      const idInfo=editing?finId(row):null;
+      if(editing&&!idInfo) return showToast('Erro','Categoria sem ID válido.');
+      const name=editing?finField(row,['NOME','nome'],''):'';
+      content.innerHTML=`
+        <div class="field"><label>Nome da categoria</label><input type="text" id="finCatName" value="${escapeHtml(name)}" maxlength="100" placeholder="Ex.: Manutenção" required></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px">
+          <button type="button" class="secondary-button" id="finCatBack">Cancelar</button>
+          <button type="button" class="primary-button" id="finCatSave">💾 ${editing?'Salvar alterações':'Cadastrar categoria'}</button>
+        </div>`;
+      content.querySelector('#finCatBack').addEventListener('click',finRenderCategoriesManager);
+      content.querySelector('#finCatSave').addEventListener('click',async()=>{
+        const button=content.querySelector('#finCatSave');
+        const value=content.querySelector('#finCatName').value.trim();
+        if(!value) return showToast('Dados obrigatórios','Informe o nome da categoria.');
+        if(!confirm(editing?'Confirmar alteração desta categoria?':'Confirmar inclusão desta nova categoria?')) return;
+        try {
+          button.disabled=true; button.textContent='Salvando...';
+          const sample=row||financeiroState.categorias[0]||{};
+          const field=finColumnName(sample,['NOME','nome'],'NOME');
+          const payload={}; payload[field]=value;
+          if(editing) {
+            const result=await restRequest(financeiroState.tabelaCategorias,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(String(idInfo.value)),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+            if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhuma categoria foi atualizada.');
+          } else {
+            const result=await restRequest(financeiroState.tabelaCategorias,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+            if(!Array.isArray(result)||result.length<1) throw new Error('O Supabase não retornou a nova categoria.');
+          }
+          await finReloadCategories();
+          showToast('Sucesso',editing?'Categoria alterada com sucesso.':'Categoria cadastrada com sucesso.');
+          finRenderCategoriesManager();
+        } catch(e) {
+          console.error('FINANCEIRO CATEGORIA SAVE:',e);
+          showToast(editing?'Erro ao editar':'Erro ao cadastrar',e.message||'Não foi possível salvar a categoria.');
+          button.disabled=false; button.textContent=editing?'💾 Salvar alterações':'💾 Cadastrar categoria';
+        }
+      });
+    }
+
+    async function finDeleteCategory(row) {
+      const id=finId(row);
+      if(!id) return showToast('Erro','ID da categoria não encontrado.');
+      const name=finField(row,['NOME','nome'],'esta categoria');
+      if(!confirm(`Excluir a categoria "${name}"? Esta ação não poderá ser desfeita.`)) return;
+      try {
+        await restRequest(financeiroState.tabelaCategorias,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'DELETE',headers:{'Prefer':'return=representation'}});
+        await finReloadCategories();
+        showToast('Categoria excluída','A categoria foi removida com sucesso.');
+        finRenderCategoriesManager();
+      } catch(e) {
+        console.error('FINANCEIRO CATEGORIA DELETE:',e);
+        showToast('Erro ao excluir',e.message||'Não foi possível excluir a categoria.');
+      }
+    }
+
+    function finOpenForm(row) {
+      const editing=!!row;
+      const idInfo=editing?finId(row):null;
+      if(editing&&!idInfo) return showToast('Erro ao editar','Este lançamento não possui um ID válido.');
+      const category=editing?String(finField(row,['CATEGORIA_ID','categoria_id'],'')):'';
+      const payment=editing?String(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id'],'')):'';
+      document.getElementById('modalDespesa')?.remove();
+      const modal=document.createElement('div'); modal.className='modal-overlay'; modal.id='modalDespesa';
+      document.body.classList.add('modal-open');
+      modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true"><div class="modal-header"><h2>${editing?'✏️ Editar despesa':'➕ Nova despesa'}</h2><button type="button" class="icon-button" id="finClose">✕</button></div>
+        <div class="field"><label>Data</label><input type="date" id="finDateInput" value="${editing?localDateKey(finDate(row)):finToday()}" required></div>
+        <div class="field"><label>Descrição</label><input type="text" id="finDescription" value="${escapeHtml(editing?finField(row,['DESCRICAO','descricao'],''):'')}" required></div>
+        <div class="field"><label>Categoria</label><select id="finCategory"><option value="">Selecione</option>${finOptions(financeiroState.categorias,category,['NOME','nome'])}</select></div>
+        <div class="field"><label>Forma de pagamento</label><select id="finPayment"><option value="">Selecione</option>${finOptions(financeiroState.formas,payment,['NOME','nome','DESCRICAO','descricao'])}</select></div>
+        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="finAmount" value="${editing?finValue(row):''}" required></div>
+        <div class="field"><label>Observação</label><textarea id="finObservation">${escapeHtml(editing?finField(row,['OBSERVACAO','observacao'],''):'')}</textarea></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="finCancel">Cancelar</button><button type="button" class="primary-button" id="finSave">💾 ${editing?'Salvar alterações':'Cadastrar despesa'}</button></div></div>`;
+      document.body.appendChild(modal);
+      const close=()=>{ modal.remove(); document.body.classList.remove('modal-open'); };
+      modal.querySelector('#finClose').addEventListener('click',close);
+      modal.querySelector('#finCancel').addEventListener('click',close);
+      modal.addEventListener('click',(event)=>{ if(event.target===modal) close(); });
+      modal.querySelector('#finSave').addEventListener('click',async()=>{
+        const button=modal.querySelector('#finSave');
+        try {
+          const payload=finPayload(row);
+          if(!confirm(editing?'Confirmar alteração desta despesa?':'Confirmar inclusão desta nova despesa?')) return;
+          button.disabled=true; button.textContent='Salvando...';
+          if(editing) await finUpdate(row,payload); else await finInsert(payload);
+          close();
+          showToast('Sucesso',editing?'Despesa alterada com sucesso.':'Despesa cadastrada com sucesso.');
+          renderFinanceiroModule();
+        } catch(e) {
+          console.error('FINANCEIRO SAVE:',e);
+          showToast(editing?'Erro ao editar':'Erro ao cadastrar',e.message||'Não foi possível salvar.');
+          button.disabled=false; button.textContent=editing?'💾 Salvar alterações':'💾 Cadastrar despesa';
+        }
+      });
+    }
+
+    function finPayload(row) {
+      const date=document.getElementById('finDateInput').value;
+      const description=document.getElementById('finDescription').value.trim();
+      const categoryId=document.getElementById('finCategory').value||null;
+      const paymentId=document.getElementById('finPayment').value||null;
+      const amount=Number(document.getElementById('finAmount').value);
+      const observation=document.getElementById('finObservation').value.trim()||null;
+      if(!date||!description||!(amount>0)) throw new Error('Informe data, descrição e valor válido.');
+
+      // A estrutura real da FINANCEIRO_DESPESAS não possui CATEGORIA nem
+      // FORMA_PAGAMENTO. Ela guarda os relacionamentos por *_ID.
+      // Mantemos os nomes reais das demais colunas conforme o registro existente.
+      const sample=row||financeiroState.despesas[0]||{};
+      const put=(obj,candidates,value,fallback)=>{obj[finColumnName(sample,candidates,fallback)]=value;};
+      const payload={};
+      put(payload,['DATA','data'],date+'T12:00:00','DATA');
+      put(payload,['DESCRICAO','descricao'],description,'DESCRICAO');
+      put(payload,['CATEGORIA_ID','categoria_id'],categoryId,'CATEGORIA_ID');
+      put(payload,['FORMA_PAGAMENTO_ID','forma_pagamento_id'],paymentId,'FORMA_PAGAMENTO_ID');
+      put(payload,['VALOR','valor'],amount,'VALOR');
+      // OBSERVACAO só é enviado se a coluna existir; assim evitamos erro de schema.
+      const obsField=finColumnName(sample,['OBSERVACAO','observacao'],null);
+      if(obsField) payload[obsField]=observation;
+      return payload;
+    }
+
+    async function finInsert(payload) {
+      const result=await restRequest(financeiroState.tabelaDespesas,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+      if(!Array.isArray(result)||result.length<1) throw new Error('O Supabase não retornou o novo lançamento.');
+      return result[0];
+    }
+
+    async function finUpdate(row,payload) {
+      const id=finId(row); if(!id) throw new Error('ID do lançamento não encontrado.');
+      const result=await restRequest(financeiroState.tabelaDespesas,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+      if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhuma despesa foi atualizada. Nenhum novo registro foi criado.');
+      return result[0];
+    }
+
+    async function finDelete(row) {
+      const id=finId(row); if(!id) return showToast('Erro ao excluir','ID do lançamento não encontrado.');
+      if(!confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
+      try {
+        await restRequest(financeiroState.tabelaDespesas,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'DELETE',headers:{'Prefer':'return=representation'}});
+        showToast('Despesa excluída','O lançamento foi removido.'); renderFinanceiroModule();
+      } catch(e) { console.error('FINANCEIRO DELETE:',e); showToast('Erro ao excluir',e.message||'Não foi possível excluir a despesa.'); }
+    }
+    /* =====================================================
+       MENU + HISTÓRICO DO NAVEGADOR
+    ====================================================== */
+    const ROUTE_TO_MODULE = {
+      'dashboard':'Dashboard',
+      'pedidos':'Pedidos',
+      'financeiro':'Financeiro',
+      'produtos':'Produtos',
+      'clientes':'Clientes',
+      'formas-de-pagamento':'Formas de pagamento',
+      'formas-de-entrega':'Formas de entrega',
+      'horarios':'Horários',
+      'configuracoes':'Configurações'
+    };
+    function moduleToRoute(name){
+      return Object.keys(ROUTE_TO_MODULE).find(route => ROUTE_TO_MODULE[route]===name) || 'dashboard';
+    }
+    function routeToModule(){
+      const route=(location.hash||'#dashboard').replace(/^#/,'').trim().toLowerCase();
+      return ROUTE_TO_MODULE[route] || 'Dashboard';
+    }
+    function updateActiveMenu(name){
+      document.querySelectorAll('.menu button').forEach(item => {
+        const label=item.textContent.replace(/\s+/g,' ').trim();
+        item.classList.toggle('active', label.includes(name));
+      });
+    }
+    function navigateToModule(name, options={}){
+      const push=options.push!==false;
+      const route=moduleToRoute(name);
+      const targetHash='#'+route;
+      if(push && location.hash!==targetHash){
+        history.pushState({kukiModule:name},'',targetHash);
+      } else if(!push && location.hash!==targetHash){
+        history.replaceState({kukiModule:name},'',targetHash);
+      }
+      updateActiveMenu(name);
+      abrirModulo(name);
+    }
     function selectMenu(button, name) {
-      document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
-      button.classList.add('active'); abrirModulo(name);
+      navigateToModule(name,{push:true});
     }
     function selectMenuByName(name) {
-      document.querySelectorAll('.menu button').forEach(botao => {
-        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
-      });
+      navigateToModule(name,{push:true});
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
     function abrirModulo(name) {
-      if (!podeAcessarModulo(name)) {
-        showToast('Acesso restrito','Seu perfil não tem acesso ao módulo '+name+'.');
-        name = 'Dashboard';
-      }
       moduloAtual = name;
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
@@ -2137,12 +2277,29 @@
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
-
+    window.addEventListener('popstate', () => {
+      document.getElementById('modalDespesa')?.remove();
+      document.body.classList.remove('modal-open');
+      const name=routeToModule();
+      updateActiveMenu(name);
+      abrirModulo(name);
+    });
+    window.addEventListener('hashchange', () => {
+      const name=routeToModule();
+      if(name!==moduloAtual){ updateActiveMenu(name); abrirModulo(name); }
+    });
     /* =====================================================
        INICIAR
     ====================================================== */
-    // Inicia verificando se já existe uma sessão válida no Supabase.
-    verificarSessao();
+    // Nesta versão o login está temporariamente desativado.
+    abrirSistema({ email: 'admin@kuki.local' });
+    setTimeout(() => {
+      const initialModule=routeToModule();
+      const route='#'+moduleToRoute(initialModule);
+      if(!location.hash) history.replaceState({kukiModule:initialModule},'',route);
+      updateActiveMenu(initialModule);
+      abrirModulo(initialModule);
+    },0);
 
   </script>
 
