@@ -717,6 +717,32 @@
     }
 
 <style>.actions-inline{display:flex!important;gap:10px;align-items:center;flex-wrap:nowrap!important}.actions-inline .secondary-button,.actions-inline .danger-button{white-space:nowrap}</style></style>
+
+<style id="kuki-actions-fix">
+/* Correção definitiva: ações dos cadastros sempre ficam na mesma linha */
+.data-table td:last-child { min-width: 215px; white-space: nowrap; }
+.data-table td:last-child .actions-inline,
+#financeiroBody td .actions-inline {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: max-content !important;
+  white-space: nowrap !important;
+}
+.data-table td:last-child .actions-inline > button,
+#financeiroBody td .actions-inline > button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+}
+@media (max-width: 700px) {
+  .data-table td:last-child { min-width: 190px; }
+}
+</style>
 </head>
 
 <body>
