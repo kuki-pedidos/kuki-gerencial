@@ -1588,9 +1588,6 @@
 });
 
 return true;
-      const respostaTexto = await response.text();
-      if (!response.ok) throw new Error('Webhook respondeu HTTP '+response.status+(respostaTexto ? ': '+respostaTexto : ''));
-      return true;
     }
 
     async function atualizarStatusPedido(id) {
