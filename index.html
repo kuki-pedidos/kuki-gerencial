@@ -2012,15 +2012,22 @@
     }
 
     function finOptions(list,current,names) {
-      return list.map(row=>{const name=String(finField(row,names,'')).trim(); return `<option value="${escapeHtml(name)}" ${name===current?'selected':''}>${escapeHtml(name)}</option>`;}).join('');
+      // O select exibe o nome, mas envia o ID. A tabela FINANCEIRO_DESPESAS
+      // usa chaves estrangeiras (CATEGORIA_ID / FORMA_PAGAMENTO_ID), não os nomes.
+      return list.map(row=>{
+        const id=finField(row,['ID','id'],'');
+        const name=String(finField(row,names,'')).trim();
+        const selected=String(id)===String(current)?'selected':'';
+        return `<option value="${escapeHtml(String(id))}" ${selected}>${escapeHtml(name)}</option>`;
+      }).join('');
     }
 
     function finOpenForm(row) {
       const editing=!!row;
       const idInfo=editing?finId(row):null;
       if(editing&&!idInfo) return showToast('Erro ao editar','Este lançamento não possui um ID válido.');
-      const category=editing?String(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'')):'';
-      const payment=editing?String(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'')):'';
+      const category=editing?String(finField(row,['CATEGORIA_ID','categoria_id'],'')):'';
+      const payment=editing?String(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id'],'')):'';
       document.getElementById('modalDespesa')?.remove();
       const modal=document.createElement('div'); modal.className='modal-overlay'; modal.id='modalDespesa';
       document.body.classList.add('modal-open');
@@ -2058,21 +2065,26 @@
     function finPayload(row) {
       const date=document.getElementById('finDateInput').value;
       const description=document.getElementById('finDescription').value.trim();
-      const category=document.getElementById('finCategory').value||null;
-      const payment=document.getElementById('finPayment').value||null;
+      const categoryId=document.getElementById('finCategory').value||null;
+      const paymentId=document.getElementById('finPayment').value||null;
       const amount=Number(document.getElementById('finAmount').value);
       const observation=document.getElementById('finObservation').value.trim()||null;
       if(!date||!description||!(amount>0)) throw new Error('Informe data, descrição e valor válido.');
-      // Usa o mesmo padrão de maiúsculas/minúsculas existente no registro carregado.
+
+      // A estrutura real da FINANCEIRO_DESPESAS não possui CATEGORIA nem
+      // FORMA_PAGAMENTO. Ela guarda os relacionamentos por *_ID.
+      // Mantemos os nomes reais das demais colunas conforme o registro existente.
       const sample=row||financeiroState.despesas[0]||{};
       const put=(obj,candidates,value,fallback)=>{obj[finColumnName(sample,candidates,fallback)]=value;};
       const payload={};
       put(payload,['DATA','data'],date+'T12:00:00','DATA');
       put(payload,['DESCRICAO','descricao'],description,'DESCRICAO');
-      put(payload,['CATEGORIA','categoria'],category,'CATEGORIA');
-      put(payload,['FORMA_PAGAMENTO','forma_pagamento'],payment,'FORMA_PAGAMENTO');
+      put(payload,['CATEGORIA_ID','categoria_id'],categoryId,'CATEGORIA_ID');
+      put(payload,['FORMA_PAGAMENTO_ID','forma_pagamento_id'],paymentId,'FORMA_PAGAMENTO_ID');
       put(payload,['VALOR','valor'],amount,'VALOR');
-      put(payload,['OBSERVACAO','observacao'],observation,'OBSERVACAO');
+      // OBSERVACAO só é enviado se a coluna existir; assim evitamos erro de schema.
+      const obsField=finColumnName(sample,['OBSERVACAO','observacao'],null);
+      if(obsField) payload[obsField]=observation;
       return payload;
     }
 
