@@ -1961,8 +1961,9 @@
 
     function renderFinanceiroModule() {
       const container=document.getElementById('moduleContent');
-      container.innerHTML=`<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button type="button" class="secondary-button" id="finRefresh">↻ Atualizar</button><button type="button" class="primary-button" id="finNew">＋ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>`;
+      container.innerHTML=`<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button type="button" class="secondary-button" id="finRefresh">↻ Atualizar</button><button type="button" class="secondary-button" id="finCategories">🏷️ Categorias</button><button type="button" class="primary-button" id="finNew">＋ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>`;
       document.getElementById('finRefresh').addEventListener('click', renderFinanceiroModule);
+      document.getElementById('finCategories').addEventListener('click', finOpenCategories);
       document.getElementById('finNew').addEventListener('click', () => finOpenForm(null));
       finLoad().then(finRender).catch(err => {
         console.error('FINANCEIRO:',err);
@@ -2020,6 +2021,112 @@
         const selected=String(id)===String(current)?'selected':'';
         return `<option value="${escapeHtml(String(id))}" ${selected}>${escapeHtml(name)}</option>`;
       }).join('');
+    }
+
+    /* =====================================================
+       FINANCEIRO - CATEGORIAS (CRUD)
+    ====================================================== */
+    async function finReloadCategories() {
+      const categorias = await restRequest(financeiroState.tabelaCategorias, '?select=*');
+      financeiroState.categorias = (Array.isArray(categorias) ? categorias : []).filter(x => {
+        const ativo = finField(x,['ATIVO','ativo'],true);
+        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
+      });
+    }
+
+    function finOpenCategories() {
+      if (!financeiroState.tabelaCategorias) {
+        showToast('Aguarde','As categorias ainda estão sendo carregadas.');
+        return;
+      }
+      document.getElementById('modalCategorias')?.remove();
+      const modal=document.createElement('div');
+      modal.className='modal-overlay';
+      modal.id='modalCategorias';
+      document.body.classList.add('modal-open');
+      modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true">
+        <div class="modal-header"><h2>🏷️ Categorias de despesas</h2><button type="button" class="icon-button" id="finCatClose">✕</button></div>
+        <div id="finCategoriesContent"></div>
+      </div>`;
+      document.body.appendChild(modal);
+      const close=()=>{ modal.remove(); document.body.classList.remove('modal-open'); };
+      modal.querySelector('#finCatClose').addEventListener('click',close);
+      modal.addEventListener('click',event=>{ if(event.target===modal) close(); });
+      finRenderCategoriesManager();
+    }
+
+    function finRenderCategoriesManager() {
+      const content=document.getElementById('finCategoriesContent');
+      if(!content) return;
+      const rows=[...financeiroState.categorias].sort((a,b)=>String(finField(a,['NOME','nome'],'')).localeCompare(String(finField(b,['NOME','nome'],''))));
+      content.innerHTML=`
+        <div class="actions-inline" style="justify-content:flex-end;margin-bottom:14px">
+          <button type="button" class="primary-button" id="finCatNew">＋ Nova categoria</button>
+        </div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Categoria</th><th>Ações</th></tr></thead><tbody>
+          ${rows.length ? rows.map((row,index)=>`<tr><td>${escapeHtml(finField(row,['NOME','nome'],'-'))}</td><td><div class="actions-inline"><button type="button" class="secondary-button fin-cat-edit" data-index="${index}">✏️ Editar</button><button type="button" class="danger-button fin-cat-delete" data-index="${index}">🗑️ Excluir</button></div></td></tr>`).join('') : '<tr><td colspan="2">Nenhuma categoria cadastrada.</td></tr>'}
+        </tbody></table></div>`;
+      content.querySelector('#finCatNew').addEventListener('click',()=>finCategoryForm(null));
+      content.querySelectorAll('.fin-cat-edit').forEach(btn=>btn.addEventListener('click',()=>finCategoryForm(rows[Number(btn.dataset.index)])));
+      content.querySelectorAll('.fin-cat-delete').forEach(btn=>btn.addEventListener('click',()=>finDeleteCategory(rows[Number(btn.dataset.index)])));
+    }
+
+    function finCategoryForm(row) {
+      const content=document.getElementById('finCategoriesContent');
+      if(!content) return;
+      const editing=!!row;
+      const idInfo=editing?finId(row):null;
+      if(editing&&!idInfo) return showToast('Erro','Categoria sem ID válido.');
+      const name=editing?finField(row,['NOME','nome'],''):'';
+      content.innerHTML=`
+        <div class="field"><label>Nome da categoria</label><input type="text" id="finCatName" value="${escapeHtml(name)}" maxlength="100" placeholder="Ex.: Manutenção" required></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px">
+          <button type="button" class="secondary-button" id="finCatBack">Cancelar</button>
+          <button type="button" class="primary-button" id="finCatSave">💾 ${editing?'Salvar alterações':'Cadastrar categoria'}</button>
+        </div>`;
+      content.querySelector('#finCatBack').addEventListener('click',finRenderCategoriesManager);
+      content.querySelector('#finCatSave').addEventListener('click',async()=>{
+        const button=content.querySelector('#finCatSave');
+        const value=content.querySelector('#finCatName').value.trim();
+        if(!value) return showToast('Dados obrigatórios','Informe o nome da categoria.');
+        if(!confirm(editing?'Confirmar alteração desta categoria?':'Confirmar inclusão desta nova categoria?')) return;
+        try {
+          button.disabled=true; button.textContent='Salvando...';
+          const sample=row||financeiroState.categorias[0]||{};
+          const field=finColumnName(sample,['NOME','nome'],'NOME');
+          const payload={}; payload[field]=value;
+          if(editing) {
+            const result=await restRequest(financeiroState.tabelaCategorias,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(String(idInfo.value)),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+            if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhuma categoria foi atualizada.');
+          } else {
+            const result=await restRequest(financeiroState.tabelaCategorias,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+            if(!Array.isArray(result)||result.length<1) throw new Error('O Supabase não retornou a nova categoria.');
+          }
+          await finReloadCategories();
+          showToast('Sucesso',editing?'Categoria alterada com sucesso.':'Categoria cadastrada com sucesso.');
+          finRenderCategoriesManager();
+        } catch(e) {
+          console.error('FINANCEIRO CATEGORIA SAVE:',e);
+          showToast(editing?'Erro ao editar':'Erro ao cadastrar',e.message||'Não foi possível salvar a categoria.');
+          button.disabled=false; button.textContent=editing?'💾 Salvar alterações':'💾 Cadastrar categoria';
+        }
+      });
+    }
+
+    async function finDeleteCategory(row) {
+      const id=finId(row);
+      if(!id) return showToast('Erro','ID da categoria não encontrado.');
+      const name=finField(row,['NOME','nome'],'esta categoria');
+      if(!confirm(`Excluir a categoria "${name}"? Esta ação não poderá ser desfeita.`)) return;
+      try {
+        await restRequest(financeiroState.tabelaCategorias,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'DELETE',headers:{'Prefer':'return=representation'}});
+        await finReloadCategories();
+        showToast('Categoria excluída','A categoria foi removida com sucesso.');
+        finRenderCategoriesManager();
+      } catch(e) {
+        console.error('FINANCEIRO CATEGORIA DELETE:',e);
+        showToast('Erro ao excluir',e.message||'Não foi possível excluir a categoria.');
+      }
     }
 
     function finOpenForm(row) {
