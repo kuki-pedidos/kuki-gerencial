@@ -1399,11 +1399,11 @@
 
     /* =====================================================
        PEDIDOS - REGRAS DE INTEGRIDADE
-       Pedido concluído/fechado/finalizado é imutável na UI.
+       Pedido ENTREGUE é considerado concluído e fica imutável na UI.
        Toda operação valida novamente o status antes do PATCH/DELETE.
     ====================================================== */
     const PEDIDO_STATUS_BLOQUEADOS = new Set([
-      'CONCLUIDO','CONCLUÍDO','FECHADO','FINALIZADO','ENCERRADO'
+      'ENTREGUE'
     ]);
 
     function normalizarStatus(status) {
@@ -1729,7 +1729,7 @@ return true;
         const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
         const total = getValue(p,['VALOR_TOTAL','valor_total','TOTAL','total','valor'],0);
         const statusEsc = escapeHtml(status);
-        const options = ['NOVO','EM PROCESSAMENTO','EM PRODUÇÃO','SAIU PARA ENTREGA','ENTREGUE','CONCLUÍDO','FECHADO','FINALIZADO']
+        const options = ['NOVO','EM PROCESSAMENTO','EM PRODUÇÃO','SAIU PARA ENTREGA','ENTREGUE']
           .map(st => '<option value="'+escapeHtml(st)+'" '+(normalizarStatus(st)===normalizarStatus(status)?'selected':'')+'>'+escapeHtml(st)+'</option>').join('');
         const actions = bloqueado
           ? '<div class="action-group"><button class="locked-button" type="button" disabled title="Pedido bloqueado">🔒 '+escapeHtml(status)+'</button></div>'
@@ -1756,7 +1756,7 @@ return true;
         ? 'Todos os pedidos criados na data de hoje.'
         : (filtroPedidosAtivo === 'NOVOS'
           ? 'Somente pedidos com status NOVO.'
-          : 'Pedidos recebidos pela KUKI. Pedidos concluídos, fechados e finalizados ficam somente para consulta.');
+          : 'Pedidos recebidos pela KUKI. Pedidos ENTREGUES são considerados concluídos e ficam somente para consulta.');
 
       const botaoFiltro = filtroPedidosAtivo !== 'TODOS'
         ? '<button class="secondary-button" type="button" onclick="limparFiltroPedidos()">← Ver todos</button>'
@@ -1764,7 +1764,7 @@ return true;
 
       container.innerHTML = '<div class="module-panel">'
         + '<div class="module-toolbar"><div><h2>📦 '+tituloFiltro+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoFiltro+'</p></div><div class="actions-inline">'+botaoFiltro+'<button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
-        + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>CONCLUÍDOS, FECHADOS, FINALIZADOS ou ENCERRADOS</strong> não podem ser editados, ter o status alterado ou ser excluídos.</div>'
+        + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>ENTREGUES</strong> são considerados concluídos e não podem ser editados, ter o status alterado ou ser excluídos.</div>'
         + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
 
