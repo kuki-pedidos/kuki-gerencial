@@ -170,6 +170,7 @@
       background: var(--vermelho);
       color: white;
       padding: 22px 15px;
+      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       z-index: 1000;
@@ -203,6 +204,8 @@
       display: flex;
       flex-direction: column;
       gap: 7px;
+      flex: 0 0 auto;
+      min-height: max-content;
     }
 
     .menu button {
@@ -233,6 +236,7 @@
     .sidebar-bottom {
       margin-top: auto;
       padding-top: 20px;
+      flex-shrink: 0;
     }
 
     .user-info {
@@ -716,7 +720,157 @@
       opacity:1 !important;
     }
 
+    /* MENU MOBILE COMPLETO */
+    .mobile-menu-toggle{font-size:22px;line-height:1;min-width:46px}
+    .mobile-menu-overlay{position:fixed;inset:0;background:rgba(30,20,20,.45);z-index:3000;display:none;align-items:stretch;justify-content:flex-end}
+    .mobile-menu-overlay.open{display:flex}
+    .mobile-menu-drawer{width:min(86vw,360px);height:100%;background:#fff;box-shadow:-12px 0 35px rgba(0,0,0,.18);padding:18px 14px;overflow:auto;animation:slideInMobile .2s ease-out}
+    @keyframes slideInMobile{from{transform:translateX(100%)}to{transform:translateX(0)}}
+    .mobile-menu-head{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 14px;border-bottom:1px solid var(--borda);margin-bottom:10px}
+    .mobile-menu-head strong{font-size:20px;color:var(--vermelho)}
+    .mobile-menu-close{border:0;background:#f1e8e2;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer}
+    .mobile-menu-list{display:grid;gap:7px}
+    .mobile-menu-list button{width:100%;border:0;background:#fff;text-align:left;padding:14px 12px;border-radius:12px;font-weight:800;color:var(--texto);font-size:15px;cursor:pointer}
+    .mobile-menu-list button:hover,.mobile-menu-list button.active{background:#f7e7ea;color:var(--vermelho)}
+    @media(min-width:761px){.mobile-menu-overlay{display:none!important}.mobile-menu-toggle{display:none!important}}
+
+
+
 </style>
+
+<style id="kuki-menu-fix">
+/* =====================================================
+   MENU DEFINITIVO - DESKTOP E MOBILE
+===================================================== */
+
+/* DESKTOP */
+.sidebar{
+  display:flex !important;
+  flex-direction:column !important;
+  height:100vh !important;
+  max-height:100vh !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  box-sizing:border-box !important;
+  padding-bottom:16px !important;
+}
+
+.sidebar .menu{
+  display:flex !important;
+  flex-direction:column !important;
+  flex:none !important;
+  gap:6px !important;
+  width:100% !important;
+}
+
+.sidebar .menu button{
+  display:flex !important;
+  align-items:center !important;
+  width:100% !important;
+  min-height:46px !important;
+  box-sizing:border-box !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
+
+.sidebar .menu button:nth-child(3),
+.sidebar .menu button:nth-child(9){
+  display:flex !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
+
+.sidebar-bottom{
+  margin-top:16px !important;
+  flex:none !important;
+}
+
+/* MOBILE */
+.mobile-menu-toggle{
+  display:none;
+}
+
+.mobile-menu-overlay{
+  position:fixed !important;
+  inset:0 !important;
+  z-index:999999 !important;
+  background:rgba(20,10,10,.55) !important;
+  display:none !important;
+  align-items:stretch !important;
+  justify-content:flex-end !important;
+}
+
+.mobile-menu-overlay.open{
+  display:flex !important;
+}
+
+.mobile-menu-drawer{
+  width:min(92vw,390px) !important;
+  height:100vh !important;
+  max-height:100vh !important;
+  box-sizing:border-box !important;
+  background:#fff !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch !important;
+  padding:18px 14px 32px !important;
+}
+
+.mobile-menu-list{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:8px !important;
+  width:100% !important;
+  padding-bottom:28px !important;
+}
+
+.mobile-menu-list button{
+  display:block !important;
+  width:100% !important;
+  min-height:52px !important;
+  box-sizing:border-box !important;
+  visibility:visible !important;
+  opacity:1 !important;
+}
+
+@media (max-width:760px){
+  .sidebar{
+    display:none !important;
+  }
+
+  .main{
+    margin-left:0 !important;
+    padding:16px !important;
+    width:100% !important;
+    box-sizing:border-box !important;
+  }
+
+  .mobile-header{
+    display:flex !important;
+    position:relative !important;
+    z-index:10 !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+  }
+
+  .mobile-menu-toggle{
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:48px !important;
+    height:48px !important;
+    font-size:26px !important;
+    cursor:pointer !important;
+  }
+}
+
+@media (min-width:761px){
+  .mobile-header{
+    display:none !important;
+  }
+}
+</style>
+
 </head>
 
 <body>
@@ -809,7 +963,8 @@
           <span>📦</span> Pedidos
         </button>
 
-        <button type="button" class="financeiro-menu-button" onclick="selectMenu(this, 'Financeiro')">
+        <!-- FINANCEIRO: mantido em posição alta e ainda acima de Configurações -->
+        <button class="financeiro-menu-button" type="button" onclick="selectMenu(this, 'Financeiro')">
           <span>💰</span> Financeiro
         </button>
 
@@ -832,7 +987,6 @@
         <button onclick="selectMenu(this, 'Horários')">
           <span>🕐</span> Horários
         </button>
-
         <button onclick="selectMenu(this, 'Configurações')">
           <span>⚙️</span> Configurações
         </button>
@@ -859,22 +1013,34 @@
 
     </aside>
 
+    <!-- MENU COMPLETO PARA CELULAR -->
+    <div class="mobile-menu-overlay" id="mobileMenuOverlay" onclick="if(event.target===this)fecharMenuMobile()">
+      <aside class="mobile-menu-drawer" aria-label="Menu principal">
+        <div class="mobile-menu-head"><strong>🍪 KUKI Gerencial</strong><button class="mobile-menu-close" type="button" onclick="fecharMenuMobile()">✕</button></div>
+        <div class="mobile-menu-list">
+          <button type="button" onclick="abrirModuloMobile('Dashboard')">📊 Dashboard</button>
+          <button type="button" onclick="abrirModuloMobile('Pedidos')">📦 Pedidos</button>
+          <button type="button" onclick="abrirModuloMobile('Financeiro')">💰 Financeiro</button>
+          <button type="button" onclick="abrirModuloMobile('Produtos')">🍪 Produtos</button>
+          <button type="button" onclick="abrirModuloMobile('Clientes')">👥 Clientes</button>
+          <button type="button" onclick="abrirModuloMobile('Formas de pagamento')">💳 Pagamentos</button>
+          <button type="button" onclick="abrirModuloMobile('Formas de entrega')">🛵 Entregas</button>
+          <button type="button" onclick="abrirModuloMobile('Horários')">🕐 Horários</button>
+          <button type="button" onclick="abrirModuloMobile('Configurações')">⚙️ Configurações</button>
+        </div>
+      </aside>
+    </div>
 
     <!-- CONTEÚDO -->
 
     <main class="main">
 
       <div class="mobile-header">
-
-        <img
-          src="logo-kuki-transparente.png"
-          alt="KUKI"
-        >
-
-        <button onclick="logout()">
-          SAIR
-        </button>
-
+        <img src="logo-kuki-transparente.png" alt="KUKI">
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="mobile-menu-toggle" type="button" onclick="abrirMenuMobile()" aria-label="Abrir menu">☰</button>
+          <button onclick="logout()">SAIR</button>
+        </div>
       </div>
 
 
@@ -1096,9 +1262,17 @@
     }
 
     async function restRequest(table, path='', options={}) {
+      // Usa o token do usuário logado. A chave publishable continua no header apikey,
+      // mas o Authorization precisa representar o usuário autenticado para respeitar RLS.
+      let accessToken = SUPABASE_KEY;
+      try {
+        const { data } = await supabaseClient.auth.getSession();
+        if (data && data.session && data.session.access_token) accessToken = data.session.access_token;
+      } catch(e) {}
+
       const headers = {
         'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Authorization': 'Bearer ' + accessToken,
         'Content-Type': 'application/json',
         ...(options.headers || {})
       };
@@ -1108,8 +1282,10 @@
       let body = null;
       try { body = text ? JSON.parse(text) : null; } catch(e) { body = text; }
       if (!response.ok) {
-        const message = body && body.message ? body.message : (body && body.hint ? body.hint : text || 'Erro ao consultar dados.');
-        throw new Error(message);
+        const details = body && typeof body === 'object'
+          ? [body.message, body.details, body.hint, body.code].filter(Boolean).join(' | ')
+          : text;
+        throw new Error('Tabela ' + table + ' — HTTP ' + response.status + ': ' + (details || text || 'Erro ao consultar dados.'));
       }
       return body;
     }
@@ -1709,7 +1885,9 @@
       'Produtos': { table:'PRODUTOS', icon:'🍪', fields:['NOME','DESCRICAO','PRECO','ATIVO'] },
       'Clientes': { table:'CLIENTES', icon:'👥', fields:['NOME','TELEFONE','WHATSAPP','CEP','ENDERECO','NUMERO','COMPLEMENTO','BAIRRO','CIDADE'] },
       'Formas de pagamento': { table:'FORMAS_PAGAMENTO', icon:'💳', fields:['NOME','ATIVO'] },
-      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
+      'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] },
+      'Configurações': { table:'CONFIGURACOES', icon:'⚙️', fields:[] },
+      'Categorias financeiras': { table:'FINANCEIRO_CATEGORIAS', icon:'🏷️', fields:['NOME','DESCRICAO','ATIVO'] }
     };
     const crudCache = {};
     function normKey(k){ return String(k||'').toUpperCase(); }
@@ -1741,7 +1919,7 @@
 
     function renderPlaceholderModule(name) {
       const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
-      document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Este módulo será conectado ao Supabase na próxima etapa.</p></div>';
+      document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Módulo em preparação.</p></div>';
     }
 
     /* =====================================================
@@ -1799,231 +1977,188 @@
 
 
     /* =====================================================
-       FINANCEIRO - REFEITO DO ZERO
+       FINANCEIRO
     ====================================================== */
-    const financeiroState = {
-      despesas: [],
-      categorias: [],
-      formas: [],
-      tabelaDespesas: null,
-      tabelaCategorias: null,
-      tabelaFormas: null
-    };
+    let financeiroDespesasCache = [];
+    let financeiroCategoriasCache = [];
+    let financeiroFormasCache = [];
 
-    function finField(obj, names, fallback='') {
+    function getField(obj, names, fallback='') {
       return getValue(obj, names, fallback);
     }
 
-    function finColumnName(row, candidates, fallback) {
-      if (!row || typeof row !== 'object') return fallback;
-      const keys = Object.keys(row);
-      for (const candidate of candidates) {
-        const found = keys.find(k => k.toLowerCase() === String(candidate).toLowerCase());
-        if (found) return found;
-      }
-      return fallback;
-    }
-
-    async function finResolveTable(candidates) {
-      let lastError;
-      for (const table of candidates) {
-        try {
-          await restRequest(table, '?select=*&limit=1');
-          return table;
-        } catch (e) {
-          lastError = e;
-        }
-      }
-      throw lastError || new Error('Tabela financeira não encontrada.');
-    }
-
-    async function finLoad() {
-      // Descobre uma única vez o nome REAL das tabelas e guarda o resultado.
-      // Depois disso, listar, inserir, editar e excluir usam exatamente o mesmo nome.
-      financeiroState.tabelaDespesas = await finResolveTable(['FINANCEIRO_DESPESAS','financeiro_despesas']);
-      financeiroState.tabelaCategorias = await finResolveTable(['FINANCEIRO_CATEGORIAS','financeiro_categorias']);
-      financeiroState.tabelaFormas = await finResolveTable(['FORMAS_PAGAMENTO','formas_pagamento']);
-
-      const [despesas, categorias, formas] = await Promise.all([
-        restRequest(financeiroState.tabelaDespesas, '?select=*'),
-        restRequest(financeiroState.tabelaCategorias, '?select=*'),
-        restRequest(financeiroState.tabelaFormas, '?select=*')
+    async function carregarFinanceiroDados() {
+      // Carrega cada fonte separadamente para identificar exatamente qual tabela falhou.
+      const resultados = await Promise.allSettled([
+        getTable('FINANCEIRO_DESPESAS', '?select=*'),
+        getTable('FINANCEIRO_CATEGORIAS', '?select=*&ativo=eq.true&order=nome.asc'),
+        getTable('FORMAS_PAGAMENTO', '?select=*')
       ]);
-
-      financeiroState.despesas = Array.isArray(despesas) ? despesas : [];
-      financeiroState.categorias = (Array.isArray(categorias) ? categorias : []).filter(x => {
-        const ativo = finField(x,['ATIVO','ativo'],true);
-        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
+      const nomes = ['FINANCEIRO_DESPESAS','FINANCEIRO_CATEGORIAS','FORMAS_PAGAMENTO'];
+      const erros = resultados.map((r,i) => r.status === 'rejected' ? nomes[i] + ': ' + (r.reason?.message || r.reason) : null).filter(Boolean);
+      if (erros.length) throw new Error(erros.join(' — '));
+      const [despesas, categorias, formas] = resultados.map(r => r.value);
+      financeiroDespesasCache = (Array.isArray(despesas) ? despesas : []).sort((a,b) => {
+        const da = new Date(getField(a,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
+        const db = new Date(getField(b,['DATA','data','CREATED_AT','created_at'],0)).getTime() || 0;
+        return db - da;
       });
-      financeiroState.formas = (Array.isArray(formas) ? formas : []).filter(x => {
-        const ativo = finField(x,['ATIVO','ativo'],true);
-        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
+      financeiroCategoriasCache = Array.isArray(categorias) ? categorias : [];
+      financeiroFormasCache = (Array.isArray(formas) ? formas : []).filter(f => {
+        const a = getField(f,['ATIVO','ativo'],true);
+        return a !== false && String(a).toLowerCase() !== 'false' && a !== 0 && a !== '0';
       });
-
-      financeiroState.despesas.sort((a,b) => String(finDate(b)||'').localeCompare(String(finDate(a)||'')));
     }
 
-    function finDate(row) { return finField(row,['DATA','data','CREATED_AT','created_at'],''); }
-    function finValue(row) { return Number(String(finField(row,['VALOR','valor'],0)).replace(',','.')) || 0; }
-    function finToday() { return localDateKey(new Date()); }
-    function finId(row) {
-      if (!row || typeof row !== 'object') return null;
-      const field = finColumnName(row,['ID','id'],null);
-      if (!field) return null;
-      const value = row[field];
-      if (value === null || value === undefined || String(value).trim()==='') return null;
-      return {field, value};
+    function dataHojeISO() { return localDateKey(new Date()); }
+
+    function valorDespesa(d) {
+      return Number(String(getField(d,['VALOR','valor'],0)).replace(',','.')) || 0;
     }
 
-    function finCategoryName(id) {
-      const row = financeiroState.categorias.find(x => String(finField(x,['ID','id']))===String(id));
-      return row ? finField(row,['NOME','nome'],'-') : '-';
+    function dataDespesa(d) {
+      return getField(d,['DATA','data','CREATED_AT','created_at'],'');
     }
-    function finPaymentName(id) {
-      const row = financeiroState.formas.find(x => String(finField(x,['ID','id']))===String(id));
-      return row ? finField(row,['NOME','nome','DESCRICAO','descricao'],'-') : '-';
+
+    function categoriaNome(id) {
+      const c = financeiroCategoriasCache.find(x => String(getField(x,['ID','id'])) === String(id));
+      return c ? getField(c,['NOME','nome'],'-') : '-';
     }
-    function finRows(startDate, endDate) {
-      return financeiroState.despesas.filter(row => {
-        const d=localDateKey(finDate(row));
-        return d && (!startDate || d>=startDate) && (!endDate || d<=endDate);
+
+    function formaNome(id) {
+      const f = financeiroFormasCache.find(x => String(getField(x,['ID','id'])) === String(id));
+      return f ? getField(f,['NOME','nome','DESCRICAO','descricao'],'-') : '-';
+    }
+
+    function despesasDoPeriodo(inicio, fim) {
+      return financeiroDespesasCache.filter(d => {
+        const dt = localDateKey(dataDespesa(d));
+        if (!dt) return false;
+        if (inicio && dt < inicio) return false;
+        if (fim && dt > fim) return false;
+        return true;
       });
     }
 
     function renderFinanceiroModule() {
-      const container=document.getElementById('moduleContent');
-      container.innerHTML=`<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button type="button" class="secondary-button" id="finRefresh">↻ Atualizar</button><button type="button" class="primary-button" id="finNew">＋ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>`;
-      document.getElementById('finRefresh').addEventListener('click', renderFinanceiroModule);
-      document.getElementById('finNew').addEventListener('click', () => finOpenForm(null));
-      finLoad().then(finRender).catch(err => {
-        console.error('FINANCEIRO:',err);
-        const body=document.getElementById('financeiroBody');
-        if(body) body.innerHTML=`<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o Financeiro.</strong><p style="margin-top:8px;">${escapeHtml(err.message||'Erro de conexão.')}</p></div>`;
+      const container = document.getElementById('moduleContent');
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="abrirCategoriasFinanceiras()">🏷️ Categorias</button><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
+      carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
+        console.error('Financeiro:', error);
+        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">'+escapeHtml(error.message || 'Erro desconhecido')+'</p></div>';
       });
     }
 
-    function finRender() {
-      const body=document.getElementById('financeiroBody'); if(!body) return;
-      const today=finToday(), monthStart=today.slice(0,7)+'-01';
-      const oldStart=document.getElementById('finStart')?.value;
-      const oldEnd=document.getElementById('finEnd')?.value;
-      const start=oldStart||monthStart, end=oldEnd||today;
-      const todayTotal=finRows(today,today).reduce((s,x)=>s+finValue(x),0);
-      const monthTotal=finRows(monthStart,today).reduce((s,x)=>s+finValue(x),0);
-      const rows=finRows(start,end);
-      const total=rows.reduce((s,x)=>s+finValue(x),0);
-      body.innerHTML=`
+    function renderFinanceiroBody() {
+      const body = document.getElementById('financeiroBody');
+      if (!body) return;
+      const hoje = dataHojeISO();
+      const inicioMes = hoje.slice(0,7) + '-01';
+      const hojeDespesas = despesasDoPeriodo(hoje,hoje).reduce((s,d)=>s+valorDespesa(d),0);
+      const mesDespesas = despesasDoPeriodo(inicioMes,hoje).reduce((s,d)=>s+valorDespesa(d),0);
+      const inicio = document.getElementById('finInicio')?.value || inicioMes;
+      const fim = document.getElementById('finFim')?.value || hoje;
+      const lista = despesasDoPeriodo(inicio,fim);
+      const totalPeriodo = lista.reduce((s,d)=>s+valorDespesa(d),0);
+
+      body.innerHTML = `
         <div class="financeiro-grid">
-          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(todayTotal)}</div><div class="hint">${today}</div></div>
-          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(monthTotal)}</div><div class="hint">Do dia 1 até hoje</div></div>
-          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(total)}</div><div class="hint">${rows.length} lançamento(s)</div></div>
+          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(hojeDespesas)}</div><div class="hint">${hoje}</div></div>
+          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(mesDespesas)}</div><div class="hint">Do dia 1 até hoje</div></div>
+          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(totalPeriodo)}</div><div class="hint">${lista.length} lançamento(s)</div></div>
         </div>
         <div class="financeiro-filtros">
-          <div class="field"><label>Data inicial</label><input type="date" id="finStart" value="${start}"></div>
-          <div class="field"><label>Data final</label><input type="date" id="finEnd" value="${end}"></div>
-          <button type="button" class="secondary-button" id="finFilter">🔎 Filtrar</button>
+          <div class="field"><label>Data inicial</label><input type="date" id="finInicio" value="${inicio}"></div>
+          <div class="field"><label>Data final</label><input type="date" id="finFim" value="${fim}"></div>
+          <button class="secondary-button" onclick="renderFinanceiroBody()">🔎 Filtrar</button>
         </div>
-        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead><tbody>
-        ${rows.length ? rows.map(row => {
-          const index=financeiroState.despesas.indexOf(row);
-          return `<tr><td>${formatDateTime(finDate(row)).split(',')[0]}</td><td>${escapeHtml(finField(row,['DESCRICAO','descricao'],'-'))}</td><td>${escapeHtml(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'-'))}</td><td>${escapeHtml(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'-'))}</td><td><strong>${formatMoney(finValue(row))}</strong></td><td><div class="actions-inline"><button type="button" class="secondary-button fin-edit" data-index="${index}">✏️ Editar</button><button type="button" class="danger-button fin-delete" data-index="${index}">🗑️ Excluir</button></div></td></tr>`;
-        }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}
-        </tbody></table></div>`;
-      document.getElementById('finFilter').addEventListener('click', finRender);
-      body.querySelectorAll('.fin-edit').forEach(btn=>btn.addEventListener('click',()=>{
-        const row=financeiroState.despesas[Number(btn.dataset.index)];
-        if(!row) return showToast('Erro','Despesa não encontrada.');
-        finOpenForm(row);
-      }));
-      body.querySelectorAll('.fin-delete').forEach(btn=>btn.addEventListener('click',()=>{
-        const row=financeiroState.despesas[Number(btn.dataset.index)];
-        if(!row) return showToast('Erro','Despesa não encontrada.');
-        finDelete(row);
-      }));
+        <div class="table-wrap">
+          <table class="financeiro-tabela">
+            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead>
+            <tbody>${lista.length ? lista.map(d => {
+              const id = getField(d,['ID','id']);
+              return `<tr>
+                <td>${formatDateTime(dataDespesa(d)).split(',')[0]}</td>
+                <td>${escapeHtml(getField(d,['DESCRICAO','descricao'],'-'))}</td>
+                <td>${escapeHtml(categoriaNome(getField(d,['CATEGORIA_ID','categoria_id'])))}</td>
+                <td>${escapeHtml(formaNome(getField(d,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])))}</td>
+                <td><strong>${formatMoney(valorDespesa(d))}</strong></td>
+                <td><div class="actions-inline"><button class="secondary-button" onclick="editarDespesa('${id}')">✏️ Editar</button><button class="danger-button" onclick="excluirDespesa('${id}')">🗑️ Excluir</button></div></td>
+              </tr>`;
+            }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}</tbody>
+          </table>
+        </div>`;
     }
 
-    function finOptions(list,current,names) {
-      return list.map(row=>{const name=String(finField(row,names,'')).trim(); return `<option value="${escapeHtml(name)}" ${name===current?'selected':''}>${escapeHtml(name)}</option>`;}).join('');
+    function abrirCategoriasFinanceiras() {
+      const dashboard = document.getElementById('dashboardContent');
+      const moduleContent = document.getElementById('moduleContent');
+      dashboard.style.display='none'; moduleContent.style.display='block';
+      document.getElementById('pageTitle').textContent = 'Categorias financeiras';
+      document.getElementById('pageSubtitle').textContent = 'Cadastre e mantenha as categorias de despesas';
+      renderCrudModule('Categorias financeiras');
     }
 
-    function finOpenForm(row) {
-      const editing=!!row;
-      const idInfo=editing?finId(row):null;
-      if(editing&&!idInfo) return showToast('Erro ao editar','Este lançamento não possui um ID válido.');
-      const category=editing?String(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'')):'';
-      const payment=editing?String(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'')):'';
-      const modal=document.createElement('div'); modal.className='modal-overlay'; modal.id='modalDespesa';
-      modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true"><div class="modal-header"><h2>${editing?'✏️ Editar despesa':'➕ Nova despesa'}</h2><button type="button" class="icon-button" id="finClose">✕</button></div>
-        <div class="field"><label>Data</label><input type="date" id="finDateInput" value="${editing?localDateKey(finDate(row)):finToday()}" required></div>
-        <div class="field"><label>Descrição</label><input type="text" id="finDescription" value="${escapeHtml(editing?finField(row,['DESCRICAO','descricao'],''):'')}" required></div>
-        <div class="field"><label>Categoria</label><select id="finCategory"><option value="">Selecione</option>${finOptions(financeiroState.categorias,category,['NOME','nome'])}</select></div>
-        <div class="field"><label>Forma de pagamento</label><select id="finPayment"><option value="">Selecione</option>${finOptions(financeiroState.formas,payment,['NOME','nome','DESCRICAO','descricao'])}</select></div>
-        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="finAmount" value="${editing?finValue(row):''}" required></div>
-        <div class="field"><label>Observação</label><textarea id="finObservation">${escapeHtml(editing?finField(row,['OBSERVACAO','observacao'],''):'')}</textarea></div>
-        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="finCancel">Cancelar</button><button type="button" class="primary-button" id="finSave">💾 ${editing?'Salvar alterações':'Cadastrar despesa'}</button></div></div>`;
+    function abrirFormDespesa(id=null) {
+      const atual = id == null ? null : financeiroDespesasCache.find(d => String(getField(d,['ID','id'])) === String(id));
+      const titulo = atual ? '✏️ Editar despesa' : '➕ Nova despesa';
+      const categoriaOptions = financeiroCategoriasCache.map(c => `<option value="${getField(c,['ID','id'])}" ${atual && String(getField(atual,['CATEGORIA_ID','categoria_id']))===String(getField(c,['ID','id']))?'selected':''}>${escapeHtml(getField(c,['NOME','nome']))}</option>`).join('');
+      const formaOptions = financeiroFormasCache.map(f => {
+        const fid=getField(f,['ID','id']); const fn=getField(f,['NOME','nome','DESCRICAO','descricao']);
+        return `<option value="${fid}" ${atual && String(getField(atual,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))===String(fid)?'selected':''}>${escapeHtml(fn)}</option>`;
+      }).join('');
+      const dataAtual = atual ? localDateKey(dataDespesa(atual)) : dataHojeISO();
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'modalDespesa';
+      modal.innerHTML = `<div class="modal-card"><div class="modal-header"><h2>${titulo}</h2><button class="icon-button" onclick="fecharModalDespesa()">✕</button></div>
+        <div class="field"><label>Data</label><input type="date" id="despesaData" value="${dataAtual}" required></div>
+        <div class="field"><label>Descrição</label><input type="text" id="despesaDescricao" value="${escapeHtml(atual?getField(atual,['DESCRICAO','descricao'],''):'')}" placeholder="Ex.: Compra de chocolate" required></div>
+        <div class="field"><label>Categoria</label><select id="despesaCategoria"><option value="">Selecione</option>${categoriaOptions}</select></div>
+        <div class="field"><label>Forma de pagamento</label><select id="despesaForma"><option value="">Selecione</option>${formaOptions}</select></div>
+        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="despesaValor" value="${atual?valorDespesa(atual):''}" placeholder="0,00" required></div>
+        <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button class="secondary-button" onclick="fecharModalDespesa()">Cancelar</button><button class="primary-button" onclick="salvarDespesa(${id===null?'null':JSON.stringify(String(id))})">💾 Confirmar</button></div></div>`;
       document.body.appendChild(modal);
-      const close=()=>modal.remove();
-      modal.querySelector('#finClose').addEventListener('click',close); modal.querySelector('#finCancel').addEventListener('click',close);
-      modal.querySelector('#finSave').addEventListener('click',async()=>{
-        const button=modal.querySelector('#finSave');
-        try {
-          const payload=finPayload(row);
-          if(!confirm(editing?'Confirmar alteração desta despesa?':'Confirmar inclusão desta nova despesa?')) return;
-          button.disabled=true; button.textContent='Salvando...';
-          if(editing) await finUpdate(row,payload); else await finInsert(payload);
-          modal.remove();
-          showToast('Sucesso',editing?'Despesa alterada com sucesso.':'Despesa cadastrada com sucesso.');
-          renderFinanceiroModule();
-        } catch(e) {
-          console.error('FINANCEIRO SAVE:',e);
-          showToast(editing?'Erro ao editar':'Erro ao cadastrar',e.message||'Não foi possível salvar.');
-          button.disabled=false; button.textContent=editing?'💾 Salvar alterações':'💾 Cadastrar despesa';
-        }
-      });
     }
 
-    function finPayload(row) {
-      const date=document.getElementById('finDateInput').value;
-      const description=document.getElementById('finDescription').value.trim();
-      const category=document.getElementById('finCategory').value||null;
-      const payment=document.getElementById('finPayment').value||null;
-      const amount=Number(document.getElementById('finAmount').value);
-      const observation=document.getElementById('finObservation').value.trim()||null;
-      if(!date||!description||!(amount>0)) throw new Error('Informe data, descrição e valor válido.');
-      // Usa o mesmo padrão de maiúsculas/minúsculas existente no registro carregado.
-      const sample=row||financeiroState.despesas[0]||{};
-      const put=(obj,candidates,value,fallback)=>{obj[finColumnName(sample,candidates,fallback)]=value;};
-      const payload={};
-      put(payload,['DATA','data'],date+'T12:00:00','DATA');
-      put(payload,['DESCRICAO','descricao'],description,'DESCRICAO');
-      put(payload,['CATEGORIA','categoria'],category,'CATEGORIA');
-      put(payload,['FORMA_PAGAMENTO','forma_pagamento'],payment,'FORMA_PAGAMENTO');
-      put(payload,['VALOR','valor'],amount,'VALOR');
-      put(payload,['OBSERVACAO','observacao'],observation,'OBSERVACAO');
-      return payload;
-    }
+    function fecharModalDespesa(){ document.getElementById('modalDespesa')?.remove(); }
 
-    async function finInsert(payload) {
-      const result=await restRequest(financeiroState.tabelaDespesas,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
-      if(!Array.isArray(result)||result.length<1) throw new Error('O Supabase não retornou o novo lançamento.');
-      return result[0];
-    }
-
-    async function finUpdate(row,payload) {
-      const id=finId(row); if(!id) throw new Error('ID do lançamento não encontrado.');
-      const result=await restRequest(financeiroState.tabelaDespesas,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
-      if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhuma despesa foi atualizada. Nenhum novo registro foi criado.');
-      return result[0];
-    }
-
-    async function finDelete(row) {
-      const id=finId(row); if(!id) return showToast('Erro ao excluir','ID do lançamento não encontrado.');
-      if(!confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
+    async function salvarDespesa(id) {
+      const data = document.getElementById('despesaData').value;
+      const descricao = document.getElementById('despesaDescricao').value.trim();
+      const categoria = document.getElementById('despesaCategoria').value || null;
+      const forma = document.getElementById('despesaForma').value || null;
+      const valor = Number(document.getElementById('despesaValor').value);
+      const observacao = document.getElementById('despesaObs').value.trim() || null;
+      if (!data || !descricao || !(valor > 0)) { showToast('Dados obrigatórios','Informe data, descrição e valor válido.'); return; }
+      if (!confirm(id ? 'Confirmar alteração desta despesa?' : 'Confirmar inclusão desta despesa?')) return;
+      const payload = { DATA:data+'T12:00:00', DESCRICAO:descricao, CATEGORIA_ID:categoria?Number(categoria):null, FORMA_PAGAMENTO_ID:forma?Number(forma):null, VALOR:valor, OBSERVACAO:observacao, ATIVO:true };
       try {
-        await restRequest(financeiroState.tabelaDespesas,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'DELETE',headers:{'Prefer':'return=representation'}});
-        showToast('Despesa excluída','O lançamento foi removido.'); renderFinanceiroModule();
-      } catch(e) { console.error('FINANCEIRO DELETE:',e); showToast('Erro ao excluir',e.message||'Não foi possível excluir a despesa.'); }
+        if (id == null) await restRequest('FINANCEIRO_DESPESAS', '', {method:'POST', body:payload});
+        else await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'PATCH', body:payload});
+        fecharModalDespesa();
+        showToast('Financeiro atualizado', id == null ? 'Despesa cadastrada com sucesso.' : 'Despesa alterada com sucesso.');
+        renderFinanceiroModule();
+      } catch(e) { console.error(e); showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.'); }
     }
+
+    function editarDespesa(id){ abrirFormDespesa(id); }
+
+    async function excluirDespesa(id) {
+      if (!confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
+      try {
+        await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {method:'DELETE'});
+        showToast('Despesa excluída','O lançamento foi removido.');
+        renderFinanceiroModule();
+      } catch(e) { console.error(e); showToast('Erro ao excluir', e.message || 'Não foi possível excluir a despesa.'); }
+    }
+
+
+    function abrirMenuMobile(){ document.getElementById('mobileMenuOverlay')?.classList.add('open'); }
+    function fecharMenuMobile(){ document.getElementById('mobileMenuOverlay')?.classList.remove('open'); }
+    function abrirModuloMobile(name){ fecharMenuMobile(); selectMenuByName(name); }
+
     /* =====================================================
        MENU
     ====================================================== */
@@ -2032,9 +2167,10 @@
       button.classList.add('active'); abrirModulo(name);
     }
     function selectMenuByName(name) {
-      document.querySelectorAll('.menu button').forEach(botao => {
-        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
-      });
+      const alvo = String(name).trim();
+      const botao = Array.from(document.querySelectorAll('.menu button')).find(b => b.textContent.replace(/\s+/g,' ').trim().endsWith(alvo));
+      if (botao) selectMenu(botao, alvo);
+      else abrirModulo(alvo);
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
     function abrirModulo(name) {
@@ -2043,7 +2179,7 @@
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro','Categorias financeiras':'Cadastre e mantenha as categorias de despesas'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
