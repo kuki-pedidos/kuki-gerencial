@@ -716,6 +716,75 @@
       opacity:1 !important;
     }
 
+
+    /* =====================================================
+       MODAL DO FINANCEIRO - SOBREPOSTO E RESPONSIVO
+       ====================================================== */
+    .modal-overlay{
+      position:fixed !important;
+      inset:0 !important;
+      width:100vw !important;
+      height:100vh !important;
+      min-height:100dvh !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      padding:20px !important;
+      background:rgba(35,22,16,.58) !important;
+      backdrop-filter:blur(3px);
+      -webkit-backdrop-filter:blur(3px);
+      z-index:99999 !important;
+      overflow-y:auto !important;
+      box-sizing:border-box !important;
+    }
+    .modal-card{
+      width:min(620px,100%) !important;
+      max-height:calc(100dvh - 40px) !important;
+      overflow-y:auto !important;
+      box-sizing:border-box !important;
+      background:#fff !important;
+      border:1px solid var(--borda) !important;
+      border-radius:18px !important;
+      box-shadow:0 24px 70px rgba(0,0,0,.30) !important;
+      padding:22px !important;
+      margin:auto !important;
+      position:relative !important;
+    }
+    .modal-header{
+      display:flex !important;
+      align-items:center !important;
+      justify-content:space-between !important;
+      gap:16px !important;
+      margin-bottom:18px !important;
+      padding-bottom:14px !important;
+      border-bottom:1px solid var(--borda) !important;
+    }
+    .modal-header h2{margin:0 !important;color:var(--vermelho) !important;font-size:22px !important;}
+    .icon-button{
+      width:38px !important;height:38px !important;min-width:38px !important;
+      border:none !important;border-radius:10px !important;background:#f0ebe6 !important;
+      color:var(--texto) !important;font-size:18px !important;font-weight:800 !important;cursor:pointer !important;
+    }
+    .modal-card .field{margin-bottom:14px !important;}
+    .modal-card .field label{display:block !important;margin-bottom:6px !important;font-weight:700 !important;}
+    .modal-card .field input,.modal-card .field select,.modal-card .field textarea{
+      width:100% !important;box-sizing:border-box !important;padding:12px !important;
+      border:1px solid var(--borda) !important;border-radius:10px !important;background:#fff !important;
+      font:inherit !important;color:var(--texto) !important;
+    }
+    .modal-card .field textarea{min-height:90px !important;resize:vertical !important;}
+    body.modal-open{overflow:hidden !important;}
+    @media(max-width:760px){
+      .modal-overlay{align-items:flex-end !important;padding:0 !important;}
+      .modal-card{
+        width:100% !important;max-height:92dvh !important;border-radius:20px 20px 0 0 !important;
+        padding:18px 16px calc(18px + env(safe-area-inset-bottom)) !important;margin:0 !important;
+      }
+      .modal-header{position:sticky !important;top:-18px !important;background:#fff !important;z-index:2 !important;padding-top:18px !important;}
+      .modal-card .actions-inline{justify-content:stretch !important;display:grid !important;grid-template-columns:1fr 1fr !important;}
+      .modal-card .actions-inline button{width:100% !important;min-width:0 !important;}
+    }
+
 </style>
 </head>
 
@@ -1952,7 +2021,9 @@
       if(editing&&!idInfo) return showToast('Erro ao editar','Este lançamento não possui um ID válido.');
       const category=editing?String(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'')):'';
       const payment=editing?String(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'')):'';
+      document.getElementById('modalDespesa')?.remove();
       const modal=document.createElement('div'); modal.className='modal-overlay'; modal.id='modalDespesa';
+      document.body.classList.add('modal-open');
       modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true"><div class="modal-header"><h2>${editing?'✏️ Editar despesa':'➕ Nova despesa'}</h2><button type="button" class="icon-button" id="finClose">✕</button></div>
         <div class="field"><label>Data</label><input type="date" id="finDateInput" value="${editing?localDateKey(finDate(row)):finToday()}" required></div>
         <div class="field"><label>Descrição</label><input type="text" id="finDescription" value="${escapeHtml(editing?finField(row,['DESCRICAO','descricao'],''):'')}" required></div>
@@ -1962,8 +2033,10 @@
         <div class="field"><label>Observação</label><textarea id="finObservation">${escapeHtml(editing?finField(row,['OBSERVACAO','observacao'],''):'')}</textarea></div>
         <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="finCancel">Cancelar</button><button type="button" class="primary-button" id="finSave">💾 ${editing?'Salvar alterações':'Cadastrar despesa'}</button></div></div>`;
       document.body.appendChild(modal);
-      const close=()=>modal.remove();
-      modal.querySelector('#finClose').addEventListener('click',close); modal.querySelector('#finCancel').addEventListener('click',close);
+      const close=()=>{ modal.remove(); document.body.classList.remove('modal-open'); };
+      modal.querySelector('#finClose').addEventListener('click',close);
+      modal.querySelector('#finCancel').addEventListener('click',close);
+      modal.addEventListener('click',(event)=>{ if(event.target===modal) close(); });
       modal.querySelector('#finSave').addEventListener('click',async()=>{
         const button=modal.querySelector('#finSave');
         try {
@@ -1971,7 +2044,7 @@
           if(!confirm(editing?'Confirmar alteração desta despesa?':'Confirmar inclusão desta nova despesa?')) return;
           button.disabled=true; button.textContent='Salvando...';
           if(editing) await finUpdate(row,payload); else await finInsert(payload);
-          modal.remove();
+          close();
           showToast('Sucesso',editing?'Despesa alterada com sucesso.':'Despesa cadastrada com sucesso.');
           renderFinanceiroModule();
         } catch(e) {
@@ -2025,16 +2098,49 @@
       } catch(e) { console.error('FINANCEIRO DELETE:',e); showToast('Erro ao excluir',e.message||'Não foi possível excluir a despesa.'); }
     }
     /* =====================================================
-       MENU
+       MENU + HISTÓRICO DO NAVEGADOR
     ====================================================== */
+    const ROUTE_TO_MODULE = {
+      'dashboard':'Dashboard',
+      'pedidos':'Pedidos',
+      'financeiro':'Financeiro',
+      'produtos':'Produtos',
+      'clientes':'Clientes',
+      'formas-de-pagamento':'Formas de pagamento',
+      'formas-de-entrega':'Formas de entrega',
+      'horarios':'Horários',
+      'configuracoes':'Configurações'
+    };
+    function moduleToRoute(name){
+      return Object.keys(ROUTE_TO_MODULE).find(route => ROUTE_TO_MODULE[route]===name) || 'dashboard';
+    }
+    function routeToModule(){
+      const route=(location.hash||'#dashboard').replace(/^#/,'').trim().toLowerCase();
+      return ROUTE_TO_MODULE[route] || 'Dashboard';
+    }
+    function updateActiveMenu(name){
+      document.querySelectorAll('.menu button').forEach(item => {
+        const label=item.textContent.replace(/\s+/g,' ').trim();
+        item.classList.toggle('active', label.includes(name));
+      });
+    }
+    function navigateToModule(name, options={}){
+      const push=options.push!==false;
+      const route=moduleToRoute(name);
+      const targetHash='#'+route;
+      if(push && location.hash!==targetHash){
+        history.pushState({kukiModule:name},'',targetHash);
+      } else if(!push && location.hash!==targetHash){
+        history.replaceState({kukiModule:name},'',targetHash);
+      }
+      updateActiveMenu(name);
+      abrirModulo(name);
+    }
     function selectMenu(button, name) {
-      document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
-      button.classList.add('active'); abrirModulo(name);
+      navigateToModule(name,{push:true});
     }
     function selectMenuByName(name) {
-      document.querySelectorAll('.menu button').forEach(botao => {
-        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
-      });
+      navigateToModule(name,{push:true});
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
     function abrirModulo(name) {
@@ -2054,12 +2160,29 @@
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
-
+    window.addEventListener('popstate', () => {
+      document.getElementById('modalDespesa')?.remove();
+      document.body.classList.remove('modal-open');
+      const name=routeToModule();
+      updateActiveMenu(name);
+      abrirModulo(name);
+    });
+    window.addEventListener('hashchange', () => {
+      const name=routeToModule();
+      if(name!==moduloAtual){ updateActiveMenu(name); abrirModulo(name); }
+    });
     /* =====================================================
        INICIAR
     ====================================================== */
     // Nesta versão o login está temporariamente desativado.
     abrirSistema({ email: 'admin@kuki.local' });
+    setTimeout(() => {
+      const initialModule=routeToModule();
+      const route='#'+moduleToRoute(initialModule);
+      if(!location.hash) history.replaceState({kukiModule:initialModule},'',route);
+      updateActiveMenu(initialModule);
+      abrirModulo(initialModule);
+    },0);
 
   </script>
 
