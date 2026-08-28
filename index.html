@@ -1786,7 +1786,12 @@ return true;
     function isNumberField(k){ return ['PRECO','VALOR','TOTAL','TAXA','ESTOQUE','QUANTIDADE'].some(x=>normKey(k).includes(x)); }
     async function carregarCrud(name){ const cfg=CRUD_TABLES[name]; if(!cfg)return[]; try{const rows=await getTable(cfg.table,'?select=*');crudCache[name]=Array.isArray(rows)?rows:[];return crudCache[name];}catch(e){console.error(e);throw e;} }
     function crudFields(name,rows){ const cfg=CRUD_TABLES[name],set=new Set(cfg.fields); (rows||[]).forEach(r=>Object.keys(r||{}).forEach(k=>{if(!isSystemField(k))set.add(k)})); return [...set]; }
-    function getRecordId(record){ return getValue(record,['id','ID'],null); }
+    function getRecordIdInfo(record){
+      const row = record || {};
+      const field = Object.keys(row).find(k => String(k).toUpperCase() === 'ID');
+      if (!field || row[field] === null || row[field] === undefined) return null;
+      return { field, value: row[field] };
+    }
     async function renderCrudModule(name){
       const c=document.getElementById('moduleContent'),cfg=CRUD_TABLES[name]; if(!cfg)return;
       c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
@@ -1802,8 +1807,38 @@ return true;
     function fecharFormularioCrud(){const b=document.getElementById('crudFormBox');if(b)b.style.display='none';}
     function editarCrud(name,index){const r=(crudCache[name]||[])[Number(index)];if(!r)return;abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);Object.keys(r).forEach(k=>{const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}});document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});}
     function collectCrudForm(form){const obj={};Array.from(form.elements).forEach(el=>{if(!el.name)return;let v=el.type==='checkbox'?el.checked:el.value.trim();if(v!==''||el.type==='checkbox')obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v;});return obj;}
-    async function salvarCrud(e,name){e.preventDefault();const cfg=CRUD_TABLES[name],form=e.currentTarget,body=collectCrudForm(form),idx=form.dataset.editIndex,editing=idx!=='';if(!confirm(editing?'Confirmar as alterações deste cadastro?':'Confirmar a inclusão deste novo cadastro?'))return;try{if(editing){const id=getRecordId(crudCache[name][Number(idx)]);if(id===null||id===undefined)throw new Error('Registro sem ID');await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});}else await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});showToast('Sucesso',editing?'Alterações salvas.':'Cadastro incluído.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível salvar: '+(err.message||''));}}
-    async function excluirCrud(name,index){const old=(crudCache[name]||[])[Number(index)],id=getRecordId(old);if(id===null||id===undefined){showToast('Erro','Não foi possível identificar o registro.');return;}if(!confirm('Confirmar exclusão? Esta ação não poderá ser desfeita.'))return;const cfg=CRUD_TABLES[name];try{await restRequest(cfg.table,'?id=eq.'+encodeURIComponent(id),{method:'DELETE'});showToast('Excluído','Registro removido com sucesso.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível excluir: '+(err.message||''));}}
+    async function salvarCrud(e,name){
+      e.preventDefault();
+      const cfg=CRUD_TABLES[name], form=e.currentTarget, body=collectCrudForm(form), idx=form.dataset.editIndex, editing=idx!=='';
+      if(!confirm(editing?'Confirmar as alterações deste cadastro?':'Confirmar a inclusão deste novo cadastro?')) return;
+      try{
+        if(editing){
+          const idInfo=getRecordIdInfo(crudCache[name][Number(idx)]);
+          if(!idInfo) throw new Error('Registro sem ID');
+          const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(idInfo.value),{
+            method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)
+          });
+          if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhum registro foi atualizado. Verifique as permissões do Supabase.');
+        }else{
+          const result=await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});
+          if(!Array.isArray(result)||result.length<1) throw new Error('O cadastro não foi retornado pelo Supabase.');
+        }
+        showToast('Sucesso',editing?'Alterações salvas.':'Cadastro incluído.');
+        await renderCrudModule(name);
+      }catch(err){console.error(err);showToast('Erro','Não foi possível salvar: '+(err.message||''));}
+    }
+    async function excluirCrud(name,index){
+      const old=(crudCache[name]||[])[Number(index)], idInfo=getRecordIdInfo(old);
+      if(!idInfo){showToast('Erro','Não foi possível identificar o registro.');return;}
+      if(!confirm('Confirmar exclusão? Esta ação não poderá ser desfeita.'))return;
+      const cfg=CRUD_TABLES[name];
+      try{
+        const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(idInfo.value),{method:'DELETE',headers:{'Prefer':'return=representation'}});
+        if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhum registro foi excluído. Verifique as permissões do Supabase.');
+        showToast('Excluído','Registro removido com sucesso.');
+        await renderCrudModule(name);
+      }catch(err){console.error(err);showToast('Erro','Não foi possível excluir: '+(err.message||''));}
+    }
     document.getElementById('moduleContent').addEventListener('click',function(e){const b=e.target.closest('[data-crud-action]');if(!b)return;const a=b.dataset.crudAction,n=b.dataset.crudName,i=Number(b.dataset.crudIndex);if(a==='new')abrirFormularioCrud(n);else if(a==='refresh')renderCrudModule(n);else if(a==='edit')editarCrud(n,i);else if(a==='delete')excluirCrud(n,i);else if(a==='cancel')fecharFormularioCrud();});
 
     function renderPlaceholderModule(name) {
