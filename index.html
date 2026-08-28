@@ -744,11 +744,11 @@
       <form id="loginForm">
 
         <div class="field">
-          <label for="username">E-mail</label>
+          <label for="username">Usuário</label>
           <input
-            type="email"
+            type="text"
             id="username"
-            placeholder="Digite seu e-mail"
+            placeholder="Digite seu usuário"
             required
             autocomplete="username"
             autocapitalize="none"
@@ -1008,44 +1008,54 @@
         SUPABASE_KEY
       );
 
-    /* =====================================================
-       USUÁRIOS E PERMISSÕES
-       =====================================================
+    /*
+      =====================================================
+      USUÁRIOS E PERMISSÕES
+      =====================================================
 
-       REGRA DE ACESSO:
-       - O usuário ADMIN é identificado pelo e-mail abaixo.
-       - Todo outro usuário válido do Supabase Auth entra automaticamente
-         como OPERADOR.
-       - Assim, para cadastrar um novo funcionário basta criar o usuário
-         no Supabase Authentication > Users. Não é necessário alterar
-         este index nem cadastrar o mesmo usuário em outra lista.
+      ADMIN:
+      - Acesso total ao sistema.
 
-       ADMIN:
-       - Acesso total.
+      OPERADOR:
+      - Não acessa Financeiro.
+      - Não acessa Configurações.
+      - Visualiza os demais módulos.
+      - Em Pedidos pode SOMENTE alterar o status e confirmar.
+      - Não pode excluir pedidos nem incluir/editar/excluir cadastros.
 
-       OPERADOR:
-       - Não acessa Financeiro.
-       - Não acessa Configurações.
-       - Visualiza os demais módulos.
-       - Em Pedidos pode alterar status e confirmar.
-       - Não pode alterar cadastros nem excluir pedidos.
-    ====================================================== */
-    const ADMIN_EMAILS = [
-      'robesousa@gmail.com'
-    ];
+      Para adicionar um novo usuário no futuro:
+      1. Crie o usuário no Supabase Auth com e-mail e senha.
+      2. Adicione o mesmo usuário abaixo, informando e-mail, nome e perfil.
+    */
+    const USUARIOS_LOGIN = {
+      'admin': {
+        email: 'robesousa@gmail.com',
+        nome: 'Administrador',
+        perfil: 'admin'
+      }
+    };
 
     let usuarioAtual = null;
 
-    function normalizarEmail(email) {
-      return String(email || '').trim().toLowerCase();
+    function normalizarUsuario(usuario) {
+      return (usuario || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
     }
 
-    function criarPerfilDoUsuario(user) {
-      const email = normalizarEmail(user?.email);
-      const metadata = user?.user_metadata || {};
-      const nome = metadata.full_name || metadata.name || email.split('@')[0] || 'Usuário';
-      const perfil = ADMIN_EMAILS.includes(email) ? 'admin' : 'operador';
-      return { email, nome, perfil, id: user?.id || null };
+    function obterUsuarioPorEmail(email) {
+      const emailNormalizado = String(email || '').trim().toLowerCase();
+      const username = Object.keys(USUARIOS_LOGIN).find(function(nome) {
+        const dados = USUARIOS_LOGIN[nome];
+        return String(dados.email || '').trim().toLowerCase() === emailNormalizado;
+      });
+      if (!username) return null;
+      return { username, ...USUARIOS_LOGIN[username] };
+    }
+
+    function obterNomeUsuarioPorEmail(email) {
+      return obterUsuarioPorEmail(email)?.nome || 'Usuário';
     }
 
     function usuarioEhAdmin() {
@@ -1808,47 +1818,38 @@
     loginForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       loginError.style.display = 'none';
-
-      const email = normalizarEmail(document.getElementById('username').value);
+      const username = normalizarUsuario(document.getElementById('username').value);
       const password = document.getElementById('password').value;
-
-      if (!email || !password) {
-        loginError.textContent = 'Informe seu e-mail e senha.';
-        loginError.style.display = 'block';
-        return;
+      const usuarioCadastro = USUARIOS_LOGIN[username];
+      const email = usuarioCadastro?.email;
+      if (!email) {
+        loginError.textContent = 'Usuário ou senha inválidos.';
+        loginError.style.display = 'block'; return;
       }
-
-      loginButton.disabled = true;
-      loginButton.textContent = 'ENTRANDO...';
-
+      loginButton.disabled = true; loginButton.textContent = 'ENTRANDO...';
       try {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabaseClient.auth.signInWithPassword({email, password});
         if (error) throw error;
-        await abrirSistema(data.user);
+        abrirSistema(data.user);
       } catch(error) {
-        console.error(error);
-        loginError.textContent = 'E-mail ou senha inválidos.';
-        loginError.style.display = 'block';
-      } finally {
-        loginButton.disabled = false;
-        loginButton.textContent = 'ENTRAR';
-      }
+        console.error(error); loginError.textContent = 'Usuário ou senha inválidos.'; loginError.style.display = 'block';
+      } finally { loginButton.disabled = false; loginButton.textContent = 'ENTRAR'; }
     });
 
     /* =====================================================
        ABRIR SISTEMA / LOGOUT
     ====================================================== */
     async function abrirSistema(user) {
-      if (!user?.email) {
+      const cadastro = obterUsuarioPorEmail(user?.email);
+      if (!cadastro) {
         await supabaseClient.auth.signOut();
-        loginError.textContent = 'Não foi possível identificar o usuário autenticado.';
+        loginError.textContent = 'Seu usuário não está autorizado no KUKI Gerencial.';
         loginError.style.display = 'block';
         loginScreen.style.display = 'flex';
         appScreen.style.display = 'none';
         return;
       }
-
-      usuarioAtual = criarPerfilDoUsuario(user);
+      usuarioAtual = { ...cadastro, email: user.email };
       loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
       document.getElementById('userName').textContent = usuarioAtual.nome + (usuarioEhAdmin() ? ' · ADMIN' : ' · OPERADOR');
