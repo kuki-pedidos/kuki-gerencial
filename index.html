@@ -716,32 +716,6 @@
       opacity:1 !important;
     }
 
-<style>.actions-inline{display:flex!important;gap:10px;align-items:center;flex-wrap:nowrap!important}.actions-inline .secondary-button,.actions-inline .danger-button{white-space:nowrap}</style></style>
-
-<style id="kuki-actions-fix">
-/* Correção definitiva: ações dos cadastros sempre ficam na mesma linha */
-.data-table td:last-child { min-width: 215px; white-space: nowrap; }
-.data-table td:last-child .actions-inline,
-#financeiroBody td .actions-inline {
-  display: inline-flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
-  align-items: center !important;
-  gap: 8px !important;
-  width: max-content !important;
-  white-space: nowrap !important;
-}
-.data-table td:last-child .actions-inline > button,
-#financeiroBody td .actions-inline > button {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex: 0 0 auto !important;
-  margin: 0 !important;
-}
-@media (max-width: 700px) {
-  .data-table td:last-child { min-width: 190px; }
-}
 </style>
 </head>
 
@@ -1825,372 +1799,246 @@
 
 
     /* =====================================================
-       FINANCEIRO
+       FINANCEIRO - REFEITO DO ZERO
     ====================================================== */
-    let financeiroDespesasCache = [];
-    let financeiroCategoriasCache = [];
-    let financeiroFormasCache = [];
+    const financeiroState = {
+      despesas: [],
+      categorias: [],
+      formas: [],
+      tabelaDespesas: null,
+      tabelaCategorias: null,
+      tabelaFormas: null
+    };
 
-    function getField(obj, names, fallback='') {
+    function finField(obj, names, fallback='') {
       return getValue(obj, names, fallback);
     }
 
-    // Identifica a chave real do lançamento exatamente como ela veio do Supabase.
-    // Assim a edição não depende de a coluna se chamar obrigatoriamente ID/id.
-    function getFinanceiroRecordKey(registro) {
-      if (!registro) return null;
-      const candidatos = ['ID','id','UUID','uuid','IDFINANCEIRO','idfinanceiro','CODIGO','codigo','CODDESPESA','coddespesa'];
-      const mapa = {};
-      Object.keys(registro).forEach(k => mapa[k.toLowerCase()] = k);
-      for (const candidato of candidatos) {
-        const campoReal = mapa[candidato.toLowerCase()];
-        if (campoReal !== undefined && registro[campoReal] !== null && registro[campoReal] !== undefined && String(registro[campoReal]).trim() !== '') {
-          return { field: campoReal, value: registro[campoReal] };
+    function finColumnName(row, candidates, fallback) {
+      if (!row || typeof row !== 'object') return fallback;
+      const keys = Object.keys(row);
+      for (const candidate of candidates) {
+        const found = keys.find(k => k.toLowerCase() === String(candidate).toLowerCase());
+        if (found) return found;
+      }
+      return fallback;
+    }
+
+    async function finResolveTable(candidates) {
+      let lastError;
+      for (const table of candidates) {
+        try {
+          await restRequest(table, '?select=*&limit=1');
+          return table;
+        } catch (e) {
+          lastError = e;
         }
       }
-      return null;
+      throw lastError || new Error('Tabela financeira não encontrada.');
     }
 
-    async function carregarFinanceiroDados() {
-      // Não usamos filtros/order no servidor aqui porque as tabelas financeiras
-      // foram criadas com combinações diferentes de nomes maiúsculos/minúsculos.
-      // Isso evita que uma coluna inexistente derrube TODO o módulo Financeiro.
+    async function finLoad() {
+      // Descobre uma única vez o nome REAL das tabelas e guarda o resultado.
+      // Depois disso, listar, inserir, editar e excluir usam exatamente o mesmo nome.
+      financeiroState.tabelaDespesas = await finResolveTable(['FINANCEIRO_DESPESAS','financeiro_despesas']);
+      financeiroState.tabelaCategorias = await finResolveTable(['FINANCEIRO_CATEGORIAS','financeiro_categorias']);
+      financeiroState.tabelaFormas = await finResolveTable(['FORMAS_PAGAMENTO','formas_pagamento']);
+
       const [despesas, categorias, formas] = await Promise.all([
-        getTable('FINANCEIRO_DESPESAS', '?select=*'),
-        getTable('FINANCEIRO_CATEGORIAS', '?select=*'),
-        getTable('FORMAS_PAGAMENTO', '?select=*')
+        restRequest(financeiroState.tabelaDespesas, '?select=*'),
+        restRequest(financeiroState.tabelaCategorias, '?select=*'),
+        restRequest(financeiroState.tabelaFormas, '?select=*')
       ]);
 
-      const ativos = list => (Array.isArray(list) ? list : []).filter(item => {
-        const a = getField(item,['ATIVO','ativo'],true);
-        return a !== false && String(a).toLowerCase() !== 'false' && a !== 0 && a !== '0';
+      financeiroState.despesas = Array.isArray(despesas) ? despesas : [];
+      financeiroState.categorias = (Array.isArray(categorias) ? categorias : []).filter(x => {
+        const ativo = finField(x,['ATIVO','ativo'],true);
+        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
+      });
+      financeiroState.formas = (Array.isArray(formas) ? formas : []).filter(x => {
+        const ativo = finField(x,['ATIVO','ativo'],true);
+        return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
       });
 
-      financeiroDespesasCache = Array.isArray(despesas) ? despesas : [];
-      financeiroDespesasCache.sort((a,b) => String(dataDespesa(b)||'').localeCompare(String(dataDespesa(a)||'')));
-
-      financeiroCategoriasCache = ativos(categorias);
-      financeiroCategoriasCache.sort((a,b) => String(getField(a,['NOME','nome'],'')).localeCompare(String(getField(b,['NOME','nome'],''))));
-
-      financeiroFormasCache = ativos(formas);
-      financeiroFormasCache.sort((a,b) => String(getField(a,['NOME','nome','DESCRICAO','descricao'],'')).localeCompare(String(getField(b,['NOME','nome','DESCRICAO','descricao'],''))));
+      financeiroState.despesas.sort((a,b) => String(finDate(b)||'').localeCompare(String(finDate(a)||'')));
     }
 
-    function dataHojeISO() { return localDateKey(new Date()); }
-
-    function valorDespesa(d) {
-      return Number(String(getField(d,['VALOR','valor'],0)).replace(',','.')) || 0;
+    function finDate(row) { return finField(row,['DATA','data','CREATED_AT','created_at'],''); }
+    function finValue(row) { return Number(String(finField(row,['VALOR','valor'],0)).replace(',','.')) || 0; }
+    function finToday() { return localDateKey(new Date()); }
+    function finId(row) {
+      if (!row || typeof row !== 'object') return null;
+      const field = finColumnName(row,['ID','id'],null);
+      if (!field) return null;
+      const value = row[field];
+      if (value === null || value === undefined || String(value).trim()==='') return null;
+      return {field, value};
     }
 
-    function dataDespesa(d) {
-      return getField(d,['DATA','data','CREATED_AT','created_at'],'');
+    function finCategoryName(id) {
+      const row = financeiroState.categorias.find(x => String(finField(x,['ID','id']))===String(id));
+      return row ? finField(row,['NOME','nome'],'-') : '-';
     }
-
-    function categoriaNome(id) {
-      const c = financeiroCategoriasCache.find(x => String(getField(x,['ID','id'])) === String(id));
-      return c ? getField(c,['NOME','nome'],'-') : '-';
+    function finPaymentName(id) {
+      const row = financeiroState.formas.find(x => String(finField(x,['ID','id']))===String(id));
+      return row ? finField(row,['NOME','nome','DESCRICAO','descricao'],'-') : '-';
     }
-
-    function formaNome(id) {
-      const f = financeiroFormasCache.find(x => String(getField(x,['ID','id'])) === String(id));
-      return f ? getField(f,['NOME','nome','DESCRICAO','descricao'],'-') : '-';
-    }
-
-    function despesasDoPeriodo(inicio, fim) {
-      return financeiroDespesasCache.filter(d => {
-        const dt = localDateKey(dataDespesa(d));
-        if (!dt) return false;
-        if (inicio && dt < inicio) return false;
-        if (fim && dt > fim) return false;
-        return true;
+    function finRows(startDate, endDate) {
+      return financeiroState.despesas.filter(row => {
+        const d=localDateKey(finDate(row));
+        return d && (!startDate || d>=startDate) && (!endDate || d<=endDate);
       });
     }
 
     function renderFinanceiroModule() {
-      const container = document.getElementById('moduleContent');
-      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button class="secondary-button" onclick="renderFinanceiroModule()">↻ Atualizar</button><button class="primary-button" onclick="abrirFormDespesa()">➕ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>';
-      carregarFinanceiroDados().then(renderFinanceiroBody).catch(error => {
-        console.error('Financeiro:', error);
-        document.getElementById('financeiroBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o financeiro.</strong><p style="margin-top:8px;">Confira o acesso às tabelas FINANCEIRO_DESPESAS e FINANCEIRO_CATEGORIAS.</p></div>';
+      const container=document.getElementById('moduleContent');
+      container.innerHTML=`<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button type="button" class="secondary-button" id="finRefresh">↻ Atualizar</button><button type="button" class="primary-button" id="finNew">＋ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>`;
+      document.getElementById('finRefresh').addEventListener('click', renderFinanceiroModule);
+      document.getElementById('finNew').addEventListener('click', () => finOpenForm(null));
+      finLoad().then(finRender).catch(err => {
+        console.error('FINANCEIRO:',err);
+        const body=document.getElementById('financeiroBody');
+        if(body) body.innerHTML=`<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar o Financeiro.</strong><p style="margin-top:8px;">${escapeHtml(err.message||'Erro de conexão.')}</p></div>`;
       });
     }
 
-    function renderFinanceiroBody() {
-      const body = document.getElementById('financeiroBody');
-      if (!body) return;
-      const hoje = dataHojeISO();
-      const inicioMes = hoje.slice(0,7) + '-01';
-      const hojeDespesas = despesasDoPeriodo(hoje,hoje).reduce((s,d)=>s+valorDespesa(d),0);
-      const mesDespesas = despesasDoPeriodo(inicioMes,hoje).reduce((s,d)=>s+valorDespesa(d),0);
-      const inicio = document.getElementById('finInicio')?.value || inicioMes;
-      const fim = document.getElementById('finFim')?.value || hoje;
-      const lista = despesasDoPeriodo(inicio,fim);
-      const totalPeriodo = lista.reduce((s,d)=>s+valorDespesa(d),0);
-
-      body.innerHTML = `
+    function finRender() {
+      const body=document.getElementById('financeiroBody'); if(!body) return;
+      const today=finToday(), monthStart=today.slice(0,7)+'-01';
+      const oldStart=document.getElementById('finStart')?.value;
+      const oldEnd=document.getElementById('finEnd')?.value;
+      const start=oldStart||monthStart, end=oldEnd||today;
+      const todayTotal=finRows(today,today).reduce((s,x)=>s+finValue(x),0);
+      const monthTotal=finRows(monthStart,today).reduce((s,x)=>s+finValue(x),0);
+      const rows=finRows(start,end);
+      const total=rows.reduce((s,x)=>s+finValue(x),0);
+      body.innerHTML=`
         <div class="financeiro-grid">
-          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(hojeDespesas)}</div><div class="hint">${hoje}</div></div>
-          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(mesDespesas)}</div><div class="hint">Do dia 1 até hoje</div></div>
-          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(totalPeriodo)}</div><div class="hint">${lista.length} lançamento(s)</div></div>
+          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(todayTotal)}</div><div class="hint">${today}</div></div>
+          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(monthTotal)}</div><div class="hint">Do dia 1 até hoje</div></div>
+          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(total)}</div><div class="hint">${rows.length} lançamento(s)</div></div>
         </div>
         <div class="financeiro-filtros">
-          <div class="field"><label>Data inicial</label><input type="date" id="finInicio" value="${inicio}"></div>
-          <div class="field"><label>Data final</label><input type="date" id="finFim" value="${fim}"></div>
-          <button type="button" class="secondary-button" id="btnFiltrarFinanceiro">🔎 Filtrar</button>
+          <div class="field"><label>Data inicial</label><input type="date" id="finStart" value="${start}"></div>
+          <div class="field"><label>Data final</label><input type="date" id="finEnd" value="${end}"></div>
+          <button type="button" class="secondary-button" id="finFilter">🔎 Filtrar</button>
         </div>
-        <div class="table-wrap">
-          <table class="financeiro-tabela">
-            <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead>
-            <tbody>${lista.length ? lista.map(d => {
-              const idx = financeiroDespesasCache.indexOf(d);
-              const id = getFinanceiroRecordKey(d);
-              const idSeguro = String(id?.value ?? '');
-              return `<tr>
-                <td>${formatDateTime(dataDespesa(d)).split(',')[0]}</td>
-                <td>${escapeHtml(getField(d,['DESCRICAO','descricao'],'-'))}</td>
-                <td>${escapeHtml(getField(d,['CATEGORIA','categoria'], categoriaNome(getField(d,['CATEGORIA_ID','categoria_id'])) || '-'))}</td>
-                <td>${escapeHtml(getField(d,['FORMA_PAGAMENTO','forma_pagamento'], formaNome(getField(d,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])) || '-'))}</td>
-                <td><strong>${formatMoney(valorDespesa(d))}</strong></td>
-                <td><div class="actions-inline"><button type="button" class="secondary-button btn-editar-despesa" data-despesa-index="${idx}" data-despesa-id="${escapeHtml(idSeguro)}">✏️ Editar</button><button type="button" class="danger-button btn-excluir-despesa" data-despesa-id="${escapeHtml(idSeguro)}">🗑️ Excluir</button></div></td>
-              </tr>`;
-            }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}</tbody>
-          </table>
-        </div>`;
-
-      document.getElementById('btnFiltrarFinanceiro')?.addEventListener('click', renderFinanceiroBody);
-      body.querySelectorAll('.btn-editar-despesa').forEach(botao => {
-        botao.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const index = Number(botao.dataset.despesaIndex);
-          const registro = financeiroDespesasCache[index];
-          if (!registro) { showToast('Erro ao editar','Não foi possível localizar esta despesa na lista carregada.'); return; }
-          abrirFormDespesa(registro);
-        });
-      });
-      body.querySelectorAll('.btn-excluir-despesa').forEach(botao => {
-        botao.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const id = String(botao.dataset.despesaId ?? '').trim();
-          if (!id) { showToast('Erro ao excluir','Não foi possível identificar esta despesa.'); return; }
-          excluirDespesa(id);
-        });
-      });
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead><tbody>
+        ${rows.length ? rows.map(row => {
+          const index=financeiroState.despesas.indexOf(row);
+          return `<tr><td>${formatDateTime(finDate(row)).split(',')[0]}</td><td>${escapeHtml(finField(row,['DESCRICAO','descricao'],'-'))}</td><td>${escapeHtml(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'-'))}</td><td>${escapeHtml(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'-'))}</td><td><strong>${formatMoney(finValue(row))}</strong></td><td><div class="actions-inline"><button type="button" class="secondary-button fin-edit" data-index="${index}">✏️ Editar</button><button type="button" class="danger-button fin-delete" data-index="${index}">🗑️ Excluir</button></div></td></tr>`;
+        }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}
+        </tbody></table></div>`;
+      document.getElementById('finFilter').addEventListener('click', finRender);
+      body.querySelectorAll('.fin-edit').forEach(btn=>btn.addEventListener('click',()=>{
+        const row=financeiroState.despesas[Number(btn.dataset.index)];
+        if(!row) return showToast('Erro','Despesa não encontrada.');
+        finOpenForm(row);
+      }));
+      body.querySelectorAll('.fin-delete').forEach(btn=>btn.addEventListener('click',()=>{
+        const row=financeiroState.despesas[Number(btn.dataset.index)];
+        if(!row) return showToast('Erro','Despesa não encontrada.');
+        finDelete(row);
+      }));
     }
 
-    function abrirFormDespesa(registro=null) {
-      // Em edição recebemos o objeto original da própria lista, nunca apenas um texto de ID.
-      const editando = !!registro && typeof registro === 'object';
-      const atual = editando ? registro : null;
-      const chave = editando ? getFinanceiroRecordKey(atual) : null;
-      if (editando && !chave) {
-        showToast('Erro ao editar','Este lançamento não possui uma chave identificadora para atualização.');
-        return;
-      }
-      const titulo = editando ? '✏️ Editar despesa' : '➕ Nova despesa';
-      const categoriaAtual = atual ? String(getField(atual,['CATEGORIA','categoria'], categoriaNome(getField(atual,['CATEGORIA_ID','categoria_id'])) || '')).trim() : '';
-      const formaAtual = atual ? String(getField(atual,['FORMA_PAGAMENTO','forma_pagamento'], formaNome(getField(atual,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])) || '')).trim() : '';
-      const categoriaOptions = financeiroCategoriasCache.map(c => {
-        const nome = String(getField(c,['NOME','nome'],'')).trim();
-        return `<option value="${escapeHtml(nome)}" ${categoriaAtual===nome?'selected':''}>${escapeHtml(nome)}</option>`;
-      }).join('');
-      const formaOptions = financeiroFormasCache.map(f => {
-        const nome = String(getField(f,['NOME','nome','DESCRICAO','descricao'],'')).trim();
-        return `<option value="${escapeHtml(nome)}" ${formaAtual===nome?'selected':''}>${escapeHtml(nome)}</option>`;
-      }).join('');
-      const dataAtual = atual ? localDateKey(dataDespesa(atual)) : dataHojeISO();
-      document.getElementById('modalDespesa')?.remove();
-      const modal = document.createElement('div');
-      modal.className = 'modal-overlay';
-      modal.id = 'modalDespesa';
-      modal.dataset.mode = editando ? 'edit' : 'create';
-      modal.dataset.despesaId = editando ? String(chave.value) : '';
-      modal.dataset.despesaKeyField = editando ? String(chave.field) : '';
-      modal.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true"><div class="modal-header"><h2>${titulo}</h2><button type="button" class="icon-button" id="btnFecharDespesa">✕</button></div>
-        <div class="field"><label>Data</label><input type="date" id="despesaData" value="${dataAtual}" required></div>
-        <div class="field"><label>Descrição</label><input type="text" id="despesaDescricao" value="${escapeHtml(atual?getField(atual,['DESCRICAO','descricao'],''):'')}" placeholder="Ex.: Compra de chocolate" required></div>
-        <div class="field"><label>Categoria</label><select id="despesaCategoria"><option value="">Selecione</option>${categoriaOptions}</select></div>
-        <div class="field"><label>Forma de pagamento</label><select id="despesaForma"><option value="">Selecione</option>${formaOptions}</select></div>
-        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="despesaValor" value="${atual?valorDespesa(atual):''}" placeholder="0,00" required></div>
-        <div class="field"><label>Observação</label><textarea id="despesaObs" placeholder="Observações opcionais">${escapeHtml(atual?getField(atual,['OBSERVACAO','observacao'],''):'')}</textarea></div>
-        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="btnCancelarDespesa">Cancelar</button><button type="button" class="primary-button" id="btnSalvarDespesa">💾 Confirmar</button></div></div>`;
+    function finOptions(list,current,names) {
+      return list.map(row=>{const name=String(finField(row,names,'')).trim(); return `<option value="${escapeHtml(name)}" ${name===current?'selected':''}>${escapeHtml(name)}</option>`;}).join('');
+    }
+
+    function finOpenForm(row) {
+      const editing=!!row;
+      const idInfo=editing?finId(row):null;
+      if(editing&&!idInfo) return showToast('Erro ao editar','Este lançamento não possui um ID válido.');
+      const category=editing?String(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'')):'';
+      const payment=editing?String(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'')):'';
+      const modal=document.createElement('div'); modal.className='modal-overlay'; modal.id='modalDespesa';
+      modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true"><div class="modal-header"><h2>${editing?'✏️ Editar despesa':'➕ Nova despesa'}</h2><button type="button" class="icon-button" id="finClose">✕</button></div>
+        <div class="field"><label>Data</label><input type="date" id="finDateInput" value="${editing?localDateKey(finDate(row)):finToday()}" required></div>
+        <div class="field"><label>Descrição</label><input type="text" id="finDescription" value="${escapeHtml(editing?finField(row,['DESCRICAO','descricao'],''):'')}" required></div>
+        <div class="field"><label>Categoria</label><select id="finCategory"><option value="">Selecione</option>${finOptions(financeiroState.categorias,category,['NOME','nome'])}</select></div>
+        <div class="field"><label>Forma de pagamento</label><select id="finPayment"><option value="">Selecione</option>${finOptions(financeiroState.formas,payment,['NOME','nome','DESCRICAO','descricao'])}</select></div>
+        <div class="field"><label>Valor</label><input type="number" step="0.01" min="0.01" id="finAmount" value="${editing?finValue(row):''}" required></div>
+        <div class="field"><label>Observação</label><textarea id="finObservation">${escapeHtml(editing?finField(row,['OBSERVACAO','observacao'],''):'')}</textarea></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="finCancel">Cancelar</button><button type="button" class="primary-button" id="finSave">💾 ${editing?'Salvar alterações':'Cadastrar despesa'}</button></div></div>`;
       document.body.appendChild(modal);
-      modal.querySelector('#btnFecharDespesa').addEventListener('click', fecharModalDespesa);
-      modal.querySelector('#btnCancelarDespesa').addEventListener('click', fecharModalDespesa);
-      modal.querySelector('#btnSalvarDespesa').addEventListener('click', salvarDespesa);
-      // Não fecha ao clicar fora: evita perder a edição acidentalmente.
-      modal.addEventListener('click', event => { if (event.target === modal) event.stopPropagation(); });
-    }
-
-    function fecharModalDespesa(){ document.getElementById('modalDespesa')?.remove(); }
-
-    async function salvarDespesa(event) {
-      event?.preventDefault?.();
-      const modal = document.getElementById('modalDespesa');
-      if (!modal) return;
-      const editando = modal.dataset.mode === 'edit';
-      const id = String(modal.dataset.despesaId ?? '').trim();
-      if (editando && !id) { showToast('Erro ao salvar','Registro de edição inválido. Nenhuma despesa foi criada.'); return; }
-
-      const data = document.getElementById('despesaData')?.value;
-      const descricao = document.getElementById('despesaDescricao')?.value.trim();
-      const categoria = document.getElementById('despesaCategoria')?.value || null;
-      const forma = document.getElementById('despesaForma')?.value || null;
-      const valor = Number(document.getElementById('despesaValor')?.value);
-      const observacao = document.getElementById('despesaObs')?.value.trim() || null;
-      if (!data || !descricao || !(valor > 0)) { showToast('Dados obrigatórios','Informe data, descrição e valor válido.'); return; }
-      if (!confirm(editando ? 'Confirmar alteração desta despesa?' : 'Confirmar inclusão desta despesa?')) return;
-
-      const botao = modal.querySelector('#btnSalvarDespesa');
-      if (botao?.dataset.saving === '1') return;
-      if (botao) { botao.dataset.saving='1'; botao.disabled=true; botao.textContent='Salvando...'; }
-
-      const payload = { DATA:data+'T12:00:00', DESCRICAO:descricao, CATEGORIA:categoria, FORMA_PAGAMENTO:forma, VALOR:valor, OBSERVACAO:observacao };
-      try {
-        if (editando) {
-          // REGRA CRÍTICA: editar NUNCA cria um registro novo. Se a atualização
-          // não puder ser confirmada por qualquer motivo, a função lança um erro
-          // e para aqui — não existe nenhum caminho de código depois deste bloco
-          // que faça um POST (criação) enquanto editando=true.
-          const campoChave = String(modal.dataset.despesaKeyField || '').trim();
-          if (!campoChave || !id) throw new Error('Chave do lançamento não encontrada. A edição foi bloqueada para não criar um lançamento novo.');
-
-          // A tabela pode ter sido criada com colunas em maiúsculo ou minúsculo.
-          // Em vez de tentar adivinhar duas vezes, usamos a MESMA convenção de
-          // maiúsculas/minúsculas que o campo-chave já veio do Supabase — já que
-          // esse valor reflete exatamente como a tabela real está, evitando
-          // tentativas ambíguas.
-          const usarMinusculo = campoChave === campoChave.toLowerCase() && campoChave !== campoChave.toUpperCase();
-          const tabela = usarMinusculo ? 'financeiro_despesas' : 'FINANCEIRO_DESPESAS';
-          const corpo = usarMinusculo
-            ? Object.fromEntries(Object.entries(payload).map(([k,v]) => [k.toLowerCase(), v]))
-            : payload;
-
-          const retorno = await restRequest(
-            tabela,
-            '?'+encodeURIComponent(campoChave)+'=eq.'+encodeURIComponent(id),
-            { method:'PATCH', headers:{'Prefer':'return=representation','Accept':'application/json'}, body:JSON.stringify(corpo) }
-          );
-          if (!Array.isArray(retorno) || retorno.length !== 1) {
-            throw new Error('Nenhum lançamento correspondente foi encontrado para atualizar. Nada foi alterado ou criado.');
-          }
-          // Atualização confirmada — a função termina aqui no modo edição.
-        } else {
-          // Só chega aqui quando editando=false (ou seja, "Nova despesa").
-          await restRequest('FINANCEIRO_DESPESAS', '', {
-            method:'POST',
-            headers:{'Prefer':'return=representation'},
-            body:JSON.stringify(payload)
-          });
+      const close=()=>modal.remove();
+      modal.querySelector('#finClose').addEventListener('click',close); modal.querySelector('#finCancel').addEventListener('click',close);
+      modal.querySelector('#finSave').addEventListener('click',async()=>{
+        const button=modal.querySelector('#finSave');
+        try {
+          const payload=finPayload(row);
+          if(!confirm(editing?'Confirmar alteração desta despesa?':'Confirmar inclusão desta nova despesa?')) return;
+          button.disabled=true; button.textContent='Salvando...';
+          if(editing) await finUpdate(row,payload); else await finInsert(payload);
+          modal.remove();
+          showToast('Sucesso',editing?'Despesa alterada com sucesso.':'Despesa cadastrada com sucesso.');
+          renderFinanceiroModule();
+        } catch(e) {
+          console.error('FINANCEIRO SAVE:',e);
+          showToast(editing?'Erro ao editar':'Erro ao cadastrar',e.message||'Não foi possível salvar.');
+          button.disabled=false; button.textContent=editing?'💾 Salvar alterações':'💾 Cadastrar despesa';
         }
-        fecharModalDespesa();
-        showToast('Financeiro atualizado', editando ? 'Despesa alterada com sucesso.' : 'Despesa cadastrada com sucesso.');
-        renderFinanceiroModule();
-      } catch(e) {
-        console.error(e);
-        showToast('Erro ao salvar', e.message || 'Não foi possível salvar a despesa.');
-        if (botao) { botao.dataset.saving='0'; botao.disabled=false; botao.textContent='💾 Confirmar'; }
-      }
+      });
     }
 
-    function editarDespesa(id){
-      const registro = financeiroDespesasCache.find(d => {
-        const chave = getFinanceiroRecordKey(d);
-        return chave && String(chave.value) === String(id);
-      });
-      if (!registro) { showToast('Erro ao editar','Não foi possível localizar a despesa.'); return; }
-      abrirFormDespesa(registro);
+    function finPayload(row) {
+      const date=document.getElementById('finDateInput').value;
+      const description=document.getElementById('finDescription').value.trim();
+      const category=document.getElementById('finCategory').value||null;
+      const payment=document.getElementById('finPayment').value||null;
+      const amount=Number(document.getElementById('finAmount').value);
+      const observation=document.getElementById('finObservation').value.trim()||null;
+      if(!date||!description||!(amount>0)) throw new Error('Informe data, descrição e valor válido.');
+      // Usa o mesmo padrão de maiúsculas/minúsculas existente no registro carregado.
+      const sample=row||financeiroState.despesas[0]||{};
+      const put=(obj,candidates,value,fallback)=>{obj[finColumnName(sample,candidates,fallback)]=value;};
+      const payload={};
+      put(payload,['DATA','data'],date+'T12:00:00','DATA');
+      put(payload,['DESCRICAO','descricao'],description,'DESCRICAO');
+      put(payload,['CATEGORIA','categoria'],category,'CATEGORIA');
+      put(payload,['FORMA_PAGAMENTO','forma_pagamento'],payment,'FORMA_PAGAMENTO');
+      put(payload,['VALOR','valor'],amount,'VALOR');
+      put(payload,['OBSERVACAO','observacao'],observation,'OBSERVACAO');
+      return payload;
     }
 
-    async function excluirDespesa(id) {
-      if (!id || !confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
-      // Usa o mesmo campo-chave real (com a mesma maiúscula/minúscula) que foi
-      // identificado ao carregar o registro, em vez de supor "ID" fixo.
-      const registro = financeiroDespesasCache.find(d => {
-        const chave = getFinanceiroRecordKey(d);
-        return chave && String(chave.value) === String(id);
-      });
-      const chave = registro ? getFinanceiroRecordKey(registro) : null;
-      const campoChave = chave ? chave.field : 'ID';
-      const usarMinusculo = campoChave === campoChave.toLowerCase() && campoChave !== campoChave.toUpperCase();
-      const tabela = usarMinusculo ? 'financeiro_despesas' : 'FINANCEIRO_DESPESAS';
+    async function finInsert(payload) {
+      const result=await restRequest(financeiroState.tabelaDespesas,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+      if(!Array.isArray(result)||result.length<1) throw new Error('O Supabase não retornou o novo lançamento.');
+      return result[0];
+    }
+
+    async function finUpdate(row,payload) {
+      const id=finId(row); if(!id) throw new Error('ID do lançamento não encontrado.');
+      const result=await restRequest(financeiroState.tabelaDespesas,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payload)});
+      if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhuma despesa foi atualizada. Nenhum novo registro foi criado.');
+      return result[0];
+    }
+
+    async function finDelete(row) {
+      const id=finId(row); if(!id) return showToast('Erro ao excluir','ID do lançamento não encontrado.');
+      if(!confirm('Excluir esta despesa? Esta ação não poderá ser desfeita.')) return;
       try {
-        await restRequest(tabela, '?'+encodeURIComponent(campoChave)+'=eq.'+encodeURIComponent(id), {method:'DELETE'});
-        showToast('Despesa excluída','O lançamento foi removido.');
-        renderFinanceiroModule();
-      } catch(e) { console.error(e); showToast('Erro ao excluir', e.message || 'Não foi possível excluir a despesa.'); }
+        await restRequest(financeiroState.tabelaDespesas,'?'+encodeURIComponent(id.field)+'=eq.'+encodeURIComponent(String(id.value)),{method:'DELETE',headers:{'Prefer':'return=representation'}});
+        showToast('Despesa excluída','O lançamento foi removido.'); renderFinanceiroModule();
+      } catch(e) { console.error('FINANCEIRO DELETE:',e); showToast('Erro ao excluir',e.message||'Não foi possível excluir a despesa.'); }
     }
-
     /* =====================================================
-       MENU + HISTÓRICO DO NAVEGADOR
-       O botão Voltar deve navegar entre os módulos, não sair do app.
+       MENU
     ====================================================== */
-    const KUKI_ROUTES = {
-      'dashboard':'Dashboard',
-      'pedidos':'Pedidos',
-      'financeiro':'Financeiro',
-      'produtos':'Produtos',
-      'clientes':'Clientes',
-      'formas-de-pagamento':'Formas de pagamento',
-      'formas-de-entrega':'Formas de entrega',
-      'horarios':'Horários',
-      'configuracoes':'Configurações'
-    };
-
-    function normalizarRotaModulo(name) {
-      return String(name || '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-        .toLowerCase().trim().replace(/\s+/g,'-');
-    }
-
-    function moduloDaRota() {
-      const rota = (location.hash || '').replace(/^#/,'').toLowerCase();
-      return KUKI_ROUTES[rota] || 'Dashboard';
-    }
-
-    function atualizarMenuAtivo(name) {
-      document.querySelectorAll('.menu button').forEach(botao => {
-        const texto = botao.textContent.replace(/\s+/g,' ').trim();
-        botao.classList.toggle('active', texto.includes(name));
-      });
-    }
-
-    function navegarParaModulo(name, modo='push') {
-      const rota = normalizarRotaModulo(name);
-      const url = location.pathname + location.search + '#' + rota;
-      if (modo === 'replace') {
-        history.replaceState({kukiModule:name}, '', url);
-      } else if (modo === 'push') {
-        const atual = location.hash.replace(/^#/,'');
-        if (atual !== rota) history.pushState({kukiModule:name}, '', url);
-      }
-    }
-
-    function aplicarHistoricoModulo() {
-      const name = moduloDaRota();
-      abrirModulo(name, false);
-    }
-
     function selectMenu(button, name) {
       document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
-      button.classList.add('active');
-      abrirModulo(name, true);
+      button.classList.add('active'); abrirModulo(name);
     }
-
     function selectMenuByName(name) {
-      const botao = Array.from(document.querySelectorAll('.menu button')).find(b =>
-        b.textContent.replace(/\s+/g,' ').trim().includes(name)
-      );
-      if (botao) selectMenu(botao,name);
+      document.querySelectorAll('.menu button').forEach(botao => {
+        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
+      });
     }
-
-    function carregarModuloAtual() { abrirModulo(moduloAtual, false); }
-
-    function abrirModulo(name, registrarHistorico=false) {
+    function carregarModuloAtual() { abrirModulo(moduloAtual); }
+    function abrirModulo(name) {
       moduloAtual = name;
-      atualizarMenuAtivo(name);
-      if (registrarHistorico) navegarParaModulo(name, 'push');
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
@@ -2207,24 +2055,11 @@
       else renderPlaceholderModule(name);
     }
 
-    // Histórico do navegador: Back/Forward e botão voltar do mobile.
-    window.addEventListener('popstate', aplicarHistoricoModulo);
-    window.addEventListener('hashchange', () => {
-      const modulo = moduloDaRota();
-      if (modulo !== moduloAtual) abrirModulo(modulo, false);
-    });
-
     /* =====================================================
        INICIAR
     ====================================================== */
     // Nesta versão o login está temporariamente desativado.
-    abrirSistema({ email: 'admin@kuki.local' }).then(() => {
-      // A primeira entrada vira Dashboard e a navegação seguinte cria histórico.
-      if (!location.hash || !KUKI_ROUTES[location.hash.replace(/^#/,'').toLowerCase()]) {
-        navegarParaModulo('Dashboard', 'replace');
-      }
-      aplicarHistoricoModulo();
-    });
+    abrirSistema({ email: 'admin@kuki.local' });
 
   </script>
 
