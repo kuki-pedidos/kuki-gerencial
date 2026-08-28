@@ -716,7 +716,7 @@
       opacity:1 !important;
     }
 
-</style>
+<style>.actions-inline{display:flex!important;gap:10px;align-items:center;flex-wrap:nowrap!important}.actions-inline .secondary-button,.actions-inline .danger-button{white-space:nowrap}</style></style>
 </head>
 
 <body>
@@ -1809,6 +1809,22 @@
       return getValue(obj, names, fallback);
     }
 
+    // Identifica a chave real do lançamento exatamente como ela veio do Supabase.
+    // Assim a edição não depende de a coluna se chamar obrigatoriamente ID/id.
+    function getFinanceiroRecordKey(registro) {
+      if (!registro) return null;
+      const candidatos = ['ID','id','UUID','uuid','IDFINANCEIRO','idfinanceiro','CODIGO','codigo','CODDESPESA','coddespesa'];
+      const mapa = {};
+      Object.keys(registro).forEach(k => mapa[k.toLowerCase()] = k);
+      for (const candidato of candidatos) {
+        const campoReal = mapa[candidato.toLowerCase()];
+        if (campoReal !== undefined && registro[campoReal] !== null && registro[campoReal] !== undefined && String(registro[campoReal]).trim() !== '') {
+          return { field: campoReal, value: registro[campoReal] };
+        }
+      }
+      return null;
+    }
+
     async function carregarFinanceiroDados() {
       // Não usamos filtros/order no servidor aqui porque as tabelas financeiras
       // foram criadas com combinações diferentes de nomes maiúsculos/minúsculos.
@@ -1900,15 +1916,16 @@
           <table class="financeiro-tabela">
             <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead>
             <tbody>${lista.length ? lista.map(d => {
-              const id = getField(d,['ID','id']);
-              const idSeguro = String(id ?? '');
+              const idx = financeiroDespesasCache.indexOf(d);
+              const id = getFinanceiroRecordKey(d);
+              const idSeguro = String(id?.value ?? '');
               return `<tr>
                 <td>${formatDateTime(dataDespesa(d)).split(',')[0]}</td>
                 <td>${escapeHtml(getField(d,['DESCRICAO','descricao'],'-'))}</td>
                 <td>${escapeHtml(getField(d,['CATEGORIA','categoria'], categoriaNome(getField(d,['CATEGORIA_ID','categoria_id'])) || '-'))}</td>
                 <td>${escapeHtml(getField(d,['FORMA_PAGAMENTO','forma_pagamento'], formaNome(getField(d,['FORMA_PAGAMENTO_ID','forma_pagamento_id'])) || '-'))}</td>
                 <td><strong>${formatMoney(valorDespesa(d))}</strong></td>
-                <td><div class="actions-inline"><button type="button" class="secondary-button btn-editar-despesa" data-despesa-id="${escapeHtml(idSeguro)}">✏️ Editar</button><button type="button" class="danger-button btn-excluir-despesa" data-despesa-id="${escapeHtml(idSeguro)}">🗑️ Excluir</button></div></td>
+                <td><div class="actions-inline"><button type="button" class="secondary-button btn-editar-despesa" data-despesa-index="${idx}" data-despesa-id="${escapeHtml(idSeguro)}">✏️ Editar</button><button type="button" class="danger-button btn-excluir-despesa" data-despesa-id="${escapeHtml(idSeguro)}">🗑️ Excluir</button></div></td>
               </tr>`;
             }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}</tbody>
           </table>
@@ -1919,9 +1936,10 @@
         botao.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
-          const id = String(botao.dataset.despesaId ?? '').trim();
-          if (!id) { showToast('Erro ao editar','Não foi possível identificar esta despesa.'); return; }
-          abrirFormDespesa(id);
+          const index = Number(botao.dataset.despesaIndex);
+          const registro = financeiroDespesasCache[index];
+          if (!registro) { showToast('Erro ao editar','Não foi possível localizar esta despesa na lista carregada.'); return; }
+          abrirFormDespesa(registro);
         });
       });
       body.querySelectorAll('.btn-excluir-despesa').forEach(botao => {
@@ -1935,11 +1953,13 @@
       });
     }
 
-    function abrirFormDespesa(id=null) {
-      const editando = id !== null && id !== undefined && String(id).trim() !== '';
-      const atual = editando ? financeiroDespesasCache.find(d => String(getField(d,['ID','id'])) === String(id)) : null;
-      if (editando && !atual) {
-        showToast('Despesa não encontrada','Atualize o financeiro e tente novamente.');
+    function abrirFormDespesa(registro=null) {
+      // Em edição recebemos o objeto original da própria lista, nunca apenas um texto de ID.
+      const editando = !!registro && typeof registro === 'object';
+      const atual = editando ? registro : null;
+      const chave = editando ? getFinanceiroRecordKey(atual) : null;
+      if (editando && !chave) {
+        showToast('Erro ao editar','Este lançamento não possui uma chave identificadora para atualização.');
         return;
       }
       const titulo = editando ? '✏️ Editar despesa' : '➕ Nova despesa';
@@ -1959,7 +1979,8 @@
       modal.className = 'modal-overlay';
       modal.id = 'modalDespesa';
       modal.dataset.mode = editando ? 'edit' : 'create';
-      modal.dataset.despesaId = editando ? String(id) : '';
+      modal.dataset.despesaId = editando ? String(chave.value) : '';
+      modal.dataset.despesaKeyField = editando ? String(chave.field) : '';
       modal.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true"><div class="modal-header"><h2>${titulo}</h2><button type="button" class="icon-button" id="btnFecharDespesa">✕</button></div>
         <div class="field"><label>Data</label><input type="date" id="despesaData" value="${dataAtual}" required></div>
         <div class="field"><label>Descrição</label><input type="text" id="despesaDescricao" value="${escapeHtml(atual?getField(atual,['DESCRICAO','descricao'],''):'')}" placeholder="Ex.: Compra de chocolate" required></div>
@@ -2005,46 +2026,31 @@
         // A tabela pode ter colunas em maiúsculo ou minúsculo; por isso tentamos
         // as duas combinações sem perder o modo de edição.
         if (editando) {
-          // REGRA CRÍTICA: edição nunca pode cair em POST.
-          // Só consideramos sucesso se exatamente um registro existente for retornado.
+          // REGRA CRÍTICA: edição nunca faz POST. Usamos exatamente a chave/campo
+          // do registro original carregado do Supabase.
+          const campoChave = String(modal.dataset.despesaKeyField || '').trim();
+          if (!campoChave || !id) throw new Error('Chave do lançamento não encontrada. A inclusão foi bloqueada.');
+
           const payloadLower = {};
           Object.keys(payload).forEach(k => payloadLower[k.toLowerCase()] = payload[k]);
-
-          const tentativas = [
-            { tabela:'FINANCEIRO_DESPESAS', filtro:'?ID=eq.'+encodeURIComponent(id), corpo:payload },
-            { tabela:'FINANCEIRO_DESPESAS', filtro:'?id=eq.'+encodeURIComponent(id), corpo:payload },
-            { tabela:'financeiro_despesas', filtro:'?id=eq.'+encodeURIComponent(id), corpo:payloadLower },
-            { tabela:'financeiro_despesas', filtro:'?ID=eq.'+encodeURIComponent(id), corpo:payloadLower }
+          const filtros = [
+            { tabela:'FINANCEIRO_DESPESAS', corpo:payload },
+            { tabela:'financeiro_despesas', corpo:payloadLower }
           ];
-
           let atualizado = null;
           let ultimoErro = null;
-
-          for (const tentativa of tentativas) {
+          for (const tentativa of filtros) {
             try {
-              const retorno = await restRequest(tentativa.tabela, tentativa.filtro, {
-                method:'PATCH',
-                headers:{
-                  'Prefer':'return=representation',
-                  'Accept':'application/json'
-                },
-                body:JSON.stringify(tentativa.corpo)
-              });
-
-              // PATCH sem correspondência pode retornar [] sem erro.
-              // Nesse caso NÃO mostramos sucesso e NÃO criamos outro registro.
-              if (Array.isArray(retorno) && retorno.length === 1) {
-                atualizado = retorno[0];
-                break;
-              }
-            } catch (erro) {
-              ultimoErro = erro;
-            }
+              const retorno = await restRequest(
+                tentativa.tabela,
+                '?'+encodeURIComponent(campoChave)+'=eq.'+encodeURIComponent(id),
+                { method:'PATCH', headers:{'Prefer':'return=representation','Accept':'application/json'}, body:JSON.stringify(tentativa.corpo) }
+              );
+              if (Array.isArray(retorno) && retorno.length === 1) { atualizado = retorno[0]; break; }
+              ultimoErro = new Error('Nenhum registro correspondente foi atualizado.');
+            } catch (erro) { ultimoErro = erro; }
           }
-
-          if (!atualizado) {
-            throw (ultimoErro || new Error('Nenhum registro existente foi atualizado. A operação foi cancelada para evitar criar uma nova linha.'));
-          }
+          if (!atualizado) throw (ultimoErro || new Error('A atualização foi cancelada. Nenhum novo lançamento foi criado.'));
         } else {
           await restRequest('FINANCEIRO_DESPESAS', '', {
             method:'POST',
@@ -2063,8 +2069,12 @@
     }
 
     function editarDespesa(id){
-      if (id === null || id === undefined || String(id).trim() === '') { showToast('Erro ao editar','Não foi possível identificar a despesa.'); return; }
-      abrirFormDespesa(String(id));
+      const registro = financeiroDespesasCache.find(d => {
+        const chave = getFinanceiroRecordKey(d);
+        return chave && String(chave.value) === String(id);
+      });
+      if (!registro) { showToast('Erro ao editar','Não foi possível localizar a despesa.'); return; }
+      abrirFormDespesa(registro);
     }
 
     async function excluirDespesa(id) {
