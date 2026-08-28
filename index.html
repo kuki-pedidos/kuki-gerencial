@@ -2005,21 +2005,45 @@
         // A tabela pode ter colunas em maiúsculo ou minúsculo; por isso tentamos
         // as duas combinações sem perder o modo de edição.
         if (editando) {
-          const bodyUpper = JSON.stringify(payload);
-          try {
-            await restRequest('FINANCEIRO_DESPESAS', '?ID=eq.'+encodeURIComponent(id), {
-              method:'PATCH',
-              headers:{'Prefer':'return=representation'},
-              body:bodyUpper
-            });
-          } catch (erroUpper) {
-            const payloadLower = {};
-            Object.keys(payload).forEach(k => payloadLower[k.toLowerCase()] = payload[k]);
-            await restRequest('financeiro_despesas', '?id=eq.'+encodeURIComponent(id), {
-              method:'PATCH',
-              headers:{'Prefer':'return=representation'},
-              body:JSON.stringify(payloadLower)
-            });
+          // REGRA CRÍTICA: edição nunca pode cair em POST.
+          // Só consideramos sucesso se exatamente um registro existente for retornado.
+          const payloadLower = {};
+          Object.keys(payload).forEach(k => payloadLower[k.toLowerCase()] = payload[k]);
+
+          const tentativas = [
+            { tabela:'FINANCEIRO_DESPESAS', filtro:'?ID=eq.'+encodeURIComponent(id), corpo:payload },
+            { tabela:'FINANCEIRO_DESPESAS', filtro:'?id=eq.'+encodeURIComponent(id), corpo:payload },
+            { tabela:'financeiro_despesas', filtro:'?id=eq.'+encodeURIComponent(id), corpo:payloadLower },
+            { tabela:'financeiro_despesas', filtro:'?ID=eq.'+encodeURIComponent(id), corpo:payloadLower }
+          ];
+
+          let atualizado = null;
+          let ultimoErro = null;
+
+          for (const tentativa of tentativas) {
+            try {
+              const retorno = await restRequest(tentativa.tabela, tentativa.filtro, {
+                method:'PATCH',
+                headers:{
+                  'Prefer':'return=representation',
+                  'Accept':'application/json'
+                },
+                body:JSON.stringify(tentativa.corpo)
+              });
+
+              // PATCH sem correspondência pode retornar [] sem erro.
+              // Nesse caso NÃO mostramos sucesso e NÃO criamos outro registro.
+              if (Array.isArray(retorno) && retorno.length === 1) {
+                atualizado = retorno[0];
+                break;
+              }
+            } catch (erro) {
+              ultimoErro = erro;
+            }
+          }
+
+          if (!atualizado) {
+            throw (ultimoErro || new Error('Nenhum registro existente foi atualizado. A operação foi cancelada para evitar criar uma nova linha.'));
           }
         } else {
           await restRequest('FINANCEIRO_DESPESAS', '', {
@@ -2053,20 +2077,74 @@
     }
 
     /* =====================================================
-       MENU
+       MENU + HISTÓRICO DO NAVEGADOR
+       O botão Voltar deve navegar entre os módulos, não sair do app.
     ====================================================== */
-    function selectMenu(button, name) {
-      document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
-      button.classList.add('active'); abrirModulo(name);
+    const KUKI_ROUTES = {
+      'dashboard':'Dashboard',
+      'pedidos':'Pedidos',
+      'financeiro':'Financeiro',
+      'produtos':'Produtos',
+      'clientes':'Clientes',
+      'formas-de-pagamento':'Formas de pagamento',
+      'formas-de-entrega':'Formas de entrega',
+      'horarios':'Horários',
+      'configuracoes':'Configurações'
+    };
+
+    function normalizarRotaModulo(name) {
+      return String(name || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .toLowerCase().trim().replace(/\s+/g,'-');
     }
-    function selectMenuByName(name) {
+
+    function moduloDaRota() {
+      const rota = (location.hash || '').replace(/^#/,'').toLowerCase();
+      return KUKI_ROUTES[rota] || 'Dashboard';
+    }
+
+    function atualizarMenuAtivo(name) {
       document.querySelectorAll('.menu button').forEach(botao => {
-        if (botao.textContent.replace(/\s+/g,' ').trim().includes(name)) selectMenu(botao,name);
+        const texto = botao.textContent.replace(/\s+/g,' ').trim();
+        botao.classList.toggle('active', texto.includes(name));
       });
     }
-    function carregarModuloAtual() { abrirModulo(moduloAtual); }
-    function abrirModulo(name) {
+
+    function navegarParaModulo(name, modo='push') {
+      const rota = normalizarRotaModulo(name);
+      const url = location.pathname + location.search + '#' + rota;
+      if (modo === 'replace') {
+        history.replaceState({kukiModule:name}, '', url);
+      } else if (modo === 'push') {
+        const atual = location.hash.replace(/^#/,'');
+        if (atual !== rota) history.pushState({kukiModule:name}, '', url);
+      }
+    }
+
+    function aplicarHistoricoModulo() {
+      const name = moduloDaRota();
+      abrirModulo(name, false);
+    }
+
+    function selectMenu(button, name) {
+      document.querySelectorAll('.menu button').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      abrirModulo(name, true);
+    }
+
+    function selectMenuByName(name) {
+      const botao = Array.from(document.querySelectorAll('.menu button')).find(b =>
+        b.textContent.replace(/\s+/g,' ').trim().includes(name)
+      );
+      if (botao) selectMenu(botao,name);
+    }
+
+    function carregarModuloAtual() { abrirModulo(moduloAtual, false); }
+
+    function abrirModulo(name, registrarHistorico=false) {
       moduloAtual = name;
+      atualizarMenuAtivo(name);
+      if (registrarHistorico) navegarParaModulo(name, 'push');
       const dashboard = document.getElementById('dashboardContent');
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
@@ -2083,11 +2161,24 @@
       else renderPlaceholderModule(name);
     }
 
+    // Histórico do navegador: Back/Forward e botão voltar do mobile.
+    window.addEventListener('popstate', aplicarHistoricoModulo);
+    window.addEventListener('hashchange', () => {
+      const modulo = moduloDaRota();
+      if (modulo !== moduloAtual) abrirModulo(modulo, false);
+    });
+
     /* =====================================================
        INICIAR
     ====================================================== */
     // Nesta versão o login está temporariamente desativado.
-    abrirSistema({ email: 'admin@kuki.local' });
+    abrirSistema({ email: 'admin@kuki.local' }).then(() => {
+      // A primeira entrada vira Dashboard e a navegação seguinte cria histórico.
+      if (!location.hash || !KUKI_ROUTES[location.hash.replace(/^#/,'').toLowerCase()]) {
+        navegarParaModulo('Dashboard', 'replace');
+      }
+      aplicarHistoricoModulo();
+    });
 
   </script>
 
