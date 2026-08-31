@@ -1160,6 +1160,103 @@
     let pedidosRealtimeChannelLower = null;
     let moduloAtual = 'Dashboard';
     let filtroPedidosAtivo = 'TODOS';
+    /* =====================================================
+       SESSÃO POR INATIVIDADE
+       O login permanece válido ao atualizar (F5).
+       Após 1 hora sem qualquer interação no sistema,
+       a sessão é encerrada e o próximo acesso exige login.
+    ====================================================== */
+    const INATIVIDADE_LIMITE_MS = 60 * 60 * 1000;
+    const INATIVIDADE_STORAGE_KEY = 'kuki_gerencial_ultima_atividade';
+    let inactivityTimer = null;
+
+    function salvarUltimaAtividade() {
+      try { localStorage.setItem(INATIVIDADE_STORAGE_KEY, String(Date.now())); } catch(e) {}
+    }
+
+    function obterUltimaAtividade() {
+      try {
+        const value = Number(localStorage.getItem(INATIVIDADE_STORAGE_KEY));
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      } catch(e) { return 0; }
+    }
+
+    function limparUltimaAtividade() {
+      try { localStorage.removeItem(INATIVIDADE_STORAGE_KEY); } catch(e) {}
+    }
+
+    function mostrarMensagemSessaoExpirada() {
+      const el = document.getElementById('loginError');
+      if (!el) return;
+      el.textContent = 'Sua sessão foi encerrada após 1 hora de inatividade. Faça login novamente.';
+      el.style.display = 'block';
+    }
+
+    function programarExpiracaoInatividade() {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      const ultima = obterUltimaAtividade() || Date.now();
+      const restante = INATIVIDADE_LIMITE_MS - (Date.now() - ultima);
+      if (restante <= 0) {
+        encerrarPorInatividade();
+        return;
+      }
+      inactivityTimer = setTimeout(encerrarPorInatividade, restante);
+    }
+
+    function registrarAtividadeUsuario() {
+      if (appScreen.style.display === 'none') return;
+      salvarUltimaAtividade();
+      programarExpiracaoInatividade();
+    }
+
+    function iniciarMonitorInatividade() {
+      salvarUltimaAtividade();
+      programarExpiracaoInatividade();
+    }
+
+    function pararMonitorInatividade() {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = null;
+      limparUltimaAtividade();
+    }
+
+    async function encerrarPorInatividade() {
+      if (appScreen.style.display === 'none') return;
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = null;
+
+      mostrarMensagemSessaoExpirada();
+      try { await pararRealtimePedidos(); } catch(e) {}
+      if (pollingTimer) clearInterval(pollingTimer);
+      pollingTimer = null;
+      pedidosConhecidos = new Set();
+      limparUltimaAtividade();
+
+      try {
+        await supabaseClient.auth.signOut();
+      } catch(e) {
+        console.error('Sessão:', e);
+        appScreen.style.display = 'none';
+        loginScreen.style.display = 'flex';
+      }
+    }
+
+    // Qualquer interação relevante conta como atividade.
+    ['pointerdown','keydown','touchstart','wheel','scroll','click'].forEach(eventName => {
+      window.addEventListener(eventName, registrarAtividadeUsuario, {passive:true});
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && appScreen.style.display !== 'none') {
+        const ultima = obterUltimaAtividade();
+        if (ultima && Date.now() - ultima >= INATIVIDADE_LIMITE_MS) {
+          encerrarPorInatividade();
+        } else {
+          programarExpiracaoInatividade();
+        }
+      }
+    });
+
 
     function atualizarData() {
       const agora = new Date();
@@ -2259,9 +2356,21 @@ return true;
     async function verificarSessao() {
       const { data, error } = await supabaseClient.auth.getSession();
       if (error) { console.error(error); return; }
-      if (data.session) abrirSistema(data.session.user);
-        try { obterAudioContext(); } catch(e) {}
-        pedirPermissaoNotificacao();
+
+      if (data.session) {
+        const ultima = obterUltimaAtividade();
+        if (ultima && Date.now() - ultima >= INATIVIDADE_LIMITE_MS) {
+          mostrarMensagemSessaoExpirada();
+          limparUltimaAtividade();
+          try { await supabaseClient.auth.signOut(); } catch(e) { console.error('Sessão:', e); }
+          return;
+        }
+
+        await abrirSistema(data.session.user, true);
+        return;
+      }
+
+      limparUltimaAtividade();
     }
 
     /* =====================================================
@@ -2281,7 +2390,8 @@ return true;
       try {
         const { data, error } = await supabaseClient.auth.signInWithPassword({email, password});
         if (error) throw error;
-        abrirSistema(data.user);
+        loginError.style.display = 'none';
+        await abrirSistema(data.user, false);
       } catch(error) {
         console.error(error); loginError.textContent = 'Usuário ou senha inválidos.'; loginError.style.display = 'block';
       } finally { loginButton.disabled = false; loginButton.textContent = 'ENTRAR'; }
@@ -2297,6 +2407,7 @@ return true;
       if (event === 'SIGNED_OUT' || !session) {
         if (pollingTimer) clearInterval(pollingTimer);
         pollingTimer = null;
+        pararMonitorInatividade();
         pararRealtimePedidos();
         pedidosConhecidos = new Set();
         appScreen.style.display = 'none';
@@ -2307,10 +2418,16 @@ return true;
     /* =====================================================
        ABRIR SISTEMA / LOGOUT
     ====================================================== */
-    async function abrirSistema(user) {
+    async function abrirSistema(user, restaurandoSessao=false) {
       loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
+
+      // F5/reabertura mantém a sessão enquanto ainda estiver dentro da janela
+      // de 1 hora. Um novo login também reinicia essa janela.
+      salvarUltimaAtividade();
+      programarExpiracaoInatividade();
+
       await pedirPermissaoNotificacao();
       await carregarPedidos(true);
       await pararRealtimePedidos();
@@ -2322,6 +2439,7 @@ return true;
     async function logout() {
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = null;
+      pararMonitorInatividade();
       await pararRealtimePedidos();
       pedidosConhecidos = new Set();
       await supabaseClient.auth.signOut();
@@ -2759,26 +2877,22 @@ return true;
        INICIAR - LOGIN OBRIGATÓRIO
     ====================================================== */
 
-    // O sistema NÃO é aberto automaticamente.
-    // Mesmo que exista uma sessão antiga do Supabase no navegador,
-    // o usuário deverá passar pela tela de login para entrar no KUKI Gerencial.
+    // Ao atualizar (F5), o Supabase restaura a sessão existente.
+    // Só exige novo login quando a sessão não existe ou passou 1 hora
+    // sem qualquer interação no sistema.
     loginScreen.style.display = 'flex';
     appScreen.style.display = 'none';
 
-    // Mantém a navegação interna preparada, mas somente será exibida
-    // depois que o login for validado.
-    setTimeout(() => {
+    setTimeout(async () => {
       const initialModule = routeToModule();
       const route = '#' + moduleToRoute(initialModule);
 
       if (!location.hash) {
-        history.replaceState({kukiModule: initialModule}, '', route);
+        history.replaceState({kukiModule:initialModule},'',route);
       }
 
       updateActiveMenu(initialModule);
-
-      // Não abre o módulo enquanto o usuário não estiver autenticado.
-      // abrirSistema() é chamado somente após signInWithPassword().
+      await verificarSessao();
     }, 0);
 
   </script>
