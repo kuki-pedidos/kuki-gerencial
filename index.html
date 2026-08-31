@@ -1614,14 +1614,33 @@
       if (!ctx) return;
       alertaSonoroEmExecucao = true;
 
-      // Toque curto em três notas, repetido duas vezes para ficar
-      // perceptível mesmo quando o usuário está em outra tela do sistema.
-      tocarNota(ctx, 880,    0.00, 0.16, 0.13);
-      tocarNota(ctx, 1046.5, 0.20, 0.16, 0.13);
-      tocarNota(ctx, 1318.5, 0.40, 0.24, 0.15);
-      tocarNota(ctx, 880,    0.78, 0.16, 0.13);
-      tocarNota(ctx, 1046.5, 0.98, 0.16, 0.13);
-      tocarNota(ctx, 1318.5, 1.18, 0.28, 0.15);
+      // ALERTA LONGO DE NOVO PEDIDO
+      // Inspirado no comportamento de apps de delivery: uma chamada
+      // claramente perceptível, com várias repetições e pequenas pausas.
+      // Duração total aproximada: 5,5 segundos.
+      const toque = [
+        [880,    0.00, 0.18, 0.15],
+        [1046.5, 0.22, 0.18, 0.15],
+        [1318.5, 0.44, 0.30, 0.17],
+        [1046.5, 0.92, 0.18, 0.15],
+        [1318.5, 1.14, 0.30, 0.17],
+
+        [880,    1.82, 0.18, 0.15],
+        [1046.5, 2.04, 0.18, 0.15],
+        [1318.5, 2.26, 0.30, 0.17],
+        [1046.5, 2.74, 0.18, 0.15],
+        [1318.5, 2.96, 0.30, 0.17],
+
+        [880,    3.64, 0.18, 0.15],
+        [1046.5, 3.86, 0.18, 0.15],
+        [1318.5, 4.08, 0.30, 0.17],
+        [1046.5, 4.56, 0.18, 0.15],
+        [1318.5, 4.78, 0.42, 0.18]
+      ];
+
+      toque.forEach(([frequencia, inicio, duracao, volume]) => {
+        tocarNota(ctx, frequencia, inicio, duracao, volume);
+      });
 
       setTimeout(async () => {
         alertaSonoroEmExecucao = false;
@@ -1629,14 +1648,14 @@
           alertaSonoroFila--;
           tocarToqueNovoPedido(false);
         }
-      }, 1650);
+      }, 5550);
 
       const btn = document.getElementById('soundToggle');
       if (btn && !preview) {
         btn.classList.remove('sound-alert');
         void btn.offsetWidth;
         btn.classList.add('sound-alert');
-        setTimeout(() => btn.classList.remove('sound-alert'), 2500);
+        setTimeout(() => btn.classList.remove('sound-alert'), 5500);
       }
     }
 
