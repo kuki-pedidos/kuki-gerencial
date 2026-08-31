@@ -902,8 +902,8 @@
           <span>🕐</span> Horários
         </button>
 
-        <button onclick="selectMenu(this, 'KUKI Inteligência')">
-          <span>🤖</span> KUKI Inteligência
+        <button onclick="selectMenu(this, 'Análises')">
+          <span>📈</span> Análises
         </button>
 
 
@@ -959,7 +959,6 @@
         </div>
 
         <div class="topbar-actions">
-          <button class="topbar-ai-button" onclick="selectMenuByName('KUKI Inteligência')">🤖 KUKI IA</button>
           <div class="date-box" id="currentDate"></div>
         </div>
 
@@ -970,84 +969,82 @@
 
       <div id="dashboardContent">
 
-        <div class="dashboard-filter-bar">
-          <div>
-            <div style="font-weight:900;font-size:18px;">Visão geral da operação</div>
-            <div style="font-size:12px;color:var(--cinza);margin-top:4px;">Indicadores calculados automaticamente a partir dos dados da loja.</div>
-          </div>
-          <div class="period-buttons">
-            <button class="period-button active" data-period="7" onclick="alterarPeriodoDashboard(7,this)">7 dias</button>
-            <button class="period-button" data-period="30" onclick="alterarPeriodoDashboard(30,this)">30 dias</button>
-            <button class="period-button" data-period="90" onclick="alterarPeriodoDashboard(90,this)">90 dias</button>
-            <button class="dashboard-refresh" onclick="atualizarDashboardInteligente(true)">↻ Atualizar</button>
-          </div>
-        </div>
-
-        <div class="cards">
-          <button class="card dashboard-card-action card-novos-destaque" type="button" onclick="abrirPedidosFiltrados('NOVOS')">
+        <div class="cards"><button class="card dashboard-card-action card-novos-destaque" type="button" onclick="abrirPedidosFiltrados('NOVOS')">
             <div class="novo-alerta-pulse" aria-hidden="true"></div><div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
             <div class="card-hint">Ver somente pedidos com status NOVO</div>
           </button>
+
           <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('HOJE')">
             <div class="card-icon">📦</div>
             <div class="card-label">PEDIDOS HOJE</div>
             <div class="card-value" id="pedidosHoje">0</div>
             <div class="card-hint">Ver todos os pedidos de hoje</div>
           </button>
+
         </div>
 
-        <div class="smart-cards">
-          <div class="smart-card"><div class="smart-card-label">💰 Faturamento do período</div><div class="smart-card-value" id="smartFaturamento">R$ 0,00</div><div class="smart-card-foot" id="smartFaturamentoTrend">Calculando...</div></div>
-          <div class="smart-card"><div class="smart-card-label">📦 Pedidos do período</div><div class="smart-card-value" id="smartPedidos">0</div><div class="smart-card-foot" id="smartPedidosTrend">Calculando...</div></div>
-          <div class="smart-card"><div class="smart-card-label">🎯 Ticket médio</div><div class="smart-card-value" id="smartTicket">R$ 0,00</div><div class="smart-card-foot" id="smartTicketTrend">Calculando...</div></div>
-          <div class="smart-card"><div class="smart-card-label">👥 Clientes</div><div class="smart-card-value" id="smartClientes">—</div><div class="smart-card-foot" id="smartClientesTrend">Base cadastrada</div></div>
-        </div>
 
-        <div class="analytics-grid">
-          <div class="panel chart-panel">
+        <div class="content-grid dashboard-quick-grid">
+
+          <div class="panel">
+
             <div class="panel-header">
-              <div><h2>📈 Evolução das vendas</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Faturamento por dia</p></div>
-              <strong id="chartPeriodLabel" style="font-size:12px;color:var(--cinza);">Últimos 7 dias</strong>
+              <h2>Acesso rápido</h2>
             </div>
-            <div class="chart-wrap" id="salesChart"><div class="chart-empty">Carregando análise...</div></div>
-            <div class="chart-legend"><span id="chartStartLabel">—</span><span id="chartEndLabel">—</span></div>
-          </div>
 
-          <div class="insight-panel">
-            <div class="insight-head"><div class="ai-orb">🤖</div><div><h2 style="font-size:18px;">KUKI Inteligência</h2><p style="font-size:12px;color:var(--cinza);margin-top:3px;">Leitura automática dos indicadores</p></div></div>
-            <div class="insight-list" id="dashboardInsights">
-              <div class="insight-item"><strong>⏳ Analisando...</strong>Estamos calculando os principais sinais da operação.</div>
+            <div style="display:grid; gap:12px;">
+
+              <button
+                onclick="selectMenuByName('Pedidos')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
+              >
+                📦 Gerenciar pedidos
+              </button>
+
+              <button
+                onclick="selectMenuByName('Produtos')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
+              >
+                🍪 Gerenciar produtos
+              </button>
+
+              <button
+                onclick="selectMenuByName('Horários')"
+                style="
+                  padding:15px;
+                  border:1px solid #e8ddd3;
+                  background:#fff;
+                  border-radius:12px;
+                  cursor:pointer;
+                  text-align:left;
+                  font-weight:bold;
+                "
+              >
+                🕐 Alterar horários
+              </button>
+
             </div>
-          </div>
-        </div>
 
-        <div class="mini-grid">
-          <div class="panel">
-            <div class="panel-header"><div><h2>🏆 Produtos em destaque</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Ranking com base nos itens de pedidos disponíveis.</p></div></div>
-            <div class="rank-list" id="topProducts"><div class="empty-state" style="padding:25px;">Carregando...</div></div>
           </div>
-          <div class="panel">
-            <div class="panel-header"><div><h2>🔔 Central de atenção</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Sinais que merecem sua atenção.</p></div></div>
-            <div class="alert-grid" id="smartAlerts"><div class="smart-alert"><div class="smart-alert-icon">⏳</div><div><strong>Preparando análise</strong><span>Os alertas serão atualizados com os dados disponíveis.</span></div></div></div>
-          </div>
-        </div>
 
-        <div class="panel" style="margin-top:18px;">
-          <div class="panel-header"><div><h2>🔮 Tendência projetada</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Estimativa simples baseada no ritmo recente de pedidos.</p></div><span class="status-pill">Estimativa</span></div>
-          <div id="forecastBox" class="smart-alert"><div class="smart-alert-icon">⏳</div><div><strong>Calculando projeção...</strong><span>Aguarde os indicadores do período.</span></div></div>
-        </div>
-
-        <div class="content-grid dashboard-quick-grid" style="margin-top:18px;">
-          <div class="panel">
-            <div class="panel-header"><h2>Acesso rápido</h2><button class="panel-link" onclick="selectMenuByName('KUKI Inteligência')">🤖 Abrir IA</button></div>
-            <div style="display:grid;gap:12px;">
-              <button onclick="selectMenuByName('Pedidos')" style="padding:15px;border:1px solid #e8ddd3;background:#fff;border-radius:12px;cursor:pointer;text-align:left;font-weight:bold;">📦 Gerenciar pedidos</button>
-              <button onclick="selectMenuByName('Produtos')" style="padding:15px;border:1px solid #e8ddd3;background:#fff;border-radius:12px;cursor:pointer;text-align:left;font-weight:bold;">🍪 Gerenciar produtos</button>
-              <button onclick="selectMenuByName('Financeiro')" style="padding:15px;border:1px solid #e8ddd3;background:#fff;border-radius:12px;cursor:pointer;text-align:left;font-weight:bold;">💰 Ver financeiro</button>
-            </div>
-          </div>
         </div>
 
       </div>
@@ -1276,7 +1273,6 @@
             : 'Não há pedidos novos'
         );
       }
-      atualizarDashboardInteligente(false);
     }
 
     function renderRecentOrders() {
@@ -1478,13 +1474,62 @@
 
     function renderKukiIAModule(){
       const container=document.getElementById('moduleContent');
-      container.innerHTML='<div class="ai-module">'+
-      '<div class="ai-chat"><div class="ai-chat-head"><div class="ai-orb">🤖</div><div><h2 style="font-size:18px;">KUKI Inteligência</h2><div class="ai-status">Assistente de gestão</div></div></div>'+
-      '<div class="ai-chat-body" id="aiChatBody"><div class="ai-message assistant">Olá! Eu sou a KUKI Inteligência. Posso analisar vendas, pedidos, produtos, clientes e indicadores financeiros com base nos dados disponíveis no gerencial. 🍪</div></div>'+
-      '<div class="ai-chat-input"><textarea id="aiQuestion" placeholder="Ex.: Como estão as vendas nos últimos 30 dias?"></textarea><button class="ai-send" id="aiSendButton" onclick="perguntarKukiIA()">ENVIAR</button></div></div>'+
-      '<div class="panel"><h2 style="margin-bottom:14px;">Perguntas rápidas</h2><div class="ai-suggestions">'+
-      ['Analise as vendas dos últimos 7 dias.','Qual foi o melhor dia de vendas?','Quais produtos estão em destaque?','Como está o ticket médio?','Quais pontos merecem atenção?','Faça um resumo executivo da loja.'].map(q=>'<button class="ai-suggestion" onclick="usarPerguntaIA('+JSON.stringify(q)+')">'+escapeHtml(q)+'</button>').join('')+
-      '</div><div class="ai-note">A interface chama um webhook do n8n. A chave do provedor de IA deve permanecer no servidor.</div></div></div>';
+      container.innerHTML=`
+        <div class="module-panel" style="margin-bottom:18px;">
+          <div class="module-toolbar">
+            <div>
+              <h2>📈 Análises da KUKI</h2>
+              <p style="color:var(--cinza);margin-top:6px;">Indicadores, tendências e leitura dos dados da loja.</p>
+            </div>
+            <div class="actions-inline">
+              <button type="button" class="secondary-button" onclick="alterarPeriodoDashboard(7)">7 dias</button>
+              <button type="button" class="secondary-button" onclick="alterarPeriodoDashboard(30)">30 dias</button>
+              <button type="button" class="secondary-button" onclick="alterarPeriodoDashboard(90)">90 dias</button>
+              <button type="button" class="primary-button" onclick="atualizarDashboardInteligente(true)">↻ Atualizar</button>
+            </div>
+          </div>
+
+          <div class="smart-cards">
+            <div class="smart-card"><div class="smart-card-label">💰 Faturamento do período</div><div class="smart-card-value" id="smartFaturamento">R$ 0,00</div><div class="smart-card-foot" id="smartFaturamentoTrend">Calculando...</div></div>
+            <div class="smart-card"><div class="smart-card-label">📦 Pedidos do período</div><div class="smart-card-value" id="smartPedidos">0</div><div class="smart-card-foot" id="smartPedidosTrend">Calculando...</div></div>
+            <div class="smart-card"><div class="smart-card-label">🎯 Ticket médio</div><div class="smart-card-value" id="smartTicket">R$ 0,00</div><div class="smart-card-foot" id="smartTicketTrend">Calculando...</div></div>
+            <div class="smart-card"><div class="smart-card-label">👥 Clientes cadastrados</div><div class="smart-card-value" id="smartClientes">—</div><div class="smart-card-foot">Base cadastrada</div></div>
+          </div>
+        </div>
+
+        <div class="analytics-grid">
+          <div class="panel chart-panel">
+            <div class="panel-header"><div><h2>📈 Evolução das vendas</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Faturamento por dia</p></div><strong id="chartPeriodLabel" style="font-size:12px;color:var(--cinza);">Últimos 7 dias</strong></div>
+            <div class="chart-wrap" id="salesChart"><div class="chart-empty">Carregando análise...</div></div>
+            <div class="chart-legend"><span id="chartStartLabel">—</span><span id="chartEndLabel">—</span></div>
+          </div>
+          <div class="insight-panel">
+            <div class="insight-head"><div class="ai-orb">🤖</div><div><h2 style="font-size:18px;">Leitura automática</h2><p style="font-size:12px;color:var(--cinza);margin-top:3px;">Principais sinais encontrados</p></div></div>
+            <div class="insight-list" id="dashboardInsights"><div class="insight-item"><strong>⏳ Analisando...</strong>Estamos calculando os principais indicadores.</div></div>
+          </div>
+        </div>
+
+        <div class="mini-grid" style="margin-top:18px;">
+          <div class="panel"><div class="panel-header"><div><h2>🏆 Produtos em destaque</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Ranking com base nos itens de pedidos.</p></div></div><div class="rank-list" id="topProducts"><div class="empty-state" style="padding:25px;">Carregando...</div></div></div>
+          <div class="panel"><div class="panel-header"><div><h2>🔔 Central de atenção</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Pontos que merecem atenção.</p></div></div><div class="alert-grid" id="smartAlerts"><div class="smart-alert"><div class="smart-alert-icon">⏳</div><div><strong>Preparando análise</strong><span>Os alertas serão atualizados com os dados disponíveis.</span></div></div></div></div>
+        </div>
+
+        <div class="panel" style="margin-top:18px;">
+          <div class="panel-header"><div><h2>🔮 Tendência projetada</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Estimativa simples baseada no ritmo recente.</p></div><span class="status-pill">Estimativa</span></div>
+          <div id="forecastBox" class="smart-alert"><div class="smart-alert-icon">⏳</div><div><strong>Calculando projeção...</strong><span>Aguarde os indicadores do período.</span></div></div>
+        </div>
+
+        <div class="ai-module" style="margin-top:18px;">
+          <div class="ai-chat">
+            <div class="ai-chat-head"><div class="ai-orb">🤖</div><div><h2 style="font-size:18px;">KUKI Inteligência</h2><div class="ai-status">Assistente de gestão</div></div></div>
+            <div class="ai-chat-body" id="aiChatBody"><div class="ai-message assistant">Olá! Eu sou a KUKI Inteligência. Posso analisar vendas, pedidos, produtos, clientes e indicadores financeiros com base nos dados disponíveis no gerencial. 🍪</div></div>
+            <div class="ai-chat-input"><textarea id="aiQuestion" placeholder="Ex.: Como estão as vendas nos últimos 30 dias?"></textarea><button class="ai-send" id="aiSendButton" onclick="perguntarKukiIA()">ENVIAR</button></div>
+          </div>
+          <div class="panel"><h2 style="margin-bottom:14px;">Perguntas rápidas</h2><div class="ai-suggestions">`+
+          ['Analise as vendas dos últimos 7 dias.','Qual foi o melhor dia de vendas?','Quais produtos estão em destaque?','Como está o ticket médio?','Quais pontos merecem atenção?','Faça um resumo executivo da loja.'].map(q=>'<button class="ai-suggestion" onclick="usarPerguntaIA('+JSON.stringify(q)+')">'+escapeHtml(q)+'</button>').join('')+
+          `</div><div class="ai-note">A interface chama um webhook do n8n. A chave do provedor de IA permanece no servidor.</div></div>
+        </div>`;
+      atualizarDashboardInteligente(true);
     }
 
     function usarPerguntaIA(q){const input=document.getElementById('aiQuestion');if(!input)return;input.value=q;input.focus();}
@@ -2442,7 +2487,7 @@ return true;
       'formas-de-entrega':'Formas de entrega',
       'horarios':'Horários',
       'configuracoes':'Configurações',
-      'kuki-inteligencia':'KUKI Inteligência'
+      'analises':'Análises'
     };
     function moduleToRoute(name){
       return Object.keys(ROUTE_TO_MODULE).find(route => ROUTE_TO_MODULE[route]===name) || 'dashboard';
@@ -2482,7 +2527,7 @@ return true;
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro','Análises':'Indicadores, tendências e inteligência da loja'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
@@ -2490,7 +2535,7 @@ return true;
       if (name === 'Horários') renderHorariosModule();
       else if (name === 'Financeiro') renderFinanceiroModule();
       else if (name === 'Pedidos') renderPedidosModule();
-      else if (name === 'KUKI Inteligência') renderKukiIAModule();
+      else if (name === 'Análises') renderKukiIAModule();
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
