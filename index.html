@@ -902,6 +902,10 @@
           <span>🕐</span> Horários
         </button>
 
+        <button onclick="selectMenu(this, 'KUKI Inteligência')">
+          <span>🤖</span> KUKI Inteligência
+        </button>
+
 
       </nav>
 
@@ -955,6 +959,7 @@
         </div>
 
         <div class="topbar-actions">
+          <button class="topbar-ai-button" onclick="selectMenuByName('KUKI Inteligência')">🤖 KUKI IA</button>
           <div class="date-box" id="currentDate"></div>
         </div>
 
@@ -965,82 +970,84 @@
 
       <div id="dashboardContent">
 
-        <div class="cards"><button class="card dashboard-card-action card-novos-destaque" type="button" onclick="abrirPedidosFiltrados('NOVOS')">
+        <div class="dashboard-filter-bar">
+          <div>
+            <div style="font-weight:900;font-size:18px;">Visão geral da operação</div>
+            <div style="font-size:12px;color:var(--cinza);margin-top:4px;">Indicadores calculados automaticamente a partir dos dados da loja.</div>
+          </div>
+          <div class="period-buttons">
+            <button class="period-button active" data-period="7" onclick="alterarPeriodoDashboard(7,this)">7 dias</button>
+            <button class="period-button" data-period="30" onclick="alterarPeriodoDashboard(30,this)">30 dias</button>
+            <button class="period-button" data-period="90" onclick="alterarPeriodoDashboard(90,this)">90 dias</button>
+            <button class="dashboard-refresh" onclick="atualizarDashboardInteligente(true)">↻ Atualizar</button>
+          </div>
+        </div>
+
+        <div class="cards">
+          <button class="card dashboard-card-action card-novos-destaque" type="button" onclick="abrirPedidosFiltrados('NOVOS')">
             <div class="novo-alerta-pulse" aria-hidden="true"></div><div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
             <div class="card-hint">Ver somente pedidos com status NOVO</div>
           </button>
-
           <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('HOJE')">
             <div class="card-icon">📦</div>
             <div class="card-label">PEDIDOS HOJE</div>
             <div class="card-value" id="pedidosHoje">0</div>
             <div class="card-hint">Ver todos os pedidos de hoje</div>
           </button>
-
         </div>
 
+        <div class="smart-cards">
+          <div class="smart-card"><div class="smart-card-label">💰 Faturamento do período</div><div class="smart-card-value" id="smartFaturamento">R$ 0,00</div><div class="smart-card-foot" id="smartFaturamentoTrend">Calculando...</div></div>
+          <div class="smart-card"><div class="smart-card-label">📦 Pedidos do período</div><div class="smart-card-value" id="smartPedidos">0</div><div class="smart-card-foot" id="smartPedidosTrend">Calculando...</div></div>
+          <div class="smart-card"><div class="smart-card-label">🎯 Ticket médio</div><div class="smart-card-value" id="smartTicket">R$ 0,00</div><div class="smart-card-foot" id="smartTicketTrend">Calculando...</div></div>
+          <div class="smart-card"><div class="smart-card-label">👥 Clientes</div><div class="smart-card-value" id="smartClientes">—</div><div class="smart-card-foot" id="smartClientesTrend">Base cadastrada</div></div>
+        </div>
 
-        <div class="content-grid dashboard-quick-grid">
-
-          <div class="panel">
-
+        <div class="analytics-grid">
+          <div class="panel chart-panel">
             <div class="panel-header">
-              <h2>Acesso rápido</h2>
+              <div><h2>📈 Evolução das vendas</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Faturamento por dia</p></div>
+              <strong id="chartPeriodLabel" style="font-size:12px;color:var(--cinza);">Últimos 7 dias</strong>
             </div>
-
-            <div style="display:grid; gap:12px;">
-
-              <button
-                onclick="selectMenuByName('Pedidos')"
-                style="
-                  padding:15px;
-                  border:1px solid #e8ddd3;
-                  background:#fff;
-                  border-radius:12px;
-                  cursor:pointer;
-                  text-align:left;
-                  font-weight:bold;
-                "
-              >
-                📦 Gerenciar pedidos
-              </button>
-
-              <button
-                onclick="selectMenuByName('Produtos')"
-                style="
-                  padding:15px;
-                  border:1px solid #e8ddd3;
-                  background:#fff;
-                  border-radius:12px;
-                  cursor:pointer;
-                  text-align:left;
-                  font-weight:bold;
-                "
-              >
-                🍪 Gerenciar produtos
-              </button>
-
-              <button
-                onclick="selectMenuByName('Horários')"
-                style="
-                  padding:15px;
-                  border:1px solid #e8ddd3;
-                  background:#fff;
-                  border-radius:12px;
-                  cursor:pointer;
-                  text-align:left;
-                  font-weight:bold;
-                "
-              >
-                🕐 Alterar horários
-              </button>
-
-            </div>
-
+            <div class="chart-wrap" id="salesChart"><div class="chart-empty">Carregando análise...</div></div>
+            <div class="chart-legend"><span id="chartStartLabel">—</span><span id="chartEndLabel">—</span></div>
           </div>
 
+          <div class="insight-panel">
+            <div class="insight-head"><div class="ai-orb">🤖</div><div><h2 style="font-size:18px;">KUKI Inteligência</h2><p style="font-size:12px;color:var(--cinza);margin-top:3px;">Leitura automática dos indicadores</p></div></div>
+            <div class="insight-list" id="dashboardInsights">
+              <div class="insight-item"><strong>⏳ Analisando...</strong>Estamos calculando os principais sinais da operação.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mini-grid">
+          <div class="panel">
+            <div class="panel-header"><div><h2>🏆 Produtos em destaque</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Ranking com base nos itens de pedidos disponíveis.</p></div></div>
+            <div class="rank-list" id="topProducts"><div class="empty-state" style="padding:25px;">Carregando...</div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div><h2>🔔 Central de atenção</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Sinais que merecem sua atenção.</p></div></div>
+            <div class="alert-grid" id="smartAlerts"><div class="smart-alert"><div class="smart-alert-icon">⏳</div><div><strong>Preparando análise</strong><span>Os alertas serão atualizados com os dados disponíveis.</span></div></div></div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:18px;">
+          <div class="panel-header"><div><h2>🔮 Tendência projetada</h2><p style="font-size:12px;color:var(--cinza);margin-top:4px;">Estimativa simples baseada no ritmo recente de pedidos.</p></div><span class="status-pill">Estimativa</span></div>
+          <div id="forecastBox" class="smart-alert"><div class="smart-alert-icon">⏳</div><div><strong>Calculando projeção...</strong><span>Aguarde os indicadores do período.</span></div></div>
+        </div>
+
+        <div class="content-grid dashboard-quick-grid" style="margin-top:18px;">
+          <div class="panel">
+            <div class="panel-header"><h2>Acesso rápido</h2><button class="panel-link" onclick="selectMenuByName('KUKI Inteligência')">🤖 Abrir IA</button></div>
+            <div style="display:grid;gap:12px;">
+              <button onclick="selectMenuByName('Pedidos')" style="padding:15px;border:1px solid #e8ddd3;background:#fff;border-radius:12px;cursor:pointer;text-align:left;font-weight:bold;">📦 Gerenciar pedidos</button>
+              <button onclick="selectMenuByName('Produtos')" style="padding:15px;border:1px solid #e8ddd3;background:#fff;border-radius:12px;cursor:pointer;text-align:left;font-weight:bold;">🍪 Gerenciar produtos</button>
+              <button onclick="selectMenuByName('Financeiro')" style="padding:15px;border:1px solid #e8ddd3;background:#fff;border-radius:12px;cursor:pointer;text-align:left;font-weight:bold;">💰 Ver financeiro</button>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -1269,6 +1276,7 @@
             : 'Não há pedidos novos'
         );
       }
+      atualizarDashboardInteligente(false);
     }
 
     function renderRecentOrders() {
@@ -1339,6 +1347,163 @@
       if ('Notification' in window && Notification.permission === 'default') {
         try { await Notification.requestPermission(); } catch(e) {}
       }
+    }
+
+
+    /* =====================================================
+       KUKI INTELIGÊNCIA
+       A IA é chamada pelo n8n. Nenhuma chave de provedor
+       de IA fica exposta no navegador.
+    ====================================================== */
+    const KUKI_IA_WEBHOOK_URL = 'https://n8n.rikasolucoes.com.br/webhook/kuki/ia-gerencial';
+    let dashboardPeriodo = 7;
+    let dashboardAnalytics = null;
+    let dashboardAnalyticsAt = 0;
+    let produtosAnalyticsCache = [];
+    let clientesAnalyticsCount = null;
+
+    function getPedidoTotal(p) {
+      const v = getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor','VALOR'],'0');
+      const n = Number(String(v ?? 0).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'));
+      return isFinite(n) ? n : 0;
+    }
+
+    function pedidosNoPeriodo(days) {
+      const now=new Date(), inicio=new Date(now);
+      inicio.setHours(0,0,0,0); inicio.setDate(inicio.getDate()-(days-1));
+      return pedidosCache.filter(p=>{
+        const d=new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));
+        return !isNaN(d)&&d>=inicio&&d<=now;
+      });
+    }
+
+    function formatPercent(v) {
+      if(!isFinite(v)) return '—';
+      const sign=v>0?'+':'';
+      return sign+v.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+    }
+
+    function trendText(current,previous,label) {
+      if(!previous) return 'Sem histórico comparável';
+      const pct=((current-previous)/previous)*100;
+      return (label?label+' ':'')+formatPercent(pct)+' vs. período anterior';
+    }
+
+    function renderSalesChart(rows) {
+      const el=document.getElementById('salesChart'); if(!el)return;
+      if(!rows.length||rows.every(r=>r.value===0)){el.innerHTML='<div class="chart-empty">Ainda não há faturamento suficiente para desenhar o gráfico.</div>';return;}
+      const w=800,h=220,pad=18,max=Math.max(...rows.map(r=>r.value),1);
+      const pts=rows.map((r,i)=>{const x=pad+i*(w-pad*2)/Math.max(rows.length-1,1);const y=h-pad-(r.value/max)*(h-pad*2);return [x,y];});
+      const line=pts.map(p=>p.join(',')).join(' ');
+      const area='M '+pts[0][0]+' '+(h-pad)+' L '+pts.map(p=>p.join(' ')).join(' L ')+' L '+pts[pts.length-1][0]+' '+(h-pad)+' Z';
+      const grid=[.25,.5,.75].map(v=>{const y=h-pad-(h-pad*2)*v;return '<line x1="'+pad+'" y1="'+y+'" x2="'+(w-pad)+'" y2="'+y+'" stroke="#eadfd6" stroke-width="1"/>';}).join('');
+      const dots=pts.map((p,i)=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.5" fill="#a9001d"><title>'+escapeHtml(rows[i].label)+': '+escapeHtml(formatMoney(rows[i].value))+'</title></circle>').join('');
+      el.innerHTML='<svg class="chart-svg" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none">'+grid+'<path d="'+area+'" fill="#f8eee4" opacity=".85"></path><polyline points="'+line+'" fill="none" stroke="#a9001d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>'+dots+'</svg>';
+      const s=document.getElementById('chartStartLabel'),e=document.getElementById('chartEndLabel');if(s)s.textContent=rows[0].label;if(e)e.textContent=rows[rows.length-1].label;
+    }
+
+    function generateInsights(data) {
+      const box=document.getElementById('dashboardInsights'),alerts=document.getElementById('smartAlerts');if(!box||!alerts)return;
+      const items=[];
+      if(!data.orders)items.push(['📦 Movimento','Nenhum pedido no período selecionado.']);
+      else items.push(['📊 Ritmo de vendas',data.orders+' pedido(s) no período, com ticket médio de '+formatMoney(data.ticket)+'.']);
+      if(data.revenueTrend!==null)items.push([data.revenueTrend>=0?'📈 Crescimento':'📉 Queda','O faturamento está '+formatPercent(data.revenueTrend)+' em relação ao período anterior.']);
+      if(data.bestDay)items.push(['🔥 Melhor dia',data.bestDay.label+' concentrou '+formatMoney(data.bestDay.value)+' em faturamento.']);
+      if(data.bestHour)items.push(['⏰ Horário de pico','Maior concentração de pedidos por volta de '+data.bestHour+'.']);
+      box.innerHTML=items.slice(0,4).map(x=>'<div class="insight-item"><strong>'+escapeHtml(x[0])+'</strong>'+escapeHtml(x[1])+'</div>').join('');
+      const a=[],newOrders=pedidosCache.filter(p=>['NOVO','NOVOS'].includes(String(getValue(p,['status','STATUS'],'')).toUpperCase().trim())).length;
+      if(newOrders)a.push(['🔴','Pedidos aguardando ação',newOrders+' pedido(s) com status NOVO.']);
+      if(data.revenueTrend!==null&&data.revenueTrend<-10)a.push(['⚠️','Queda de faturamento','O período está mais de 10% abaixo do anterior.']);
+      if(data.orders&&data.ticket<20)a.push(['💡','Ticket médio','Considere combos, adicionais ou campanhas para elevar o valor por pedido.']);
+      if(!a.length)a.push(['🟢','Operação estável','Nenhum alerta crítico identificado com os dados disponíveis.']);
+      alerts.innerHTML=a.map(x=>'<div class="smart-alert"><div class="smart-alert-icon">'+x[0]+'</div><div><strong>'+escapeHtml(x[1])+'</strong><span>'+escapeHtml(x[2])+'</span></div></div>').join('');
+    }
+
+    async function carregarProdutosParaAnalytics(){
+      try{const rows=await getTable('ITENS_PEDIDO','?select=*');produtosAnalyticsCache=Array.isArray(rows)?rows:[];}catch(e){produtosAnalyticsCache=[];}
+    }
+
+    function renderTopProducts(){
+      const el=document.getElementById('topProducts');if(!el)return;
+      if(!produtosAnalyticsCache.length){el.innerHTML='<div class="empty-state" style="padding:25px;"><div class="empty-state-icon">🍪</div><strong>Ranking de produtos ainda indisponível</strong><p style="margin-top:6px;font-size:12px;">Não foram encontrados dados legíveis em ITENS_PEDIDO.</p></div>';return;}
+      const map={};
+      produtosAnalyticsCache.forEach(item=>{const name=getValue(item,['produto_nome','PRODUTO_NOME','nome_produto','NOME_PRODUTO','produto','PRODUTO','descricao','DESCRICAO','nome','NOME'],'Produto');const qty=Number(getValue(item,['quantidade','QUANTIDADE','qtd','QTD'],'1'))||1;map[String(name)]=(map[String(name)]||0)+qty;});
+      const arr=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      el.innerHTML=arr.map((r,i)=>'<div class="rank-row"><div class="rank-number">'+(i+1)+'</div><div class="rank-name">'+escapeHtml(r[0])+'</div><div class="rank-value">'+r[1]+' un.</div></div>').join('');
+    }
+
+    async function carregarClientesAnalytics(){
+      try{const rows=await getTable('CLIENTES','?select=*');clientesAnalyticsCount=Array.isArray(rows)?rows.length:null;}catch(e){clientesAnalyticsCount=null;}
+      const el=document.getElementById('smartClientes');if(el)el.textContent=clientesAnalyticsCount===null?'—':clientesAnalyticsCount.toLocaleString('pt-BR');
+    }
+
+    async function calcularDashboardAnalytics(days){
+      const current=pedidosNoPeriodo(days), ps=new Date();ps.setHours(0,0,0,0);ps.setDate(ps.getDate()-days);
+      const pe=new Date(ps);pe.setDate(pe.getDate()+days);
+      const previous=pedidosCache.filter(p=>{const d=new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));return !isNaN(d)&&d>=ps&&d<pe;});
+      const revenue=current.reduce((s,p)=>s+getPedidoTotal(p),0),prevRevenue=previous.reduce((s,p)=>s+getPedidoTotal(p),0);
+      const ticket=current.length?revenue/current.length:0,prevTicket=previous.length?prevRevenue/previous.length:0;
+      const revenueTrend=prevRevenue?((revenue-prevRevenue)/prevRevenue)*100:null,ordersTrend=previous.length?((current.length-previous.length)/previous.length)*100:null,ticketTrend=prevTicket?((ticket-prevTicket)/prevTicket)*100:null;
+      const daily={};current.forEach(p=>{const d=new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));const k=localDateKey(d);daily[k]=(daily[k]||0)+getPedidoTotal(p);});
+      const rows=[];for(let i=days-1;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);rows.push({key:localDateKey(d),label:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),value:daily[localDateKey(d)]||0});}
+      const bestDay=rows.reduce((a,b)=>b.value>a.value?b:a,rows[0]||null),hourMap={};current.forEach(p=>{const d=new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));const h=d.getHours();hourMap[h]=(hourMap[h]||0)+1;});
+      let bestHour=null,bestHourCount=0;Object.entries(hourMap).forEach(([h,n])=>{if(n>bestHourCount){bestHourCount=n;bestHour=String(h).padStart(2,'0')+'h';}});
+      return {revenue,orders:current.length,ticket,prevRevenue,prevOrders:previous.length,prevTicket,revenueTrend,ordersTrend,ticketTrend,rows,bestDay,bestHour};
+    }
+
+    function renderForecast(data){
+      const el=document.getElementById('forecastBox');if(!el)return;
+      if(!data.orders){el.innerHTML='<div class="smart-alert-icon">ℹ️</div><div><strong>Sem base para projeção</strong><span>Não há pedidos suficientes no período selecionado.</span></div>';return;}
+      const dailyAvg=data.orders/dashboardPeriodo,projectedOrders=Math.round(dailyAvg*30),projectedRevenue=dailyAvg*30*data.ticket;
+      el.innerHTML='<div class="smart-alert-icon">🔮</div><div><strong>Ritmo atual: '+dailyAvg.toLocaleString('pt-BR',{maximumFractionDigits:1})+' pedido(s)/dia</strong><span>Se o ritmo se mantiver, a projeção mensal é de aproximadamente '+projectedOrders+' pedidos e '+formatMoney(projectedRevenue)+' em faturamento. É uma estimativa, não uma previsão garantida.</span></div>';
+    }
+
+    async function atualizarDashboardInteligente(force=false){
+      const now=Date.now();if(!force&&now-dashboardAnalyticsAt<60000&&dashboardAnalytics)return;
+      dashboardAnalyticsAt=now;dashboardAnalytics=await calcularDashboardAnalytics(dashboardPeriodo);const d=dashboardAnalytics;
+      const f=document.getElementById('smartFaturamento'),o=document.getElementById('smartPedidos'),t=document.getElementById('smartTicket');if(f)f.textContent=formatMoney(d.revenue);if(o)o.textContent=d.orders;if(t)t.textContent=formatMoney(d.ticket);
+      const ft=document.getElementById('smartFaturamentoTrend'),ot=document.getElementById('smartPedidosTrend'),tt=document.getElementById('smartTicketTrend');
+      if(ft){ft.textContent=d.revenueTrend===null?'Sem período anterior':trendText(d.revenue,d.prevRevenue,'');ft.className='smart-card-foot '+(d.revenueTrend>0?'trend-up':d.revenueTrend<0?'trend-down':'trend-neutral');}
+      if(ot){ot.textContent=d.ordersTrend===null?'Sem período anterior':trendText(d.orders,d.prevOrders,'');ot.className='smart-card-foot '+(d.ordersTrend>0?'trend-up':d.ordersTrend<0?'trend-down':'trend-neutral');}
+      if(tt){tt.textContent=d.ticketTrend===null?'Sem período anterior':trendText(d.ticket,d.prevTicket,'');tt.className='smart-card-foot '+(d.ticketTrend>0?'trend-up':d.ticketTrend<0?'trend-down':'trend-neutral');}
+      const label=document.getElementById('chartPeriodLabel');if(label)label.textContent='Últimos '+dashboardPeriodo+' dias';
+      renderSalesChart(d.rows);generateInsights(d);renderForecast(d);
+      if(!produtosAnalyticsCache.length)await carregarProdutosParaAnalytics();renderTopProducts();
+      if(clientesAnalyticsCount===null)await carregarClientesAnalytics();
+    }
+
+    function alterarPeriodoDashboard(days,button){
+      dashboardPeriodo=days;document.querySelectorAll('.period-button').forEach(b=>b.classList.toggle('active',b===button));dashboardAnalyticsAt=0;atualizarDashboardInteligente(true);
+    }
+
+    function renderKukiIAModule(){
+      const container=document.getElementById('moduleContent');
+      container.innerHTML='<div class="ai-module">'+
+      '<div class="ai-chat"><div class="ai-chat-head"><div class="ai-orb">🤖</div><div><h2 style="font-size:18px;">KUKI Inteligência</h2><div class="ai-status">Assistente de gestão</div></div></div>'+
+      '<div class="ai-chat-body" id="aiChatBody"><div class="ai-message assistant">Olá! Eu sou a KUKI Inteligência. Posso analisar vendas, pedidos, produtos, clientes e indicadores financeiros com base nos dados disponíveis no gerencial. 🍪</div></div>'+
+      '<div class="ai-chat-input"><textarea id="aiQuestion" placeholder="Ex.: Como estão as vendas nos últimos 30 dias?"></textarea><button class="ai-send" id="aiSendButton" onclick="perguntarKukiIA()">ENVIAR</button></div></div>'+
+      '<div class="panel"><h2 style="margin-bottom:14px;">Perguntas rápidas</h2><div class="ai-suggestions">'+
+      ['Analise as vendas dos últimos 7 dias.','Qual foi o melhor dia de vendas?','Quais produtos estão em destaque?','Como está o ticket médio?','Quais pontos merecem atenção?','Faça um resumo executivo da loja.'].map(q=>'<button class="ai-suggestion" onclick="usarPerguntaIA('+JSON.stringify(q)+')">'+escapeHtml(q)+'</button>').join('')+
+      '</div><div class="ai-note">A interface chama um webhook do n8n. A chave do provedor de IA deve permanecer no servidor.</div></div></div>';
+    }
+
+    function usarPerguntaIA(q){const input=document.getElementById('aiQuestion');if(!input)return;input.value=q;input.focus();}
+    function adicionarMensagemIA(text,type){const body=document.getElementById('aiChatBody');if(!body)return;const div=document.createElement('div');div.className='ai-message '+type;div.textContent=text;body.appendChild(div);body.scrollTop=body.scrollHeight;}
+
+    async function perguntarKukiIA(){
+      const input=document.getElementById('aiQuestion'),btn=document.getElementById('aiSendButton');if(!input||!btn)return;
+      const question=input.value.trim();if(!question)return;adicionarMensagemIA(question,'user');input.value='';btn.disabled=true;btn.textContent='ANALISANDO...';
+      try{
+        const d=dashboardAnalytics||await calcularDashboardAnalytics(dashboardPeriodo);
+        const payload={cliente:'KUKI',sistema:'KUKI Gerencial',pergunta:question,periodo_dias:dashboardPeriodo,
+          indicadores:{faturamento:d.revenue,pedidos:d.orders,ticket_medio:d.ticket,variacao_faturamento:d.revenueTrend,variacao_pedidos:d.ordersTrend},
+          pedidos_recentes:pedidosCache.slice(0,30).map(p=>({id:getPedidoId(p),status:getPedidoStatus(p),total:getPedidoTotal(p),data:getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''),cliente:getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'')}))};
+        const response=await fetch(KUKI_IA_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const text=await response.text();if(!response.ok)throw new Error('HTTP '+response.status);
+        let data=null;try{data=JSON.parse(text)}catch(e){}
+        adicionarMensagemIA(String(data?.resposta||data?.answer||data?.output||data?.message||text||'A IA não retornou uma resposta.'),'assistant');
+      }catch(e){console.error('KUKI IA:',e);adicionarMensagemIA('O painel está pronto para a IA, mas o webhook do n8n ainda precisa estar publicado e conectado ao provedor de IA.','assistant');}
+      finally{btn.disabled=false;btn.textContent='ENVIAR';}
     }
 
     /* =====================================================
@@ -2276,7 +2441,8 @@ return true;
       'formas-de-pagamento':'Formas de pagamento',
       'formas-de-entrega':'Formas de entrega',
       'horarios':'Horários',
-      'configuracoes':'Configurações'
+      'configuracoes':'Configurações',
+      'kuki-inteligencia':'KUKI Inteligência'
     };
     function moduleToRoute(name){
       return Object.keys(ROUTE_TO_MODULE).find(route => ROUTE_TO_MODULE[route]===name) || 'dashboard';
@@ -2324,6 +2490,7 @@ return true;
       if (name === 'Horários') renderHorariosModule();
       else if (name === 'Financeiro') renderFinanceiroModule();
       else if (name === 'Pedidos') renderPedidosModule();
+      else if (name === 'KUKI Inteligência') renderKukiIAModule();
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
