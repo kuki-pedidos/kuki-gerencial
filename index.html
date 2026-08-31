@@ -1153,8 +1153,10 @@
     let pedidosCache = [];
     let horariosCache = [];
     let ultimoPedidoChave = null;
+    let pedidosConhecidos = new Set();
     let notificacoesPendentes = 0;
     let pollingTimer = null;
+    let pedidosRealtimeChannel = null;
     let moduloAtual = 'Dashboard';
     let filtroPedidosAtivo = 'TODOS';
 
@@ -1210,8 +1212,29 @@
       }
     }
 
+    function parseMoneyValue(value) {
+      if (value === null || value === undefined || value === '') return 0;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+      let text = String(value).trim().replace(/[^\d,.-]/g, '');
+      if (!text) return 0;
+
+      const hasComma = text.includes(',');
+      const hasDot = text.includes('.');
+
+      // Valores vindos do Supabase normalmente são decimais como 24.8/24.80.
+      // Só tratamos o ponto como separador de milhar quando existe vírgula decimal.
+      if (hasComma && hasDot) {
+        text = text.replace(/\./g, '').replace(',', '.');
+      } else if (hasComma) {
+        text = text.replace(',', '.');
+      }
+
+      const n = Number(text);
+      return Number.isFinite(n) ? n : 0;
+    }
+
     function formatMoney(value) {
-      const n = Number(String(value ?? 0).replace(',', '.')) || 0;
+      const n = parseMoneyValue(value);
       return n.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
     }
 
@@ -1233,16 +1256,26 @@
       });
     }
 
-    async function carregarPedidos(initial=false) {
+    async function carregarPedidos(initial=false, notificarNovos=true) {
       try {
         const rows = await getTable('PEDIDOS', '?select=*');
-        pedidosCache = Array.isArray(rows) ? sortPedidos(rows) : [];
-        const latest = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
-        if (!initial && ultimoPedidoChave && latest && latest !== ultimoPedidoChave) {
-          const novos = pedidosCache.filter(p => pedidoKey(p) !== ultimoPedidoChave);
+        const novosDados = Array.isArray(rows) ? sortPedidos(rows) : [];
+
+        if (initial) {
+          pedidosConhecidos = new Set(novosDados.map(pedidoKey));
+        } else if (notificarNovos) {
+          const novos = novosDados.filter(p => {
+            const chave = pedidoKey(p);
+            return chave && !pedidosConhecidos.has(chave);
+          });
           if (novos.length) notificarNovoPedido(novos.length, novos[0]);
+          novosDados.forEach(p => pedidosConhecidos.add(pedidoKey(p)));
+        } else {
+          novosDados.forEach(p => pedidosConhecidos.add(pedidoKey(p)));
         }
-        ultimoPedidoChave = latest;
+
+        pedidosCache = novosDados;
+        ultimoPedidoChave = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
         atualizarDashboard();
         if (moduloAtual === 'Pedidos') renderPedidosModule();
       } catch (error) {
@@ -1250,6 +1283,46 @@
         const recentOrders = document.getElementById('recentOrders');
         if (recentOrders) recentOrders.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os pedidos.</strong><p style="margin-top:8px;">Confira o acesso à tabela PEDIDOS.</p></div>';
       }
+    }
+
+    async function iniciarRealtimePedidos() {
+      if (pedidosRealtimeChannel) return;
+
+      pedidosRealtimeChannel = supabaseClient
+        .channel('kuki-pedidos-realtime')
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'PEDIDOS'
+        }, async (payload) => {
+          const pedido = payload && payload.new ? payload.new : null;
+          if (!pedido) return;
+
+          const chave = pedidoKey(pedido);
+          if (!chave || pedidosConhecidos.has(chave)) return;
+
+          // Marca imediatamente para impedir que o polling dispare o mesmo alerta duas vezes.
+          pedidosConhecidos.add(chave);
+          pedidosCache = sortPedidos([pedido, ...pedidosCache]);
+          atualizarDashboard();
+          if (moduloAtual === 'Pedidos') renderPedidosModule();
+          notificarNovoPedido(1, pedido);
+
+          // Recarrega os dados completos para manter todos os campos do pedido sincronizados.
+          await carregarPedidos(false, false);
+        })
+        .subscribe((status) => {
+          console.log('KUKI Realtime PEDIDOS:', status);
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            showToast('Realtime indisponível', 'O sistema continuará verificando novos pedidos automaticamente.');
+          }
+        });
+    }
+
+    async function pararRealtimePedidos() {
+      if (!pedidosRealtimeChannel) return;
+      try { await supabaseClient.removeChannel(pedidosRealtimeChannel); } catch (e) { console.error('Realtime:', e); }
+      pedidosRealtimeChannel = null;
     }
 
     function localDateKey(value) {
@@ -1461,8 +1534,7 @@
 
     function getPedidoTotal(p) {
       const v = getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor','VALOR'],'0');
-      const n = Number(String(v ?? 0).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'));
-      return isFinite(n) ? n : 0;
+      return parseMoneyValue(v);
     }
 
     function pedidosNoPeriodo(days) {
@@ -1502,17 +1574,17 @@
     function generateInsights(data) {
       const box=document.getElementById('dashboardInsights'),alerts=document.getElementById('smartAlerts');if(!box||!alerts)return;
       const items=[];
-      if(!data.orders)items.push(['📦 Movimento ','Nenhum pedido no período selecionado.']);
-      else items.push(['📊 Ritmo de vendas ',data.orders+' pedido(s) no período, com ticket médio de '+formatMoney(data.ticket)+'.']);
+      if(!data.orders)items.push(['📦 Movimento','Nenhum pedido no período selecionado.']);
+      else items.push(['📊 Ritmo de vendas',data.orders+' pedido(s) no período, com ticket médio de '+formatMoney(data.ticket)+'.']);
       if(data.revenueTrend!==null)items.push([data.revenueTrend>=0?'📈 Crescimento':'📉 Queda','O faturamento está '+formatPercent(data.revenueTrend)+' em relação ao período anterior.']);
-      if(data.bestDay)items.push(['🔥 Melhor dia ',data.bestDay.label+' concentrou '+formatMoney(data.bestDay.value)+' em faturamento.']);
-      if(data.bestHour)items.push(['⏰ Horário de pico ','Maior concentração de pedidos por volta de '+data.bestHour+'.']);
+      if(data.bestDay)items.push(['🔥 Melhor dia',data.bestDay.label+' concentrou '+formatMoney(data.bestDay.value)+' em faturamento.']);
+      if(data.bestHour)items.push(['⏰ Horário de pico','Maior concentração de pedidos por volta de '+data.bestHour+'.']);
       box.innerHTML=items.slice(0,4).map(x=>'<div class="insight-item"><strong>'+escapeHtml(x[0])+'</strong>'+escapeHtml(x[1])+'</div>').join('');
       const a=[],newOrders=pedidosCache.filter(p=>['NOVO','NOVOS'].includes(String(getValue(p,['status','STATUS'],'')).toUpperCase().trim())).length;
-      if(newOrders)a.push(['🔴','Pedidos aguardando ação ',newOrders+' pedido(s) com status NOVO.']);
+      if(newOrders)a.push(['🔴','Pedidos aguardando ação',newOrders+' pedido(s) com status NOVO.']);
       if(data.revenueTrend!==null&&data.revenueTrend<-10)a.push(['⚠️','Queda de faturamento','O período está mais de 10% abaixo do anterior.']);
-      if(data.orders&&data.ticket<20)a.push(['💡','Ticket médio ','Considere combos, adicionais ou campanhas para elevar o valor por pedido.']);
-      if(!a.length)a.push(['🟢','Operação estável ',' Nenhum alerta crítico identificado com os dados disponíveis.']);
+      if(data.orders&&data.ticket<20)a.push(['💡','Ticket médio','Considere combos, adicionais ou campanhas para elevar o valor por pedido.']);
+      if(!a.length)a.push(['🟢','Operação estável','Nenhum alerta crítico identificado com os dados disponíveis.']);
       alerts.innerHTML=a.map(x=>'<div class="smart-alert"><div class="smart-alert-icon">'+x[0]+'</div><div><strong>'+escapeHtml(x[1])+'</strong><span>'+escapeHtml(x[2])+'</span></div></div>').join('');
     }
 
@@ -1552,7 +1624,7 @@
       const el=document.getElementById('forecastBox');if(!el)return;
       if(!data.orders){el.innerHTML='<div class="smart-alert-icon">ℹ️</div><div><strong>Sem base para projeção</strong><span>Não há pedidos suficientes no período selecionado.</span></div>';return;}
       const dailyAvg=data.orders/dashboardPeriodo,projectedOrders=Math.round(dailyAvg*30),projectedRevenue=dailyAvg*30*data.ticket;
-      el.innerHTML='<div class="smart-alert-icon">🔮</div><div><strong>Ritmo atual: '+dailyAvg.toLocaleString('pt-BR',{maximumFractionDigits:1})+' pedido(s)/dia</strong><span> Se o ritmo se mantiver, a projeção mensal é de aproximadamente '+projectedOrders+' pedidos e '+formatMoney(projectedRevenue)+' em faturamento. É uma estimativa, não uma previsão garantida.</span></div>';
+      el.innerHTML='<div class="smart-alert-icon">🔮</div><div><strong>Ritmo atual: '+dailyAvg.toLocaleString('pt-BR',{maximumFractionDigits:1})+' pedido(s)/dia</strong><span>Se o ritmo se mantiver, a projeção mensal é de aproximadamente '+projectedOrders+' pedidos e '+formatMoney(projectedRevenue)+' em faturamento. É uma estimativa, não uma previsão garantida.</span></div>';
     }
 
     async function atualizarDashboardInteligente(force=false){
@@ -2201,6 +2273,8 @@ return true;
       if (event === 'SIGNED_OUT' || !session) {
         if (pollingTimer) clearInterval(pollingTimer);
         pollingTimer = null;
+        pararRealtimePedidos();
+        pedidosConhecidos = new Set();
         appScreen.style.display = 'none';
         loginScreen.style.display = 'flex';
       }
@@ -2215,13 +2289,17 @@ return true;
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
       await pedirPermissaoNotificacao();
       await carregarPedidos(true);
+      await pararRealtimePedidos();
+      await iniciarRealtimePedidos();
       if (pollingTimer) clearInterval(pollingTimer);
-      pollingTimer = setInterval(() => carregarPedidos(false), 10000);
+      pollingTimer = setInterval(() => carregarPedidos(false, true), 10000);
     }
 
     async function logout() {
       if (pollingTimer) clearInterval(pollingTimer);
       pollingTimer = null;
+      await pararRealtimePedidos();
+      pedidosConhecidos = new Set();
       await supabaseClient.auth.signOut();
       appScreen.style.display = 'none'; loginScreen.style.display = 'flex';
       document.getElementById('username').value = ''; document.getElementById('password').value = '';
