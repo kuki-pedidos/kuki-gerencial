@@ -1602,6 +1602,11 @@
 
     function atualizarBadge() {
       const badge = document.getElementById('notificationBadge');
+
+      // O indicador visual pode não existir em algumas telas/versões.
+      // Isso não pode interromper o processamento do pedido em tempo real.
+      if (!badge) return;
+
       badge.textContent = notificacoesPendentes > 99 ? '99+' : notificacoesPendentes;
       badge.style.display = notificacoesPendentes ? 'flex' : 'none';
     }
