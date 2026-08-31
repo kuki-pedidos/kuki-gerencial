@@ -1518,21 +1518,48 @@
 
 
     /* =====================================================
-       ALERTA SONORO DE NOVO PEDIDO
-       O áudio é ativado após interação/login ou pelo botão.
+       ALERTA SONORO DE NOVO PEDIDO - ROBUSTO
+       O navegador exige uma interação do usuário para liberar
+       áudio. Depois de liberado, o estado fica salvo nesta máquina
+       e o áudio é reativado automaticamente quando possível.
     ====================================================== */
     let kukiAudioContext = null;
     let somNovoPedidoAtivo = false;
     let alertaSonoroEmExecucao = false;
+    let alertaSonoroFila = 0;
+    const SOM_STORAGE_KEY = 'kuki_gerencial_som_novo_pedido';
+
+    function somEstaSalvoComoAtivo() {
+      try { return localStorage.getItem(SOM_STORAGE_KEY) === '1'; } catch(e) { return false; }
+    }
+
+    function salvarPreferenciaSom(ativo) {
+      try { localStorage.setItem(SOM_STORAGE_KEY, ativo ? '1' : '0'); } catch(e) {}
+    }
 
     function obterAudioContext() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         if (!AudioCtx) return null;
         if (!kukiAudioContext) kukiAudioContext = new AudioCtx();
-        if (kukiAudioContext.state === 'suspended') kukiAudioContext.resume().catch(() => {});
         return kukiAudioContext;
-      } catch(e) { return null; }
+      } catch(e) {
+        console.warn('Áudio KUKI:', e);
+        return null;
+      }
+    }
+
+    async function prepararAudio() {
+      const ctx = obterAudioContext();
+      if (!ctx) return null;
+      try {
+        if (ctx.state !== 'running') await ctx.resume();
+        if (ctx.state !== 'running') return null;
+        return ctx;
+      } catch(e) {
+        console.warn('Não foi possível liberar o áudio:', e);
+        return null;
+      }
     }
 
     function atualizarBotaoSom() {
@@ -1546,46 +1573,63 @@
     }
 
     async function ativarSomManual() {
-      const ctx = obterAudioContext();
+      const ctx = await prepararAudio();
       if (!ctx) {
-        showToast('Áudio indisponível', 'Este navegador não disponibilizou o áudio.');
+        somNovoPedidoAtivo = false;
+        atualizarBotaoSom();
+        showToast('Áudio bloqueado', 'Clique novamente no botão para liberar o som deste navegador.');
         return;
       }
-      try {
-        await ctx.resume();
-        somNovoPedidoAtivo = true;
-        atualizarBotaoSom();
-        tocarToqueNovoPedido(true);
-        showToast('🔊 Som ativado', 'Você será avisado com som quando chegar um novo pedido.');
-      } catch(e) {
-        showToast('Áudio bloqueado', 'Clique novamente no botão para ativar o som.');
-      }
+
+      somNovoPedidoAtivo = true;
+      salvarPreferenciaSom(true);
+      atualizarBotaoSom();
+      await tocarToqueNovoPedido(true);
+      showToast('🔊 Som ativado', 'O KUKI avisará imediatamente quando chegar um novo pedido.');
     }
 
     function tocarNota(ctx, frequencia, inicio, duracao, volume=0.11) {
+      const agora = ctx.currentTime;
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(frequencia, ctx.currentTime + inicio);
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime + inicio);
-      gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + inicio + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + inicio + duracao);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + inicio);
-      osc.stop(ctx.currentTime + inicio + duracao + 0.02);
+      osc.frequency.setValueAtTime(frequencia, agora + inicio);
+      gain.gain.setValueAtTime(0.0001, agora + inicio);
+      gain.gain.exponentialRampToValueAtTime(volume, agora + inicio + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, agora + inicio + duracao);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(agora + inicio);
+      osc.stop(agora + inicio + duracao + 0.03);
     }
 
-    function tocarToqueNovoPedido(preview=false) {
-      if (alertaSonoroEmExecucao) return;
-      const ctx = obterAudioContext();
+    async function tocarToqueNovoPedido(preview=false) {
+      if (!preview && !somNovoPedidoAtivo) return;
+      if (alertaSonoroEmExecucao) {
+        if (!preview) alertaSonoroFila = Math.min(alertaSonoroFila + 1, 3);
+        return;
+      }
+
+      const ctx = await prepararAudio();
       if (!ctx) return;
       alertaSonoroEmExecucao = true;
 
-      tocarNota(ctx, 880, 0.00, 0.16);
-      tocarNota(ctx, 1046.5, 0.20, 0.16);
-      tocarNota(ctx, 1318.5, 0.40, 0.24, 0.12);
+      // Toque curto em três notas, repetido duas vezes para ficar
+      // perceptível mesmo quando o usuário está em outra tela do sistema.
+      tocarNota(ctx, 880,    0.00, 0.16, 0.13);
+      tocarNota(ctx, 1046.5, 0.20, 0.16, 0.13);
+      tocarNota(ctx, 1318.5, 0.40, 0.24, 0.15);
+      tocarNota(ctx, 880,    0.78, 0.16, 0.13);
+      tocarNota(ctx, 1046.5, 0.98, 0.16, 0.13);
+      tocarNota(ctx, 1318.5, 1.18, 0.28, 0.15);
 
-      setTimeout(() => { alertaSonoroEmExecucao = false; }, 850);
+      setTimeout(async () => {
+        alertaSonoroEmExecucao = false;
+        if (!preview && alertaSonoroFila > 0) {
+          alertaSonoroFila--;
+          tocarToqueNovoPedido(false);
+        }
+      }, 1650);
 
       const btn = document.getElementById('soundToggle');
       if (btn && !preview) {
@@ -1595,6 +1639,24 @@
         setTimeout(() => btn.classList.remove('sound-alert'), 2500);
       }
     }
+
+    // Reativa o AudioContext após interações do usuário, caso o navegador
+    // tenha suspendido o áudio por economia de energia ou troca de aba.
+    ['pointerdown','keydown','touchstart','click'].forEach(eventName => {
+      window.addEventListener(eventName, async () => {
+        if (!somNovoPedidoAtivo) return;
+        const ctx = obterAudioContext();
+        if (ctx && ctx.state !== 'running') {
+          try { await ctx.resume(); } catch(e) {}
+        }
+      }, {passive:true});
+    });
+
+    // Recupera a preferência de som ao apertar F5 sem exigir que o usuário
+    // reative o botão. Se o navegador bloquear automaticamente, a próxima
+    // interação do usuário libera o contexto novamente.
+    somNovoPedidoAtivo = somEstaSalvoComoAtivo();
+    atualizarBotaoSom();
 
     // Compatibilidade com chamadas antigas.
     function beep() { tocarToqueNovoPedido(false); }
@@ -1628,13 +1690,17 @@
 
       showToast('🔔 Novo pedido!', mensagem);
 
+      // O alerta não depende da tela atual. Dashboard, Pedidos, Financeiro,
+      // Produtos, Clientes ou qualquer outro módulo recebem o mesmo evento.
       if (somNovoPedidoAtivo) tocarToqueNovoPedido(false);
 
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('KUKI Gerencial', {
-          body: mensagem,
-          tag: 'kuki-novo-pedido'
-        });
+        try {
+          new Notification('KUKI Gerencial', {
+            body: mensagem,
+            tag: 'kuki-novo-pedido'
+          });
+        } catch(e) {}
       }
     }
 
