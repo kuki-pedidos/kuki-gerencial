@@ -1879,6 +1879,21 @@ return true;
     });
 
     /* =====================================================
+       PROTEÇÃO DE AUTENTICAÇÃO
+    ====================================================== */
+
+    // Se a sessão for encerrada ou expirar enquanto o sistema estiver aberto,
+    // volta imediatamente para a tela de login.
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        if (pollingTimer) clearInterval(pollingTimer);
+        pollingTimer = null;
+        appScreen.style.display = 'none';
+        loginScreen.style.display = 'flex';
+      }
+    });
+
+    /* =====================================================
        ABRIR SISTEMA / LOGOUT
     ====================================================== */
     async function abrirSistema(user) {
@@ -2324,17 +2339,30 @@ return true;
       if(name!==moduloAtual){ updateActiveMenu(name); abrirModulo(name); }
     });
     /* =====================================================
-       INICIAR
+       INICIAR - LOGIN OBRIGATÓRIO
     ====================================================== */
-    // Nesta versão o login está temporariamente desativado.
-    abrirSistema({ email: 'admin@kuki.local' });
+
+    // O sistema NÃO é aberto automaticamente.
+    // Mesmo que exista uma sessão antiga do Supabase no navegador,
+    // o usuário deverá passar pela tela de login para entrar no KUKI Gerencial.
+    loginScreen.style.display = 'flex';
+    appScreen.style.display = 'none';
+
+    // Mantém a navegação interna preparada, mas somente será exibida
+    // depois que o login for validado.
     setTimeout(() => {
-      const initialModule=routeToModule();
-      const route='#'+moduleToRoute(initialModule);
-      if(!location.hash) history.replaceState({kukiModule:initialModule},'',route);
+      const initialModule = routeToModule();
+      const route = '#' + moduleToRoute(initialModule);
+
+      if (!location.hash) {
+        history.replaceState({kukiModule: initialModule}, '', route);
+      }
+
       updateActiveMenu(initialModule);
-      abrirModulo(initialModule);
-    },0);
+
+      // Não abre o módulo enquanto o usuário não estiver autenticado.
+      // abrirSistema() é chamado somente após signInWithPassword().
+    }, 0);
 
   </script>
 
