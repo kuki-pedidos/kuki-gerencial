@@ -1157,6 +1157,7 @@
     let notificacoesPendentes = 0;
     let pollingTimer = null;
     let pedidosRealtimeChannel = null;
+    let pedidosRealtimeChannelLower = null;
     let moduloAtual = 'Dashboard';
     let filtroPedidosAtivo = 'TODOS';
 
@@ -1285,44 +1286,67 @@
       }
     }
 
-    async function iniciarRealtimePedidos() {
-      if (pedidosRealtimeChannel) return;
+    async function processarPedidoRealtime(pedido) {
+      if (!pedido) return;
+      const chave = pedidoKey(pedido);
+      if (!chave || pedidosConhecidos.has(chave)) return;
 
-      pedidosRealtimeChannel = supabaseClient
-        .channel('kuki-pedidos-realtime')
+      // Marca imediatamente para impedir que Realtime e polling gerem o mesmo alerta.
+      pedidosConhecidos.add(chave);
+      pedidosCache = sortPedidos([pedido, ...pedidosCache]);
+      atualizarDashboard();
+      if (moduloAtual === 'Pedidos') renderPedidosModule();
+      notificarNovoPedido(1, pedido);
+
+      // Busca a linha completa para manter todos os campos sincronizados.
+      await carregarPedidos(false, false);
+    }
+
+    function criarCanalRealtimePedidos(nomeCanal, tabela) {
+      return supabaseClient
+        .channel(nomeCanal)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
-          table: 'PEDIDOS'
+          table: tabela
         }, async (payload) => {
-          const pedido = payload && payload.new ? payload.new : null;
-          if (!pedido) return;
+          console.log('KUKI Realtime INSERT:', tabela, payload);
+          await processarPedidoRealtime(payload && payload.new ? payload.new : null);
+        });
+    }
 
-          const chave = pedidoKey(pedido);
-          if (!chave || pedidosConhecidos.has(chave)) return;
+    async function iniciarRealtimePedidos() {
+      if (pedidosRealtimeChannel || pedidosRealtimeChannelLower) return;
 
-          // Marca imediatamente para impedir que o polling dispare o mesmo alerta duas vezes.
-          pedidosConhecidos.add(chave);
-          pedidosCache = sortPedidos([pedido, ...pedidosCache]);
-          atualizarDashboard();
-          if (moduloAtual === 'Pedidos') renderPedidosModule();
-          notificarNovoPedido(1, pedido);
-
-          // Recarrega os dados completos para manter todos os campos do pedido sincronizados.
-          await carregarPedidos(false, false);
-        })
+      // O PostgreSQL normalmente usa nomes em minúsculas, mas o projeto pode ter
+      // sido criado com a tabela entre aspas como "PEDIDOS". Mantemos os dois canais
+      // para funcionar nos dois cenários.
+      pedidosRealtimeChannel = criarCanalRealtimePedidos('kuki-pedidos-realtime-upper', 'PEDIDOS')
         .subscribe((status) => {
-          console.log('KUKI Realtime PEDIDOS:', status);
+          console.log('KUKI Realtime PEDIDOS (maiúsculo):', status);
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            showToast('Realtime indisponível', 'O sistema continuará verificando novos pedidos automaticamente.');
+            showToast('Realtime', 'Tentando conexão alternativa para atualização dos pedidos.');
+          }
+        });
+
+      pedidosRealtimeChannelLower = criarCanalRealtimePedidos('kuki-pedidos-realtime-lower', 'pedidos')
+        .subscribe((status) => {
+          console.log('KUKI Realtime pedidos (minúsculo):', status);
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('Realtime minúsculo indisponível. O polling continuará ativo.');
           }
         });
     }
 
     async function pararRealtimePedidos() {
-      if (!pedidosRealtimeChannel) return;
-      try { await supabaseClient.removeChannel(pedidosRealtimeChannel); } catch (e) { console.error('Realtime:', e); }
+      if (pedidosRealtimeChannel) {
+        try { await supabaseClient.removeChannel(pedidosRealtimeChannel); } catch (e) { console.error('Realtime:', e); }
+      }
+      if (pedidosRealtimeChannelLower) {
+        try { await supabaseClient.removeChannel(pedidosRealtimeChannelLower); } catch (e) { console.error('Realtime:', e); }
+      }
       pedidosRealtimeChannel = null;
+      pedidosRealtimeChannelLower = null;
     }
 
     function localDateKey(value) {
@@ -2292,7 +2316,7 @@ return true;
       await pararRealtimePedidos();
       await iniciarRealtimePedidos();
       if (pollingTimer) clearInterval(pollingTimer);
-      pollingTimer = setInterval(() => carregarPedidos(false, true), 10000);
+      pollingTimer = setInterval(() => carregarPedidos(false, true), 3000);
     }
 
     async function logout() {
