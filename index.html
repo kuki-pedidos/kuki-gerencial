@@ -461,6 +461,19 @@
       border:2px solid #fff;
     }
     .topbar-actions { display:flex; align-items:center; gap:12px; }
+    .sound-toggle{
+      border:1px solid var(--borda); background:#fff; color:var(--texto);
+      min-height:46px; padding:0 14px; border-radius:13px; cursor:pointer;
+      font-weight:800; font-size:12px; transition:.2s;
+    }
+    .sound-toggle:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(50,30,20,.08)}
+    .sound-toggle.sound-on{border-color:#b9dfc7;background:#f1fbf4;color:#137333}
+    .sound-toggle.sound-alert{animation:kukiSoundAlert .55s ease-in-out 4}
+    @keyframes kukiSoundAlert{
+      0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}
+    }
+    @media(max-width:760px){.sound-toggle{flex:1}}
+
 
     .toast-container {
       position:fixed; right:24px; top:24px; z-index:5000;
@@ -959,6 +972,11 @@
         </div>
 
         <div class="topbar-actions">
+          <button type="button" class="sound-toggle" id="soundToggle"
+                  onclick="ativarSomManual()"
+                  title="Ativar som de novos pedidos">
+            🔇 Som desativado
+          </button>
           <div class="date-box" id="currentDate"></div>
         </div>
 
@@ -1304,17 +1322,89 @@
       setTimeout(() => toast.remove(), 7000);
     }
 
-    function beep() {
+
+    /* =====================================================
+       ALERTA SONORO DE NOVO PEDIDO
+       O áudio é ativado após interação/login ou pelo botão.
+    ====================================================== */
+    let kukiAudioContext = null;
+    let somNovoPedidoAtivo = false;
+    let alertaSonoroEmExecucao = false;
+
+    function obterAudioContext() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain); gain.connect(ctx.destination);
-        osc.frequency.value = 880; gain.gain.value = 0.08;
-        osc.start(); setTimeout(() => { osc.stop(); ctx.close(); }, 180);
-      } catch(e) {}
+        if (!AudioCtx) return null;
+        if (!kukiAudioContext) kukiAudioContext = new AudioCtx();
+        if (kukiAudioContext.state === 'suspended') kukiAudioContext.resume().catch(() => {});
+        return kukiAudioContext;
+      } catch(e) { return null; }
     }
+
+    function atualizarBotaoSom() {
+      const btn = document.getElementById('soundToggle');
+      if (!btn) return;
+      btn.classList.toggle('sound-on', somNovoPedidoAtivo);
+      btn.textContent = somNovoPedidoAtivo ? '🔊 Som ativado' : '🔇 Som desativado';
+      btn.title = somNovoPedidoAtivo
+        ? 'Som de novos pedidos ativado'
+        : 'Clique para ativar o som de novos pedidos';
+    }
+
+    async function ativarSomManual() {
+      const ctx = obterAudioContext();
+      if (!ctx) {
+        showToast('Áudio indisponível', 'Este navegador não disponibilizou o áudio.');
+        return;
+      }
+      try {
+        await ctx.resume();
+        somNovoPedidoAtivo = true;
+        atualizarBotaoSom();
+        tocarToqueNovoPedido(true);
+        showToast('🔊 Som ativado', 'Você será avisado com som quando chegar um novo pedido.');
+      } catch(e) {
+        showToast('Áudio bloqueado', 'Clique novamente no botão para ativar o som.');
+      }
+    }
+
+    function tocarNota(ctx, frequencia, inicio, duracao, volume=0.11) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(frequencia, ctx.currentTime + inicio);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + inicio);
+      gain.gain.exponentialRampToValueAtTime(volume, ctx.currentTime + inicio + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + inicio + duracao);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + inicio);
+      osc.stop(ctx.currentTime + inicio + duracao + 0.02);
+    }
+
+    function tocarToqueNovoPedido(preview=false) {
+      if (alertaSonoroEmExecucao) return;
+      const ctx = obterAudioContext();
+      if (!ctx) return;
+      alertaSonoroEmExecucao = true;
+
+      tocarNota(ctx, 880, 0.00, 0.16);
+      tocarNota(ctx, 1046.5, 0.20, 0.16);
+      tocarNota(ctx, 1318.5, 0.40, 0.24, 0.12);
+
+      setTimeout(() => { alertaSonoroEmExecucao = false; }, 850);
+
+      const btn = document.getElementById('soundToggle');
+      if (btn && !preview) {
+        btn.classList.remove('sound-alert');
+        void btn.offsetWidth;
+        btn.classList.add('sound-alert');
+        setTimeout(() => btn.classList.remove('sound-alert'), 2500);
+      }
+    }
+
+    // Compatibilidade com chamadas antigas.
+    function beep() { tocarToqueNovoPedido(false); }
+
 
     function atualizarBadge() {
       const badge = document.getElementById('notificationBadge');
@@ -1328,16 +1418,27 @@
       if (pedidosCache[0]) showToast('Pedidos recentes', 'Há '+pedidosCache.length+' pedido(s) carregado(s) no sistema.');
     }
 
+
     function notificarNovoPedido(qtd, pedido) {
       notificacoesPendentes += qtd;
       atualizarBadge();
       const id = getValue(pedido,['id','ID','pedido_id','PEDIDO_ID'],'');
-      showToast('🔔 Novo pedido!', qtd > 1 ? qtd+' novos pedidos chegaram.' : 'O pedido #'+id+' acabou de chegar!');
-      beep();
+      const mensagem = qtd > 1
+        ? qtd+' novos pedidos chegaram.'
+        : 'O pedido #'+id+' acabou de chegar!';
+
+      showToast('🔔 Novo pedido!', mensagem);
+
+      if (somNovoPedidoAtivo) tocarToqueNovoPedido(false);
+
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('KUKI Gerencial', { body: qtd > 1 ? qtd+' novos pedidos chegaram.' : 'Novo pedido #'+id });
+        new Notification('KUKI Gerencial', {
+          body: mensagem,
+          tag: 'kuki-novo-pedido'
+        });
       }
     }
+
 
     async function pedirPermissaoNotificacao() {
       if ('Notification' in window && Notification.permission === 'default') {
@@ -1401,17 +1502,17 @@
     function generateInsights(data) {
       const box=document.getElementById('dashboardInsights'),alerts=document.getElementById('smartAlerts');if(!box||!alerts)return;
       const items=[];
-      if(!data.orders)items.push(['📦 Movimento','Nenhum pedido no período selecionado.']);
-      else items.push(['📊 Ritmo de vendas',data.orders+' pedido(s) no período, com ticket médio de '+formatMoney(data.ticket)+'.']);
+      if(!data.orders)items.push(['📦 Movimento ','Nenhum pedido no período selecionado.']);
+      else items.push(['📊 Ritmo de vendas ',data.orders+' pedido(s) no período, com ticket médio de '+formatMoney(data.ticket)+'.']);
       if(data.revenueTrend!==null)items.push([data.revenueTrend>=0?'📈 Crescimento':'📉 Queda','O faturamento está '+formatPercent(data.revenueTrend)+' em relação ao período anterior.']);
-      if(data.bestDay)items.push(['🔥 Melhor dia',data.bestDay.label+' concentrou '+formatMoney(data.bestDay.value)+' em faturamento.']);
-      if(data.bestHour)items.push(['⏰ Horário de pico','Maior concentração de pedidos por volta de '+data.bestHour+'.']);
+      if(data.bestDay)items.push(['🔥 Melhor dia ',data.bestDay.label+' concentrou '+formatMoney(data.bestDay.value)+' em faturamento.']);
+      if(data.bestHour)items.push(['⏰ Horário de pico ','Maior concentração de pedidos por volta de '+data.bestHour+'.']);
       box.innerHTML=items.slice(0,4).map(x=>'<div class="insight-item"><strong>'+escapeHtml(x[0])+'</strong>'+escapeHtml(x[1])+'</div>').join('');
       const a=[],newOrders=pedidosCache.filter(p=>['NOVO','NOVOS'].includes(String(getValue(p,['status','STATUS'],'')).toUpperCase().trim())).length;
-      if(newOrders)a.push(['🔴','Pedidos aguardando ação',newOrders+' pedido(s) com status NOVO.']);
+      if(newOrders)a.push(['🔴','Pedidos aguardando ação ',newOrders+' pedido(s) com status NOVO.']);
       if(data.revenueTrend!==null&&data.revenueTrend<-10)a.push(['⚠️','Queda de faturamento','O período está mais de 10% abaixo do anterior.']);
-      if(data.orders&&data.ticket<20)a.push(['💡','Ticket médio','Considere combos, adicionais ou campanhas para elevar o valor por pedido.']);
-      if(!a.length)a.push(['🟢','Operação estável','Nenhum alerta crítico identificado com os dados disponíveis.']);
+      if(data.orders&&data.ticket<20)a.push(['💡','Ticket médio ','Considere combos, adicionais ou campanhas para elevar o valor por pedido.']);
+      if(!a.length)a.push(['🟢','Operação estável ',' Nenhum alerta crítico identificado com os dados disponíveis.']);
       alerts.innerHTML=a.map(x=>'<div class="smart-alert"><div class="smart-alert-icon">'+x[0]+'</div><div><strong>'+escapeHtml(x[1])+'</strong><span>'+escapeHtml(x[2])+'</span></div></div>').join('');
     }
 
@@ -1451,7 +1552,7 @@
       const el=document.getElementById('forecastBox');if(!el)return;
       if(!data.orders){el.innerHTML='<div class="smart-alert-icon">ℹ️</div><div><strong>Sem base para projeção</strong><span>Não há pedidos suficientes no período selecionado.</span></div>';return;}
       const dailyAvg=data.orders/dashboardPeriodo,projectedOrders=Math.round(dailyAvg*30),projectedRevenue=dailyAvg*30*data.ticket;
-      el.innerHTML='<div class="smart-alert-icon">🔮</div><div><strong>Ritmo atual: '+dailyAvg.toLocaleString('pt-BR',{maximumFractionDigits:1})+' pedido(s)/dia</strong><span>Se o ritmo se mantiver, a projeção mensal é de aproximadamente '+projectedOrders+' pedidos e '+formatMoney(projectedRevenue)+' em faturamento. É uma estimativa, não uma previsão garantida.</span></div>';
+      el.innerHTML='<div class="smart-alert-icon">🔮</div><div><strong>Ritmo atual: '+dailyAvg.toLocaleString('pt-BR',{maximumFractionDigits:1})+' pedido(s)/dia</strong><span> Se o ritmo se mantiver, a projeção mensal é de aproximadamente '+projectedOrders+' pedidos e '+formatMoney(projectedRevenue)+' em faturamento. É uma estimativa, não uma previsão garantida.</span></div>';
     }
 
     async function atualizarDashboardInteligente(force=false){
@@ -2063,6 +2164,8 @@ return true;
       const { data, error } = await supabaseClient.auth.getSession();
       if (error) { console.error(error); return; }
       if (data.session) abrirSistema(data.session.user);
+        try { obterAudioContext(); } catch(e) {}
+        pedirPermissaoNotificacao();
     }
 
     /* =====================================================
