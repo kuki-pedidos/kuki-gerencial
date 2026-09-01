@@ -2408,25 +2408,96 @@ return true;
     function fecharFormularioCrud(){const b=document.getElementById('crudFormBox');if(b)b.style.display='none';}
     function editarCrud(name,index){const r=(crudCache[name]||[])[Number(index)];if(!r)return;abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);Object.keys(r).forEach(k=>{const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}});document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});}
     function collectCrudForm(form){const obj={};Array.from(form.elements).forEach(el=>{if(!el.name)return;let v=el.type==='checkbox'?el.checked:el.value.trim();if(v!==''||el.type==='checkbox')obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v;});return obj;}
+    function montarPayloadCrudEdicao(form, registro){
+      // Na edição usamos os nomes REAIS das colunas retornados pelo Supabase.
+      // Isso evita falhas quando a tabela foi criada com nomes em maiúsculas/minúsculas
+      // diferentes dos nomes usados na configuração do formulário.
+      const payload = {};
+      const campos = Array.from(form.elements).filter(el => el.name);
+      const chavesReais = Object.keys(registro || {});
+
+      campos.forEach(el => {
+        const chaveReal = chavesReais.find(k => String(k).toLowerCase() === String(el.name).toLowerCase());
+        if (!chaveReal || isSystemField(chaveReal)) return;
+
+        let valor;
+        if (el.type === 'checkbox') {
+          valor = !!el.checked;
+        } else {
+          valor = el.value.trim();
+          if (isNumberField(chaveReal) && valor !== '') {
+            valor = Number(String(valor).replace(',', '.'));
+          }
+        }
+        // Na edição, campo vazio também precisa ser enviado para permitir limpar o valor.
+        payload[chaveReal] = valor;
+      });
+
+      return payload;
+    }
+
+    async function verificarEdicaoCrud(cfg, idInfo, payload){
+      const consulta = '?select=*&'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(idInfo.value);
+      const rows = await restRequest(cfg.table, consulta);
+      if (!Array.isArray(rows) || rows.length !== 1) {
+        throw new Error('Não foi possível confirmar o registro após a alteração.');
+      }
+
+      const atual = rows[0];
+      const divergencias = Object.keys(payload).filter(chave => {
+        const esperado = payload[chave];
+        const recebido = atual[chave];
+        if (esperado === null || esperado === '') return recebido !== esperado && String(recebido ?? '') !== '';
+        if (typeof esperado === 'number') return Number(recebido) !== esperado;
+        if (typeof esperado === 'boolean') return Boolean(recebido) !== esperado;
+        return String(recebido ?? '') !== String(esperado);
+      });
+
+      if (divergencias.length) {
+        throw new Error('O Supabase não confirmou a alteração dos campos: '+divergencias.join(', '));
+      }
+
+      return atual;
+    }
+
     async function salvarCrud(e,name){
       e.preventDefault();
-      const cfg=CRUD_TABLES[name], form=e.currentTarget, body=collectCrudForm(form), idx=form.dataset.editIndex, editing=idx!=='';
+      const cfg=CRUD_TABLES[name], form=e.currentTarget, idx=form.dataset.editIndex, editing=idx!=='';
+      const registroEdicao = editing ? (crudCache[name]||[])[Number(idx)] : null;
+      const body = editing ? montarPayloadCrudEdicao(form, registroEdicao) : collectCrudForm(form);
       if(!confirm(editing?'Confirmar as alterações deste cadastro?':'Confirmar a inclusão deste novo cadastro?')) return;
+
+      const botaoSalvar = form.querySelector('button[type="submit"]');
+      if(botaoSalvar){ botaoSalvar.disabled=true; botaoSalvar.textContent='Salvando...'; }
+
       try{
         if(editing){
-          const idInfo=getRecordIdInfo(crudCache[name][Number(idx)]);
+          const idInfo=getRecordIdInfo(registroEdicao);
           if(!idInfo) throw new Error('Registro sem ID');
-          const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(idInfo.value),{
-            method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)
+          if(!Object.keys(body).length) throw new Error('Nenhuma alteração foi informada.');
+
+          const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(String(idInfo.value)),{
+            method:'PATCH',
+            headers:{'Prefer':'return=representation'},
+            body:JSON.stringify(body)
           });
           if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhum registro foi atualizado. Verifique as permissões do Supabase.');
+
+          // Confirma no banco, não apenas na resposta do PATCH.
+          const registroConfirmado = await verificarEdicaoCrud(cfg, idInfo, body);
+          if(crudCache[name]) crudCache[name][Number(idx)] = registroConfirmado;
         }else{
           const result=await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});
           if(!Array.isArray(result)||result.length<1) throw new Error('O cadastro não foi retornado pelo Supabase.');
         }
-        showToast('Sucesso',editing?'Alterações salvas.':'Cadastro incluído.');
+        showToast('Sucesso',editing?'Alterações salvas e confirmadas no banco.':'Cadastro incluído.');
         await renderCrudModule(name);
-      }catch(err){console.error(err);showToast('Erro','Não foi possível salvar: '+(err.message||''));}
+      }catch(err){
+        console.error('CRUD SAVE:',err);
+        showToast('Erro','Não foi possível salvar: '+(err.message||'Erro desconhecido.'));
+      }finally{
+        if(botaoSalvar){ botaoSalvar.disabled=false; botaoSalvar.textContent='💾 Salvar'; }
+      }
     }
     async function excluirCrud(name,index){
       const old=(crudCache[name]||[])[Number(index)], idInfo=getRecordIdInfo(old);
