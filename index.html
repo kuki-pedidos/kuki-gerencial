@@ -2379,12 +2379,25 @@ return true;
       'Formas de pagamento': { table:'FORMAS_PAGAMENTO', icon:'💳', fields:['NOME','ATIVO'] },
       'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
     };
+
+    /*
+       As fotos deixam de depender do GitHub.
+       O arquivo da foto vai para o Supabase Storage e o campo criado na tabela
+       PRODUTOS guarda somente a URL pública da imagem.
+       O nome do campo é detectado automaticamente quando contém FOTO/IMAGEM/IMAGE.
+    */
+    const KUKI_STORAGE_BUCKET = 'produtos';
+    const MAX_PRODUTO_IMAGEM_BYTES = 5 * 1024 * 1024;
     const crudCache = {};
+
     function normKey(k){ return String(k||'').toUpperCase(); }
     function prettyField(k){ return String(k).replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
     function isSystemField(k){ return ['ID','CREATED_AT','UPDATED_AT'].includes(normKey(k)); }
     function isBoolField(k){ return ['ATIVO','ABERTO','DISPONIVEL','HABILITADO'].includes(normKey(k)); }
     function isNumberField(k){ return ['PRECO','VALOR','TOTAL','TAXA','ESTOQUE','QUANTIDADE'].some(x=>normKey(k).includes(x)); }
+    function isImageField(k){ const n=normKey(k); return n.includes('IMAGEM') || n.includes('FOTO') || n.includes('IMAGE') || n.includes('PICTURE'); }
+    function encontrarCampoImagem(fields){ return (fields||[]).find(isImageField) || null; }
+
     async function carregarCrud(name){ const cfg=CRUD_TABLES[name]; if(!cfg)return[]; try{const rows=await getTable(cfg.table,'?select=*');crudCache[name]=Array.isArray(rows)?rows:[];return crudCache[name];}catch(e){console.error(e);throw e;} }
     function crudFields(name,rows){ const cfg=CRUD_TABLES[name],set=new Set(cfg.fields); (rows||[]).forEach(r=>Object.keys(r||{}).forEach(k=>{if(!isSystemField(k))set.add(k)})); return [...set]; }
     function getRecordIdInfo(record){
@@ -2393,70 +2406,135 @@ return true;
       if (!field || row[field] === null || row[field] === undefined) return null;
       return { field, value: row[field] };
     }
+
+    function renderImagemCelula(url){
+      const valor=String(url||'').trim();
+      if(!valor) return '<span style="color:var(--cinza);">Sem foto</span>';
+      return '<img class="product-thumb" src="'+escapeHtml(valor)+'" alt="Foto do produto" loading="lazy" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline\';"><span style="display:none;color:var(--cinza);">Foto indisponível</span>';
+    }
+
+    function renderCampoCrud(f, imageField){
+      if(imageField && normKey(f)===normKey(imageField)){
+        return '<label class="crud-field">'+escapeHtml(prettyField(f))+'<div class="product-image-upload">'+
+          '<input type="file" name="__imagem_arquivo__" accept="image/jpeg,image/png,image/webp,image/gif">'+
+          '<div class="product-image-preview" id="crudImagePreview"><small>Nenhuma foto nova selecionada. Você poderá substituir a foto atual.</small></div>'+
+          '<label class="product-image-remove"><input type="checkbox" name="__remover_imagem__"> Remover a foto atual</label>'+
+          '</div></label>';
+      }
+      const type=isBoolField(f)?'checkbox':(isNumberField(f)?'number':'text');
+      const step=isNumberField(f)?' step="0.01"':'';
+      return type==='checkbox'?'<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>':'<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>';
+    }
+
     async function renderCrudModule(name){
       const c=document.getElementById('moduleContent'),cfg=CRUD_TABLES[name]; if(!cfg)return;
       c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Carregando dados...</p></div></div></div>';
       let rows=[],loadError=''; try{rows=await carregarCrud(name)}catch(e){loadError='Não foi possível carregar '+cfg.table+': '+(e.message||'erro desconhecido')}
-      const fields=crudFields(name,rows), cols=rows.length?Object.keys(rows[0]).filter(k=>!isSystemField(k)):fields;
-      const form=fields.map(f=>{const type=isBoolField(f)?'checkbox':(isNumberField(f)?'number':'text');const step=isNumberField(f)?' step="0.01"':'';return type==='checkbox'?'<label class="crud-field check-field"><input type="checkbox" name="'+escapeHtml(f)+'" checked> '+escapeHtml(prettyField(f))+'</label>':'<label class="crud-field">'+escapeHtml(prettyField(f))+'<input'+step+' type="'+type+'" name="'+escapeHtml(f)+'"></label>'}).join('');
+      const fields=crudFields(name,rows), imageField=name==='Produtos'?encontrarCampoImagem(fields):null;
+      const cols=rows.length?Object.keys(rows[0]).filter(k=>!isSystemField(k)):fields;
+      const form=fields.map(f=>renderCampoCrud(f,imageField)).join('');
       const header=cols.map(k=>'<th>'+escapeHtml(prettyField(k))+'</th>').join('');
-      const body=rows.length?rows.map((r,i)=>'<tr>'+cols.map(k=>'<td>'+escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??''))+'</td>').join('')+'<td><div class="actions-inline"><button type="button" class="secondary-button" data-crud-action="edit" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">✏️ Editar</button><button type="button" class="danger-button" data-crud-action="delete" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">🗑 Excluir</button></div></td></tr>').join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
-      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p></div><div class="actions-inline"><button class="primary-button" data-crud-action="new" data-crud-name="'+escapeHtml(name)+'">＋ Novo</button><button class="secondary-button" data-crud-action="refresh" data-crud-name="'+escapeHtml(name)+'">↻ Atualizar</button></div></div>'+(loadError?'<p style="color:#a20c23">'+escapeHtml(loadError)+'</p>':'')+'<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm"><div class="crud-grid">'+form+'</div><div class="crud-actions"><button type="submit" class="primary-button">💾 Salvar</button><button type="button" class="secondary-button" data-crud-action="cancel">Cancelar</button></div></form></div><div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
-      const f=document.getElementById('crudForm'); if(f)f.addEventListener('submit',e=>salvarCrud(e,name));
+      const body=rows.length?rows.map((r,i)=>'<tr>'+cols.map(k=>'<td>'+((imageField&&normKey(k)===normKey(imageField))?renderImagemCelula(r[k]):escapeHtml(isBoolField(k)?(r[k]?'Sim':'Não'):(r[k]??'')))+'</td>').join('')+'<td><div class="actions-inline"><button type="button" class="secondary-button" data-crud-action="edit" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">✏️ Editar</button><button type="button" class="danger-button" data-crud-action="delete" data-crud-name="'+escapeHtml(name)+'" data-crud-index="'+i+'">🗑 Excluir</button></div></td></tr>').join(''):'<tr><td colspan="'+(cols.length+1)+'">Nenhum registro encontrado. Clique em Novo para cadastrar.</td></tr>';
+      const avisoImagem=name==='Produtos'?(imageField?'<p style="margin-top:8px;color:var(--cinza);font-size:12px;">📷 Fotos armazenadas no Supabase Storage. O campo <strong>'+escapeHtml(imageField)+'</strong> guarda a URL da imagem.</p>':'<p style="margin-top:8px;color:#a20c23;font-size:12px;">⚠️ Não foi identificado automaticamente um campo de foto/imagem na tabela PRODUTOS. Crie um campo com nome contendo FOTO ou IMAGEM.</p>'):'';
+      c.innerHTML='<div class="module-panel"><div class="module-toolbar"><div><h2>'+cfg.icon+' '+escapeHtml(name)+'</h2><p style="color:var(--cinza);margin-top:6px;">Visualize, cadastre, edite ou exclua informações.</p>'+avisoImagem+'</div><div class="actions-inline"><button class="primary-button" data-crud-action="new" data-crud-name="'+escapeHtml(name)+'">＋ Novo</button><button class="secondary-button" data-crud-action="refresh" data-crud-name="'+escapeHtml(name)+'">↻ Atualizar</button></div></div>'+(loadError?'<p style="color:#a20c23">'+escapeHtml(loadError)+'</p>':'')+'<div id="crudFormBox" class="crud-form-box" style="display:none"><h3 id="crudFormTitle">Novo cadastro</h3><form id="crudForm"><div class="crud-grid">'+form+'</div><div class="crud-actions"><button type="submit" class="primary-button">💾 Salvar</button><button type="button" class="secondary-button" data-crud-action="cancel">Cancelar</button></div></form></div><div class="table-wrap"><table class="data-table"><thead><tr>'+header+'<th>Ações</th></tr></thead><tbody>'+body+'</tbody></table></div></div>';
+      const f=document.getElementById('crudForm');
+      if(f){
+        f.dataset.imageField=imageField||'';
+        f.addEventListener('submit',e=>salvarCrud(e,name));
+        const input=f.elements['__imagem_arquivo__'];
+        if(input) input.addEventListener('change',()=>atualizarPreviewImagemSelecionada(input));
+      }
     }
-    function abrirFormularioCrud(name){const b=document.getElementById('crudFormBox'),f=document.getElementById('crudForm');if(!b||!f)return;b.style.display='block';document.getElementById('crudFormTitle').textContent='Novo cadastro';f.dataset.editIndex='';f.reset();}
-    function fecharFormularioCrud(){const b=document.getElementById('crudFormBox');if(b)b.style.display='none';}
-    function editarCrud(name,index){const r=(crudCache[name]||[])[Number(index)];if(!r)return;abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);Object.keys(r).forEach(k=>{const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}});document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});}
-    function collectCrudForm(form){const obj={};Array.from(form.elements).forEach(el=>{if(!el.name)return;let v=el.type==='checkbox'?el.checked:el.value.trim();if(v!==''||el.type==='checkbox')obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v;});return obj;}
-    function montarPayloadCrudEdicao(form, registro){
-      // Na edição usamos os nomes REAIS das colunas retornados pelo Supabase.
-      // Isso evita falhas quando a tabela foi criada com nomes em maiúsculas/minúsculas
-      // diferentes dos nomes usados na configuração do formulário.
-      const payload = {};
-      const campos = Array.from(form.elements).filter(el => el.name);
-      const chavesReais = Object.keys(registro || {});
 
+    function atualizarPreviewImagemSelecionada(input){
+      const preview=document.getElementById('crudImagePreview'); if(!preview)return;
+      const file=input && input.files ? input.files[0] : null;
+      if(!file){preview.innerHTML='<small>Nenhuma foto nova selecionada.</small>';return;}
+      if(!file.type.startsWith('image/')){preview.innerHTML='<small style="color:#a20c23;">Selecione um arquivo de imagem.</small>';return;}
+      const url=URL.createObjectURL(file);
+      preview.innerHTML='<img src="'+url+'" alt="Pré-visualização"><small>'+escapeHtml(file.name)+'<br>'+Math.round(file.size/1024)+' KB</small>';
+    }
+
+    function mostrarPreviewImagemAtual(url){
+      const preview=document.getElementById('crudImagePreview'); if(!preview)return;
+      if(!url){preview.innerHTML='<small>Nenhuma foto cadastrada. Selecione uma imagem para adicionar.</small>';return;}
+      preview.innerHTML='<img src="'+escapeHtml(String(url))+'" alt="Foto atual"><small>Foto atual.<br>Selecione outra imagem para substituir.</small>';
+    }
+
+    function abrirFormularioCrud(name){
+      const b=document.getElementById('crudFormBox'),f=document.getElementById('crudForm');if(!b||!f)return;
+      b.style.display='block';document.getElementById('crudFormTitle').textContent='Novo cadastro';f.dataset.editIndex='';f.dataset.imagemAtual='';f.reset();
+      const remove=f.elements['__remover_imagem__'];if(remove)remove.checked=false;
+      if(name==='Produtos')mostrarPreviewImagemAtual('');
+    }
+    function fecharFormularioCrud(){const b=document.getElementById('crudFormBox');if(b)b.style.display='none';}
+
+    function editarCrud(name,index){
+      const r=(crudCache[name]||[])[Number(index)];if(!r)return;
+      abrirFormularioCrud(name);document.getElementById('crudFormTitle').textContent='Editar cadastro';
+      const f=document.getElementById('crudForm');f.dataset.editIndex=String(index);
+      const imageField=f.dataset.imageField||encontrarCampoImagem(Object.keys(r));
+      const imageUrl=imageField?getValue(r,[imageField],''):'';f.dataset.imagemAtual=imageUrl||'';
+      Object.keys(r).forEach(k=>{
+        if(imageField&&normKey(k)===normKey(imageField))return;
+        const el=f.elements[k];if(el){if(el.type==='checkbox')el.checked=!!r[k];else el.value=r[k]??'';}
+      });
+      const remove=f.elements['__remover_imagem__'];if(remove)remove.checked=false;
+      if(name==='Produtos')mostrarPreviewImagemAtual(imageUrl);
+      document.getElementById('crudFormBox').scrollIntoView({behavior:'smooth',block:'start'});
+    }
+
+    function collectCrudForm(form){
+      const obj={};Array.from(form.elements).forEach(el=>{
+        if(!el.name || el.name.startsWith('__'))return;
+        let v=el.type==='checkbox'?el.checked:el.value.trim();
+        if(v!==''||el.type==='checkbox')obj[el.name]=isNumberField(el.name)&&v!==''?Number(String(v).replace(',','.')):v;
+      });return obj;
+    }
+
+    async function uploadImagemProduto(file, registroId){
+      if(!file)return null;
+      if(!file.type || !file.type.startsWith('image/'))throw new Error('O arquivo selecionado não é uma imagem válida.');
+      if(file.size>MAX_PRODUTO_IMAGEM_BYTES)throw new Error('A foto deve ter no máximo 5 MB.');
+      const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+      const id=String(registroId||Date.now()).replace(/[^a-zA-Z0-9_-]/g,'');
+      const path='produtos/'+id+'-'+Date.now()+'.'+ext;
+      const {error}=await supabaseClient.storage.from(KUKI_STORAGE_BUCKET).upload(path,file,{cacheControl:'3600',upsert:false,contentType:file.type});
+      if(error)throw new Error('Não foi possível enviar a foto para o Supabase Storage: '+error.message);
+      const publicData=supabaseClient.storage.from(KUKI_STORAGE_BUCKET).getPublicUrl(path);
+      const url=publicData&&publicData.data?publicData.data.publicUrl:'';
+      if(!url)throw new Error('A foto foi enviada, mas o Supabase não retornou a URL pública.');
+      return url;
+    }
+
+    function montarPayloadCrudEdicao(form, registro){
+      const payload = {};
+      const campos = Array.from(form.elements).filter(el => el.name && !el.name.startsWith('__'));
+      const chavesReais = Object.keys(registro || {});
       campos.forEach(el => {
         const chaveReal = chavesReais.find(k => String(k).toLowerCase() === String(el.name).toLowerCase());
         if (!chaveReal || isSystemField(chaveReal)) return;
-
         let valor;
-        if (el.type === 'checkbox') {
-          valor = !!el.checked;
-        } else {
-          valor = el.value.trim();
-          if (isNumberField(chaveReal) && valor !== '') {
-            valor = Number(String(valor).replace(',', '.'));
-          }
-        }
-        // Na edição, campo vazio também precisa ser enviado para permitir limpar o valor.
+        if (el.type === 'checkbox') valor = !!el.checked;
+        else { valor = el.value.trim(); if (isNumberField(chaveReal) && valor !== '') valor = Number(String(valor).replace(',', '.')); }
         payload[chaveReal] = valor;
       });
-
       return payload;
     }
 
     async function verificarEdicaoCrud(cfg, idInfo, payload){
       const consulta = '?select=*&'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(idInfo.value);
       const rows = await restRequest(cfg.table, consulta);
-      if (!Array.isArray(rows) || rows.length !== 1) {
-        throw new Error('Não foi possível confirmar o registro após a alteração.');
-      }
-
+      if (!Array.isArray(rows) || rows.length !== 1) throw new Error('Não foi possível confirmar o registro após a alteração.');
       const atual = rows[0];
       const divergencias = Object.keys(payload).filter(chave => {
-        const esperado = payload[chave];
-        const recebido = atual[chave];
+        const esperado = payload[chave], recebido = atual[chave];
         if (esperado === null || esperado === '') return recebido !== esperado && String(recebido ?? '') !== '';
         if (typeof esperado === 'number') return Number(recebido) !== esperado;
         if (typeof esperado === 'boolean') return Boolean(recebido) !== esperado;
         return String(recebido ?? '') !== String(esperado);
       });
-
-      if (divergencias.length) {
-        throw new Error('O Supabase não confirmou a alteração dos campos: '+divergencias.join(', '));
-      }
-
+      if (divergencias.length) throw new Error('O Supabase não confirmou a alteração dos campos: '+divergencias.join(', '));
       return atual;
     }
 
@@ -2464,52 +2542,45 @@ return true;
       e.preventDefault();
       const cfg=CRUD_TABLES[name], form=e.currentTarget, idx=form.dataset.editIndex, editing=idx!=='';
       const registroEdicao = editing ? (crudCache[name]||[])[Number(idx)] : null;
+      const imageField = name==='Produtos' ? (form.dataset.imageField||encontrarCampoImagem(Object.keys(registroEdicao||{}))) : null;
+      const imageInput = form.elements['__imagem_arquivo__'];
+      const removeImage = !!(form.elements['__remover_imagem__'] && form.elements['__remover_imagem__'].checked);
       const body = editing ? montarPayloadCrudEdicao(form, registroEdicao) : collectCrudForm(form);
       if(!confirm(editing?'Confirmar as alterações deste cadastro?':'Confirmar a inclusão deste novo cadastro?')) return;
-
-      const botaoSalvar = form.querySelector('button[type="submit"]');
-      if(botaoSalvar){ botaoSalvar.disabled=true; botaoSalvar.textContent='Salvando...'; }
-
+      const botaoSalvar=form.querySelector('button[type="submit"]');if(botaoSalvar){botaoSalvar.disabled=true;botaoSalvar.textContent='Salvando...';}
       try{
+        if(name==='Produtos' && !imageField && ((imageInput&&imageInput.files&&imageInput.files.length)||removeImage)) throw new Error('O campo da foto/imagem não foi identificado na tabela PRODUTOS.');
         if(editing){
-          const idInfo=getRecordIdInfo(registroEdicao);
-          if(!idInfo) throw new Error('Registro sem ID');
-          if(!Object.keys(body).length) throw new Error('Nenhuma alteração foi informada.');
-
-          const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(String(idInfo.value)),{
-            method:'PATCH',
-            headers:{'Prefer':'return=representation'},
-            body:JSON.stringify(body)
-          });
-          if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhum registro foi atualizado. Verifique as permissões do Supabase.');
-
-          // Confirma no banco, não apenas na resposta do PATCH.
-          const registroConfirmado = await verificarEdicaoCrud(cfg, idInfo, body);
-          if(crudCache[name]) crudCache[name][Number(idx)] = registroConfirmado;
+          const idInfo=getRecordIdInfo(registroEdicao);if(!idInfo)throw new Error('Registro sem ID');
+          if(name==='Produtos' && imageField){
+            if(imageInput&&imageInput.files&&imageInput.files[0]) body[Object.keys(registroEdicao).find(k=>normKey(k)===normKey(imageField))||imageField]=await uploadImagemProduto(imageInput.files[0],idInfo.value);
+            else if(removeImage) body[Object.keys(registroEdicao).find(k=>normKey(k)===normKey(imageField))||imageField]='';
+          }
+          if(!Object.keys(body).length)throw new Error('Nenhuma alteração foi informada.');
+          const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(String(idInfo.value)),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});
+          if(!Array.isArray(result)||result.length!==1)throw new Error('Nenhum registro foi atualizado. Verifique as permissões do Supabase.');
+          const registroConfirmado=await verificarEdicaoCrud(cfg,idInfo,body);if(crudCache[name])crudCache[name][Number(idx)]=registroConfirmado;
         }else{
+          // Primeiro cria o produto para obter o ID; depois envia a foto usando esse ID.
           const result=await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});
-          if(!Array.isArray(result)||result.length<1) throw new Error('O cadastro não foi retornado pelo Supabase.');
+          if(!Array.isArray(result)||result.length<1)throw new Error('O cadastro não foi retornado pelo Supabase.');
+          if(name==='Produtos' && imageField && imageInput&&imageInput.files&&imageInput.files[0]){
+            const novo=result[0],idInfo=getRecordIdInfo(novo);if(!idInfo)throw new Error('Produto criado, mas não foi possível identificar o ID para salvar a foto.');
+            const url=await uploadImagemProduto(imageInput.files[0],idInfo.value);
+            const imageReal=Object.keys(novo).find(k=>normKey(k)===normKey(imageField))||imageField;
+            await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(String(idInfo.value)),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify({[imageReal]:url})});
+          }
         }
-        showToast('Sucesso',editing?'Alterações salvas e confirmadas no banco.':'Cadastro incluído.');
+        showToast('Sucesso',name==='Produtos'?'Produto salvo com sucesso. A foto está no Supabase.':(editing?'Alterações salvas e confirmadas no banco.':'Cadastro incluído.'));
         await renderCrudModule(name);
-      }catch(err){
-        console.error('CRUD SAVE:',err);
-        showToast('Erro','Não foi possível salvar: '+(err.message||'Erro desconhecido.'));
-      }finally{
-        if(botaoSalvar){ botaoSalvar.disabled=false; botaoSalvar.textContent='💾 Salvar'; }
-      }
+      }catch(err){console.error('CRUD SAVE:',err);showToast('Erro','Não foi possível salvar: '+(err.message||'Erro desconhecido.'));}
+      finally{if(botaoSalvar){botaoSalvar.disabled=false;botaoSalvar.textContent='💾 Salvar';}}
     }
+
     async function excluirCrud(name,index){
-      const old=(crudCache[name]||[])[Number(index)], idInfo=getRecordIdInfo(old);
-      if(!idInfo){showToast('Erro','Não foi possível identificar o registro.');return;}
-      if(!confirm('Confirmar exclusão? Esta ação não poderá ser desfeita.'))return;
-      const cfg=CRUD_TABLES[name];
-      try{
-        const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(idInfo.value),{method:'DELETE',headers:{'Prefer':'return=representation'}});
-        if(!Array.isArray(result)||result.length!==1) throw new Error('Nenhum registro foi excluído. Verifique as permissões do Supabase.');
-        showToast('Excluído','Registro removido com sucesso.');
-        await renderCrudModule(name);
-      }catch(err){console.error(err);showToast('Erro','Não foi possível excluir: '+(err.message||''));}
+      const old=(crudCache[name]||[])[Number(index)],idInfo=getRecordIdInfo(old);if(!idInfo){showToast('Erro','Não foi possível identificar o registro.');return;}
+      if(!confirm('Confirmar exclusão? Esta ação não poderá ser desfeita.'))return;const cfg=CRUD_TABLES[name];
+      try{const result=await restRequest(cfg.table,'?'+encodeURIComponent(idInfo.field)+'=eq.'+encodeURIComponent(idInfo.value),{method:'DELETE',headers:{'Prefer':'return=representation'}});if(!Array.isArray(result)||result.length!==1)throw new Error('Nenhum registro foi excluído. Verifique as permissões do Supabase.');showToast('Excluído','Registro removido com sucesso.');await renderCrudModule(name);}catch(err){console.error(err);showToast('Erro','Não foi possível excluir: '+(err.message||''));}
     }
     document.getElementById('moduleContent').addEventListener('click',function(e){const b=e.target.closest('[data-crud-action]');if(!b)return;const a=b.dataset.crudAction,n=b.dataset.crudName,i=Number(b.dataset.crudIndex);if(a==='new')abrirFormularioCrud(n);else if(a==='refresh')renderCrudModule(n);else if(a==='edit')editarCrud(n,i);else if(a==='delete')excluirCrud(n,i);else if(a==='cancel')fecharFormularioCrud();});
 
