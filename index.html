@@ -2088,23 +2088,57 @@
       return getValue(pedido, ['status','STATUS'], 'NOVO');
     }
 
-    async function patchPedido(id, payload) {
-      const filter = '?id=eq.' + encodeURIComponent(id);
-      try {
-        return await restRequest('PEDIDOS', filter, {
-          method:'PATCH',
-          headers:{'Prefer':'return=representation'},
-          body:JSON.stringify(payload)
-        });
-      } catch (e) {
-        const lowerPayload = {};
-        Object.keys(payload).forEach(k => lowerPayload[k.toLowerCase()] = payload[k]);
-        return await restRequest('pedidos', filter, {
-          method:'PATCH',
-          headers:{'Prefer':'return=representation'},
-          body:JSON.stringify(lowerPayload)
-        });
+    async function patchPedido(id, payload, pedidoAtual=null) {
+      /*
+        Atualização robusta do pedido:
+        - usa o nome/capitalização real das colunas retornadas pelo Supabase;
+        - usa o nome real da coluna ID;
+        - exige que o PATCH retorne exatamente a linha atualizada.
+        Isso evita o problema em que o status é escolhido na tela, mas volta
+        para EM PROCESSAMENTO após o recarregamento da lista.
+      */
+      const idKey = pedidoAtual
+        ? (Object.keys(pedidoAtual).find(k => k.toLowerCase() === 'id') || 'id')
+        : 'id';
+
+      const filter = '?' + encodeURIComponent(idKey) + '=eq.' + encodeURIComponent(id);
+
+      const payloadReal = {};
+      Object.keys(payload).forEach(key => {
+        if (!pedidoAtual) {
+          payloadReal[key] = payload[key];
+          return;
+        }
+        const realKey = Object.keys(pedidoAtual).find(k => k.toLowerCase() === key.toLowerCase()) || key;
+        payloadReal[realKey] = payload[key];
+      });
+
+      const tentativas = [
+        { table:'PEDIDOS', body:payloadReal },
+        { table:'pedidos', body:payloadReal }
+      ];
+
+      let ultimoErro = null;
+
+      for (const tentativa of tentativas) {
+        try {
+          const resultado = await restRequest(tentativa.table, filter, {
+            method:'PATCH',
+            headers:{'Prefer':'return=representation'},
+            body:JSON.stringify(tentativa.body)
+          });
+
+          if (!Array.isArray(resultado) || resultado.length !== 1) {
+            throw new Error('O Supabase não confirmou a atualização do pedido. Nenhuma linha foi alterada.');
+          }
+
+          return resultado;
+        } catch (e) {
+          ultimoErro = e;
+        }
       }
+
+      throw ultimoErro || new Error('Não foi possível atualizar o pedido.');
     }
 
     async function deletePedido(id) {
@@ -2267,17 +2301,39 @@ return true;
         try { clienteResolvido = await obterClienteDoPedido(pedido); }
         catch (e) { console.error('Erro ao localizar cliente:',e); }
 
-        const payloadUpdate = { STATUS: novoStatus, DATA_ATUALIZACAO: new Date().toISOString() };
+        /*
+          Monta o payload usando exatamente os nomes das colunas existentes
+          no registro retornado pelo Supabase. O código anterior enviava
+          STATUS/DATA_ATUALIZACAO sempre em maiúsculo, o que podia fazer a
+          atualização não atingir a coluna real da tabela.
+        */
+        const chaveStatus = Object.keys(pedido).find(k => k.toLowerCase() === 'status') || 'STATUS';
+        const chaveDataAtualizacao = Object.keys(pedido).find(k => k.toLowerCase() === 'data_atualizacao') || null;
+        const payloadUpdate = {};
+        payloadUpdate[chaveStatus] = novoStatus;
+        if (chaveDataAtualizacao) payloadUpdate[chaveDataAtualizacao] = new Date().toISOString();
+
         const clienteIdAtual = getValue(pedido,['CLIENTE_ID','cliente_id'],null);
+        const chaveClienteId = Object.keys(pedido).find(k => k.toLowerCase() === 'cliente_id') || 'CLIENTE_ID';
         if ((clienteIdAtual === null || clienteIdAtual === undefined || clienteIdAtual === '') && clienteResolvido && clienteResolvido.id !== null && clienteResolvido.id !== undefined) {
-          payloadUpdate.CLIENTE_ID = clienteResolvido.id;
-          pedido.CLIENTE_ID = clienteResolvido.id;
+          payloadUpdate[chaveClienteId] = clienteResolvido.id;
+          pedido[chaveClienteId] = clienteResolvido.id;
         }
 
-        await patchPedido(id, payloadUpdate);
+        const resultadoPatch = await patchPedido(id, payloadUpdate, pedido);
+
+        /*
+          Atualiza o cache imediatamente com o valor confirmado pelo banco,
+          evitando que a renderização volte a mostrar o status anterior.
+        */
+        const pedidoAtualizado = Array.isArray(resultadoPatch) ? resultadoPatch[0] : null;
+        if (pedidoAtualizado) {
+          const indice = pedidosCache.findIndex(p => String(getPedidoId(p)) === String(id));
+          if (indice >= 0) pedidosCache[indice] = {...pedidosCache[indice], ...pedidoAtualizado};
+        }
 
         try {
-          await enviarStatusWhatsApp(pedido, statusAtual, novoStatus, clienteResolvido);
+          await enviarStatusWhatsApp(pedidoAtualizado || pedido, statusAtual, novoStatus, clienteResolvido);
           showToast('Status atualizado','Pedido atualizado e mensagem enviada ao WhatsApp do cliente.');
         } catch (zapError) {
           console.error('WhatsApp:', zapError);
