@@ -581,7 +581,9 @@
     .danger-button { background:#a9001d; color:#fff; }
     .danger-button:hover { background:#820016; }
     .locked-button { background:#f1f1f1; color:#777; cursor:not-allowed; }
-    .status-select { border:1px solid var(--borda); border-radius:9px; padding:8px; background:#fff; min-width:125px; }
+    .status-select { border:1px solid var(--borda); border-radius:9px; padding:9px 30px 9px 10px; background:#fff; min-width:165px; font-weight:700; color:var(--texto); cursor:pointer; }
+    .status-menu-wrap { display:flex; flex-direction:column; gap:4px; }
+    .status-menu-label { font-size:10px; text-transform:uppercase; letter-spacing:.4px; color:var(--cinza); font-weight:800; }
     .order-lock-note { margin-top:14px; padding:12px 14px; border-radius:10px; background:#fff7e8; border:1px solid #f0d49a; color:#7a5b17; font-size:13px; }
 
     /* =========================
@@ -2283,13 +2285,13 @@
 return true;
     }
 
-    async function atualizarStatusPedido(id) {
+    async function atualizarStatusPedido(id, statusSelecionado = '') {
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       const statusAtual = getPedidoStatus(pedido);
       if (pedidoEstaBloqueado(statusAtual)) { showToast('🔒 Pedido bloqueado','Pedidos concluídos, fechados ou finalizados não podem ser alterados.'); return; }
       const select = document.getElementById('statusPedido_'+id);
-      const novoStatus = select ? String(select.value || '').trim() : '';
+      const novoStatus = String(statusSelecionado || (select ? select.value : '') || '').trim();
       if (!novoStatus) { showToast('Status obrigatório','Escolha o novo status.'); return; }
       if (normalizarStatus(novoStatus) === normalizarStatus(statusAtual)) { showToast('Sem alteração','Escolha um status diferente do atual.'); return; }
       if (!confirm('Confirmar alteração do status do pedido #'+id+' de "'+statusAtual+'" para "'+novoStatus+'"?')) return;
@@ -2414,7 +2416,7 @@ return true;
       /*
         MÓDULO PEDIDOS:
         A tela principal deve listar TODOS os pedidos, independentemente
-        do status (NOVO, EM PROCESSAMENTO, EM PRODUÇÃO, SAIU PARA ENTREGA
+        do status (NOVO, EM PROCESSAMENTO, EM PRODUÇÃO, 
         ou ENTREGUE).
 
         Os filtros abaixo continuam existindo somente para os atalhos
@@ -2458,13 +2460,17 @@ return true;
         const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
         const total = getValue(p,['VALOR_TOTAL','valor_total','TOTAL','total','valor'],0);
         const statusEsc = escapeHtml(status);
-        const options = ['NOVO','EM PROCESSAMENTO','EM PRODUÇÃO','SAIU PARA ENTREGA','ENTREGUE']
+        const options = ['NOVO','EM PROCESSAMENTO','EM PRODUÇÃO','ENTREGUE']
           .map(st => '<option value="'+escapeHtml(st)+'" '+(normalizarStatus(st)===normalizarStatus(status)?'selected':'')+'>'+escapeHtml(st)+'</option>').join('');
         const actions = bloqueado
           ? '<div class="action-group"><button class="locked-button" type="button" disabled title="Pedido bloqueado">🔒 '+escapeHtml(status)+'</button></div>'
           : '<div class="action-group">'
-            + '<select id="statusPedido_'+escapeHtml(id)+'" class="status-select">'+options+'</select>'
-            + '<button class="primary-button" type="button" onclick="atualizarStatusPedido(\''+escapeHtml(id)+'\')">✓ Confirmar</button>'
+            + '<div class="status-menu-wrap">'
+            + '<label class="status-menu-label">Status</label>'
+            + '<select id="statusPedido_'+escapeHtml(id)+'" class="status-select" onchange="atualizarStatusPedido(\''+escapeHtml(id)+'\', this.value)" title="Alterar status do pedido">'
+            + options
+            + '</select>'
+            + '</div>'
             + '<button class="danger-button" type="button" onclick="excluirPedido(\''+escapeHtml(id)+'\')">🗑 Excluir</button>'
             + '</div>';
         return '<tr>'
