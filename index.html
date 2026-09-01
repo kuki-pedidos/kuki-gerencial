@@ -2411,6 +2411,15 @@ return true;
     }
 
     function getPedidosFiltradosDashboard() {
+      /*
+        MÓDULO PEDIDOS:
+        A tela principal deve listar TODOS os pedidos, independentemente
+        do status (NOVO, EM PROCESSAMENTO, EM PRODUÇÃO, SAIU PARA ENTREGA
+        ou ENTREGUE).
+
+        Os filtros abaixo continuam existindo somente para os atalhos
+        específicos do Dashboard.
+      */
       if (filtroPedidosAtivo === 'HOJE') {
         const hoje = localDateKey(new Date());
         return pedidosCache.filter(p => {
@@ -2426,7 +2435,8 @@ return true;
         });
       }
 
-      return [...pedidosCache];
+      // TODOS: nenhum filtro por status.
+      return Array.isArray(pedidosCache) ? [...pedidosCache] : [];
     }
 
     function limparFiltroPedidos() {
@@ -2475,7 +2485,7 @@ return true;
         ? 'Todos os pedidos criados na data de hoje.'
         : (filtroPedidosAtivo === 'NOVOS'
           ? 'Somente pedidos com status NOVO.'
-          : 'Pedidos recebidos pela KUKI. Pedidos ENTREGUES são considerados concluídos e ficam somente para consulta.');
+          : 'Todos os pedidos recebidos pela KUKI, independentemente do status. Pedidos ENTREGUES ficam somente para consulta.');
 
       const botaoFiltro = filtroPedidosAtivo !== 'TODOS'
         ? '<button class="secondary-button" type="button" onclick="limparFiltroPedidos()">← Ver todos</button>'
@@ -3195,9 +3205,16 @@ return true;
       abrirModulo(name);
     }
     function selectMenu(button, name) {
+      // Ao abrir PEDIDOS pelo menu, sempre iniciar sem filtro de status/data.
+      // Assim a tela principal mostra todos os pedidos existentes.
+      if (name === 'Pedidos') filtroPedidosAtivo = 'TODOS';
       navigateToModule(name,{push:true});
     }
     function selectMenuByName(name) {
+      // Acesso direto ao módulo PEDIDOS também deve mostrar todos os pedidos.
+      // Os filtros continuam disponíveis apenas quando acionados pelos cards
+      // do Dashboard (Pedidos Novos / Pedidos Hoje).
+      if (name === 'Pedidos') filtroPedidosAtivo = 'TODOS';
       navigateToModule(name,{push:true});
     }
     function carregarModuloAtual() { abrirModulo(moduloAtual); }
