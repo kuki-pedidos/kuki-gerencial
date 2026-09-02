@@ -2358,9 +2358,9 @@ return true;
         }
 
         // A primeira mensagem ao cliente só é enviada quando o pedido entra em
-        // EM PROCESSAMENTO. Assim o operador consegue revisar o pedido e aplicar
-        // o desconto antes da confirmação chegar ao WhatsApp.
-        const deveEnviarWhatsApp = normalizarStatus(novoStatus) === 'EM PROCESSAMENTO';
+// PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO. Assim o operador consegue revisar
+// o pedido e aplicar o desconto antes da confirmação chegar ao WhatsApp.
+        const deveEnviarWhatsApp = normalizarStatus(novoStatus) === 'PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO';
 
         if (deveEnviarWhatsApp) {
           try {
@@ -2503,7 +2503,8 @@ return true;
       /*
         MÓDULO PEDIDOS:
         A tela principal deve listar TODOS os pedidos, independentemente
-        do status (NOVO, EM PROCESSAMENTO, EM PRODUÇÃO, 
+        do status (NOVO, PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO,
+        PAGAMENTO CONFIRMADO, EM PRODUÇÃO, PRONTO PARA RETIRADA,
         ou ENTREGUE).
 
         Os filtros abaixo continuam existindo somente para os atalhos
@@ -2547,7 +2548,7 @@ return true;
         const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
         const total = getValue(p,['VALOR_TOTAL','valor_total','TOTAL','total','valor'],0);
         const statusEsc = escapeHtml(status);
-        const options = ['NOVO','EM PROCESSAMENTO','EM PRODUÇÃO','ENTREGUE']
+        const options = ['NOVO','PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO','PAGAMENTO CONFIRMADO, EM PRODUÇÃO','PRONTO PARA RETIRADA','ENTREGUE']
           .map(st => '<option value="'+escapeHtml(st)+'" '+(normalizarStatus(st)===normalizarStatus(status)?'selected':'')+'>'+escapeHtml(st)+'</option>').join('');
         const actions = bloqueado
           ? '<div class="action-group"><button class="locked-button" type="button" disabled title="Pedido bloqueado">🔒 '+escapeHtml(status)+'</button></div>'
