@@ -2388,9 +2388,8 @@ return true;
 // o pedido e aplicar o desconto antes da confirmação chegar ao WhatsApp.
         const deveEnviarWhatsApp = [
           'PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO',
-          'PAGAMENTO CONFIRMADO, EM PRODUÇÃO',
-          'PRONTO PARA RETIRADA',
-          'ENTREGUE'
+          'PAGAMENTO CONFIRMADO, EM PRODUCAO',
+          'PRONTO PARA RETIRADA'
         ].includes(normalizarStatus(novoStatus));
 
         if (deveEnviarWhatsApp) {
