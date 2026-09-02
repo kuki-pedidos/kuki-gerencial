@@ -975,6 +975,10 @@
           <span>🛵</span> Entregas
         </button>
 
+        <button onclick="selectMenu(this, 'Endereço Retirada')">
+          <span>📍</span> Endereço Retirada
+        </button>
+
         <button onclick="selectMenu(this, 'Horários')">
           <span>🕐</span> Horários
         </button>
@@ -2790,8 +2794,190 @@ return true;
     }
     document.getElementById('moduleContent').addEventListener('click',function(e){const b=e.target.closest('[data-crud-action]');if(!b)return;const a=b.dataset.crudAction,n=b.dataset.crudName,i=Number(b.dataset.crudIndex);if(a==='new')abrirFormularioCrud(n);else if(a==='refresh')renderCrudModule(n);else if(a==='edit')editarCrud(n,i);else if(a==='delete')excluirCrud(n,i);else if(a==='cancel')fecharFormularioCrud();});
 
+    /* =====================================================
+       ENDEREÇOS DE RETIRADA
+       Cadastro dos 3 possíveis endereços da loja.
+       Apenas um endereço pode ficar ATIVO por vez.
+    ====================================================== */
+    let enderecosRetiradaCache = [];
+
+    async function carregarEnderecosRetirada() {
+      const rows = await getTable('enderecos_retirada', '?select=*&order=id.asc');
+      enderecosRetiradaCache = Array.isArray(rows) ? rows : [];
+      return enderecosRetiradaCache;
+    }
+
+    function limparEnderecoRetiradaForm() {
+      const form = document.getElementById('formEnderecoRetirada');
+      if (!form) return;
+      form.reset();
+      form.dataset.id = '';
+      const titulo = document.getElementById('enderecoRetiradaFormTitulo');
+      if (titulo) titulo.textContent = 'Novo endereço';
+      const ativo = document.getElementById('enderecoRetiradaAtivo');
+      if (ativo) ativo.checked = false;
+    }
+
+    function editarEnderecoRetirada(id) {
+      const row = enderecosRetiradaCache.find(r => String(r.id) === String(id));
+      if (!row) return;
+      const form = document.getElementById('formEnderecoRetirada');
+      if (!form) return;
+      form.dataset.id = String(row.id);
+      document.getElementById('enderecoRetiradaFormTitulo').textContent = 'Editar endereço';
+      document.getElementById('enderecoRetiradaNome').value = row.nome || '';
+      document.getElementById('enderecoRetiradaEndereco').value = row.endereco || '';
+      document.getElementById('enderecoRetiradaNumero').value = row.numero || '';
+      document.getElementById('enderecoRetiradaBairro').value = row.bairro || '';
+      document.getElementById('enderecoRetiradaCidade').value = row.cidade || '';
+      document.getElementById('enderecoRetiradaAtivo').checked = row.ativo === true;
+      form.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    async function salvarEnderecoRetirada() {
+      const form = document.getElementById('formEnderecoRetirada');
+      if (!form) return;
+      const id = String(form.dataset.id || '').trim();
+      const nome = document.getElementById('enderecoRetiradaNome').value.trim();
+      const endereco = document.getElementById('enderecoRetiradaEndereco').value.trim();
+      const numero = document.getElementById('enderecoRetiradaNumero').value.trim();
+      const bairro = document.getElementById('enderecoRetiradaBairro').value.trim();
+      const cidade = document.getElementById('enderecoRetiradaCidade').value.trim();
+      const ativo = document.getElementById('enderecoRetiradaAtivo').checked;
+
+      if (!nome || !endereco) {
+        showToast('Atenção', 'Informe pelo menos o nome da loja e o endereço.');
+        return;
+      }
+
+      try {
+        const atuais = await carregarEnderecosRetirada();
+        if (!id && atuais.length >= 3) {
+          showToast('Limite atingido', 'O KUKI permite até 3 endereços de retirada.');
+          return;
+        }
+
+        const payload = {
+          nome,
+          endereco,
+          numero: numero || null,
+          bairro: bairro || null,
+          cidade: cidade || null,
+          ativo: false
+        };
+
+        // Se este endereço for marcado como ativo, primeiro desativa o atual.
+        if (ativo) {
+          await restRequest('enderecos_retirada', '', {
+            method: 'PATCH',
+            headers: {'Prefer':'return=minimal'},
+            body: JSON.stringify({ativo:false})
+          });
+          payload.ativo = true;
+        }
+
+        if (id) {
+          const result = await restRequest('enderecos_retirada', '?id=eq.' + encodeURIComponent(id), {
+            method:'PATCH',
+            headers:{'Prefer':'return=representation'},
+            body:JSON.stringify(payload)
+          });
+          if (!Array.isArray(result) || result.length !== 1) throw new Error('Nenhum endereço foi atualizado.');
+          showToast('Sucesso', 'Endereço atualizado com sucesso.');
+        } else {
+          const result = await restRequest('enderecos_retirada', '', {
+            method:'POST',
+            headers:{'Prefer':'return=representation'},
+            body:JSON.stringify(payload)
+          });
+          if (!Array.isArray(result) || result.length < 1) throw new Error('O endereço não foi cadastrado.');
+          showToast('Sucesso', 'Endereço cadastrado com sucesso.');
+        }
+        limparEnderecoRetiradaForm();
+        await renderEnderecosRetiradaModule();
+      } catch (err) {
+        console.error('ENDEREÇOS RETIRADA SAVE:', err);
+        showToast('Erro', 'Não foi possível salvar o endereço: ' + (err.message || 'Erro desconhecido.'));
+      }
+    }
+
+    async function alternarEnderecoRetirada(id, ativo) {
+      try {
+        if (ativo) {
+          await restRequest('enderecos_retirada', '', {
+            method:'PATCH',
+            headers:{'Prefer':'return=minimal'},
+            body:JSON.stringify({ativo:false})
+          });
+          const result = await restRequest('enderecos_retirada', '?id=eq.' + encodeURIComponent(String(id)), {
+            method:'PATCH',
+            headers:{'Prefer':'return=representation'},
+            body:JSON.stringify({ativo:true})
+          });
+          if (!Array.isArray(result) || result.length !== 1) throw new Error('Não foi possível ativar o endereço.');
+          showToast('Endereço ativo', 'Este é o endereço de retirada ativo do dia.');
+        } else {
+          await restRequest('enderecos_retirada', '?id=eq.' + encodeURIComponent(String(id)), {
+            method:'PATCH',
+            headers:{'Prefer':'return=representation'},
+            body:JSON.stringify({ativo:false})
+          });
+          showToast('Endereço desativado', 'Nenhum endereço ficará ativo até você selecionar outro.');
+        }
+        await renderEnderecosRetiradaModule();
+      } catch (err) {
+        console.error('ENDEREÇOS RETIRADA STATUS:', err);
+        showToast('Erro', 'Não foi possível alterar o endereço ativo: ' + (err.message || 'Erro desconhecido.'));
+        await renderEnderecosRetiradaModule();
+      }
+    }
+
+    async function excluirEnderecoRetirada(id) {
+      const row = enderecosRetiradaCache.find(r => String(r.id) === String(id));
+      if (!row) return;
+      if (!confirm('Excluir este endereço de retirada? Esta ação não poderá ser desfeita.')) return;
+      try {
+        await restRequest('enderecos_retirada', '?id=eq.' + encodeURIComponent(String(id)), {
+          method:'DELETE',
+          headers:{'Prefer':'return=representation'}
+        });
+        showToast('Excluído', 'Endereço removido com sucesso.');
+        limparEnderecoRetiradaForm();
+        await renderEnderecosRetiradaModule();
+      } catch (err) {
+        console.error('ENDEREÇOS RETIRADA DELETE:', err);
+        showToast('Erro', 'Não foi possível excluir: ' + (err.message || 'Erro desconhecido.'));
+      }
+    }
+
+    async function renderEnderecosRetiradaModule() {
+      const container = document.getElementById('moduleContent');
+      if (!container) return;
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>📍 Endereço Retirada</h2><p style="color:var(--cinza);margin-top:6px;">Cadastre até 3 endereços. O endereço marcado como ATIVO será usado automaticamente para pedidos de retirada.</p></div><button class="secondary-button" type="button" onclick="renderEnderecosRetiradaModule()">↻ Atualizar</button></div><div class="crud-form-box"><div class="module-toolbar" style="margin-bottom:14px;"><h3 id="enderecoRetiradaFormTitulo">Novo endereço</h3><button class="secondary-button" type="button" onclick="limparEnderecoRetiradaForm()">Limpar</button></div><form id="formEnderecoRetirada" onsubmit="event.preventDefault(); salvarEnderecoRetirada();"><div class="crud-grid"><label class="crud-field">Nome da loja<input id="enderecoRetiradaNome" type="text" maxlength="100" required placeholder="Ex.: Loja Centro"></label><label class="crud-field">Endereço<input id="enderecoRetiradaEndereco" type="text" maxlength="255" required placeholder="Rua / Avenida"></label><label class="crud-field">Número<input id="enderecoRetiradaNumero" type="text" maxlength="20" placeholder="Número"></label><label class="crud-field">Bairro<input id="enderecoRetiradaBairro" type="text" maxlength="100" placeholder="Bairro"></label><label class="crud-field">Cidade<input id="enderecoRetiradaCidade" type="text" maxlength="100" placeholder="Cidade"></label><label class="crud-field check-field" style="align-self:end;"><input id="enderecoRetiradaAtivo" type="checkbox"> <span>Definir como endereço ATIVO</span></label></div><div class="crud-actions"><button class="primary-button" type="submit">💾 Salvar endereço</button></div></form></div><div id="enderecosRetiradaLista"><div class="empty-state"><div class="empty-state-icon">📍</div><strong>Carregando endereços...</strong></div></div></div>';
+      try {
+        const rows = await carregarEnderecosRetirada();
+        const lista = document.getElementById('enderecosRetiradaLista');
+        if (!lista) return;
+        if (!rows.length) {
+          lista.innerHTML = '<div class="empty-module"><div class="empty-state-icon">📍</div><h3>Nenhum endereço cadastrado</h3><p style="margin-top:8px;">Cadastre o primeiro endereço acima.</p></div>';
+          return;
+        }
+        lista.innerHTML = rows.map(r => {
+          const ativo = r.ativo === true;
+          const local = [r.endereco, r.numero ? 'Nº ' + r.numero : '', r.bairro, r.cidade].filter(Boolean).join(', ');
+          return '<div class="recent-order" style="align-items:center;margin-bottom:10px;flex-wrap:wrap;">'
+            + '<div style="flex:1;min-width:220px;"><strong>📍 '+escapeHtml(r.nome || 'Endereço sem nome')+'</strong><small>'+escapeHtml(local || 'Endereço não informado')+'</small><div style="margin-top:8px;"><span class="status-pill" style="'+(ativo?'background:#eaf8ef;color:#137333;':'background:#f1f1f1;color:#777;')+'">'+(ativo?'ATIVO':'INATIVO')+'</span></div></div>'
+            + '<div class="actions-inline"><label class="switch" title="'+(ativo?'Desativar endereço':'Ativar endereço')+'"><input type="checkbox" '+(ativo?'checked':'')+' onchange="alternarEnderecoRetirada(\''+escapeHtml(String(r.id))+'\', this.checked)"><span class="slider"></span></label><button class="secondary-button" type="button" onclick="editarEnderecoRetirada(\''+escapeHtml(String(r.id))+'\')">✏️ Editar</button><button class="danger-button" type="button" onclick="excluirEnderecoRetirada(\''+escapeHtml(String(r.id))+'\')">🗑 Excluir</button></div>'
+            + '</div>';
+        }).join('');
+      } catch (err) {
+        console.error('ENDEREÇOS RETIRADA LOAD:', err);
+        document.getElementById('enderecosRetiradaLista').innerHTML = '<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os endereços.</strong><p style="margin-top:8px;">'+escapeHtml(err.message || 'Confira o acesso à tabela enderecos_retirada.')+'</p></div>';
+      }
+    }
+
     function renderPlaceholderModule(name) {
-      const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Configurações':'⚙️'};
+      const icons = {'Produtos':'🍪','Clientes':'👥','Formas de pagamento':'💳','Formas de entrega':'🛵','Endereço Retirada':'📍','Configurações':'⚙️'};
       document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Este módulo será conectado ao Supabase na próxima etapa.</p></div>';
     }
 
@@ -3301,6 +3487,7 @@ return true;
       'clientes':'Clientes',
       'formas-de-pagamento':'Formas de pagamento',
       'formas-de-entrega':'Formas de entrega',
+      'endereco-retirada':'Endereço Retirada',
       'horarios':'Horários',
       'configuracoes':'Configurações',
       'analises':'Análises'
@@ -3350,7 +3537,7 @@ return true;
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Acompanhe vendas, despesas e resultado financeiro','Análises':'Indicadores, tendências e inteligência da loja'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Endereço Retirada':'Cadastre os endereços e defina o endereço ativo do dia','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Acompanhe vendas, despesas e resultado financeiro','Análises':'Indicadores, tendências e inteligência da loja'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
@@ -3358,6 +3545,7 @@ return true;
       if (name === 'Horários') renderHorariosModule();
       else if (name === 'Financeiro') renderFinanceiroModule();
       else if (name === 'Pedidos') renderPedidosModule();
+      else if (name === 'Endereço Retirada') renderEnderecosRetiradaModule();
       else if (name === 'Análises') renderKukiIAModule();
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
