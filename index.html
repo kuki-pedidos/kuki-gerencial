@@ -2868,7 +2868,7 @@ return true;
 
         // Se este endereço for marcado como ativo, primeiro desativa o atual.
         if (ativo) {
-          await restRequest('enderecos_retirada', '', {
+          await restRequest('enderecos_retirada', '?ativo=eq.true', {
             method: 'PATCH',
             headers: {'Prefer':'return=minimal'},
             body: JSON.stringify({ativo:false})
@@ -2904,7 +2904,7 @@ return true;
     async function alternarEnderecoRetirada(id, ativo) {
       try {
         if (ativo) {
-          await restRequest('enderecos_retirada', '', {
+          await restRequest('enderecos_retirada', '?ativo=eq.true', {
             method:'PATCH',
             headers:{'Prefer':'return=minimal'},
             body:JSON.stringify({ativo:false})
