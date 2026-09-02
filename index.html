@@ -2386,7 +2386,12 @@ return true;
         // A primeira mensagem ao cliente só é enviada quando o pedido entra em
 // PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO. Assim o operador consegue revisar
 // o pedido e aplicar o desconto antes da confirmação chegar ao WhatsApp.
-        const deveEnviarWhatsApp = normalizarStatus(novoStatus) === 'PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO';
+        const deveEnviarWhatsApp = [
+          'PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO',
+          'PAGAMENTO CONFIRMADO, EM PRODUÇÃO',
+          'PRONTO PARA RETIRADA',
+          'ENTREGUE'
+        ].includes(normalizarStatus(novoStatus));
 
         if (deveEnviarWhatsApp) {
           try {
