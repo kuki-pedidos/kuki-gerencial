@@ -2271,6 +2271,12 @@
         cidade: getValue(pedido,['CIDADE','cidade'],''),
         cep: getValue(pedido,['CEP','cep'],''),
         valor_total: getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],null),
+        desconto: getValue(pedido,['DESCONTO','desconto'],0),
+        valor_total_sem_desconto: parseMoneyValue(getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],0)) + parseMoneyValue(getValue(pedido,['DESCONTO','desconto'],0)),
+        valor_final: getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],null),
+        mensagem_financeira: parseMoneyValue(getValue(pedido,['DESCONTO','desconto'],0)) > 0
+          ? `Subtotal: ${formatMoney(parseMoneyValue(getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],0)) + parseMoneyValue(getValue(pedido,['DESCONTO','desconto'],0)))} | Desconto: ${formatMoney(getValue(pedido,['DESCONTO','desconto'],0))} | Total: ${formatMoney(getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],0))}`
+          : `Total: ${formatMoney(getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],0))}`,
         observacao: getValue(pedido,['OBSERVACAO','observacao'],'')
       };
       const response = await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
@@ -2334,12 +2340,21 @@ return true;
           if (indice >= 0) pedidosCache[indice] = {...pedidosCache[indice], ...pedidoAtualizado};
         }
 
-        try {
-          await enviarStatusWhatsApp(pedidoAtualizado || pedido, statusAtual, novoStatus, clienteResolvido);
-          showToast('Status atualizado','Pedido atualizado e mensagem enviada ao WhatsApp do cliente.');
-        } catch (zapError) {
-          console.error('WhatsApp:', zapError);
-          showToast('Status atualizado','Pedido salvo, mas a mensagem do WhatsApp não foi enviada: '+zapError.message);
+        // A primeira mensagem ao cliente só é enviada quando o pedido entra em
+        // EM PROCESSAMENTO. Assim o operador consegue revisar o pedido e aplicar
+        // o desconto antes da confirmação chegar ao WhatsApp.
+        const deveEnviarWhatsApp = normalizarStatus(novoStatus) === 'EM PROCESSAMENTO';
+
+        if (deveEnviarWhatsApp) {
+          try {
+            await enviarStatusWhatsApp(pedidoAtualizado || pedido, statusAtual, novoStatus, clienteResolvido);
+            showToast('Status atualizado','Pedido atualizado e mensagem enviada ao WhatsApp do cliente.');
+          } catch (zapError) {
+            console.error('WhatsApp:', zapError);
+            showToast('Status atualizado','Pedido salvo, mas a mensagem do WhatsApp não foi enviada: '+zapError.message);
+          }
+        } else {
+          showToast('Status atualizado','Pedido atualizado com sucesso.');
         }
         await carregarPedidos(false);
       } catch (error) {
