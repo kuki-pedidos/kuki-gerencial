@@ -2187,11 +2187,37 @@
     }
 
     async function deletePedido(id) {
-      const filter = '?id=eq.' + encodeURIComponent(id);
+      const pedidoId = encodeURIComponent(id);
+
+      /*
+       * Os itens do pedido ficam em ITENS_PEDIDO e possuem PEDIDO_ID.
+       * Primeiro removemos os itens e somente depois o pedido.
+       * Isso evita erro de chave estrangeira ao excluir um pedido
+       * que já possui itens gravados.
+       */
+
+      const filtroItens = '?PEDIDO_ID=eq.' + pedidoId;
+
       try {
-        return await restRequest('PEDIDOS', filter, { method:'DELETE' });
+        await restRequest('ITENS_PEDIDO', filtroItens, {
+          method:'DELETE'
+        });
       } catch (e) {
-        return await restRequest('pedidos', filter, { method:'DELETE' });
+        await restRequest('itens_pedido', filtroItens, {
+          method:'DELETE'
+        });
+      }
+
+      const filtroPedido = '?id=eq.' + pedidoId;
+
+      try {
+        return await restRequest('PEDIDOS', filtroPedido, {
+          method:'DELETE'
+        });
+      } catch (e) {
+        return await restRequest('pedidos', filtroPedido, {
+          method:'DELETE'
+        });
       }
     }
 
@@ -2388,8 +2414,9 @@ return true;
 // o pedido e aplicar o desconto antes da confirmação chegar ao WhatsApp.
         const deveEnviarWhatsApp = [
           'PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO',
-          'PAGAMENTO CONFIRMADO, EM PRODUCAO',
-          'PRONTO PARA RETIRADA'
+          'PAGAMENTO CONFIRMADO, EM PRODUÇÃO',
+          'PRONTO PARA RETIRADA',
+          'ENTREGUE'
         ].includes(normalizarStatus(novoStatus));
 
         if (deveEnviarWhatsApp) {
