@@ -765,7 +765,7 @@
     }
 
 
-    .financeiro-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:18px 0}
+    .financeiro-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:18px 0}
     .financeiro-card{padding:20px;border:1px solid var(--borda);border-radius:18px;background:#fff}
     .financeiro-card .label{font-size:.82rem;font-weight:800;color:var(--cinza);letter-spacing:.04em}
     .financeiro-card .value{font-size:1.65rem;font-weight:900;margin-top:8px}
@@ -2356,31 +2356,71 @@ return true;
         return;
       }
 
-      const totalAtual = getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'], '');
-      const obsAtual = getValue(pedido,['OBSERVACAO','observacao'], '');
-      const novoTotal = prompt('Valor total do pedido #' + id + ':', String(totalAtual ?? ''));
-      if (novoTotal === null) return;
-      const novaObs = prompt('Observação do pedido #' + id + ':', String(obsAtual ?? ''));
-      if (novaObs === null) return;
-      const numero = Number(String(novoTotal).replace(',', '.'));
-      if (!Number.isFinite(numero) || numero < 0) {
-        showToast('Valor inválido','Informe um valor numérico válido.');
-        return;
-      }
-      if (!confirm('Confirmar alteração do pedido #' + id + '?')) return;
+      const totalAtual = getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],'');
+      const descontoAtual = getValue(pedido,['DESCONTO','desconto'],'0');
+      const obsAtual = getValue(pedido,['OBSERVACAO','observacao'],'');
+      const numeroPedido = getValue(pedido,['NUMERO_PEDIDO','numero_pedido','ID','id'],id);
 
-      try {
-        await patchPedido(id, {
-          VALOR_TOTAL: numero,
-          OBSERVACAO: novaObs,
-          DATA_ATUALIZACAO: new Date().toISOString()
-        });
-        showToast('Pedido atualizado','As alterações foram gravadas com sucesso.');
-        await carregarPedidos(false);
-      } catch (error) {
-        console.error('Erro ao editar pedido:', error);
-        showToast('Erro ao atualizar','Não foi possível salvar: ' + error.message);
-      }
+      document.getElementById('modalEditarPedido')?.remove();
+      const modal=document.createElement('div');
+      modal.className='modal-overlay';
+      modal.id='modalEditarPedido';
+      document.body.classList.add('modal-open');
+      modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true">
+        <div class="modal-header"><h2>✏️ Editar pedido #${escapeHtml(numeroPedido)}</h2><button type="button" class="icon-button" id="pedidoEditClose">✕</button></div>
+        <div class="field"><label>Valor total</label><input type="number" step="0.01" min="0" id="pedidoEditTotal" value="${escapeHtml(String(totalAtual ?? ''))}"></div>
+        <div class="field"><label>Desconto</label><input type="number" step="0.01" min="0" id="pedidoEditDesconto" value="${escapeHtml(String(descontoAtual ?? '0'))}" placeholder="0,00"><small style="display:block;margin-top:6px;color:var(--cinza);">Informe 0,00 quando não houver desconto.</small></div>
+        <div class="field"><label>Observação</label><textarea id="pedidoEditObs">${escapeHtml(obsAtual ?? '')}</textarea></div>
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="pedidoEditCancel">Cancelar</button><button type="button" class="primary-button" id="pedidoEditSave">💾 Salvar alterações</button></div>
+      </div>`;
+      document.body.appendChild(modal);
+
+      const close=()=>{ modal.remove(); document.body.classList.remove('modal-open'); };
+      modal.querySelector('#pedidoEditClose').addEventListener('click',close);
+      modal.querySelector('#pedidoEditCancel').addEventListener('click',close);
+      modal.addEventListener('click',event=>{ if(event.target===modal) close(); });
+
+      modal.querySelector('#pedidoEditSave').addEventListener('click',async()=>{
+        const button=modal.querySelector('#pedidoEditSave');
+        const novoTotal=Number(String(modal.querySelector('#pedidoEditTotal').value).replace(',','.'));
+        const desconto=Number(String(modal.querySelector('#pedidoEditDesconto').value || '0').replace(',','.'));
+        const novaObs=modal.querySelector('#pedidoEditObs').value.trim();
+
+        if(!Number.isFinite(novoTotal)||novoTotal<0) return showToast('Valor inválido','Informe um valor total numérico válido.');
+        if(!Number.isFinite(desconto)||desconto<0) return showToast('Desconto inválido','Informe um desconto igual ou maior que zero.');
+        if(desconto>novoTotal) return showToast('Desconto inválido','O desconto não pode ser maior que o valor total do pedido.');
+        if(!confirm('Confirmar alteração do pedido #'+numeroPedido+'?')) return;
+
+        try {
+          button.disabled=true; button.textContent='Salvando...';
+
+          // DESCONTO é salvo na coluna DESCONTO quando ela existir no registro.
+          // Se a coluna ainda não existir no Supabase, o usuário verá uma mensagem
+          // clara orientando a criação da coluna.
+          const descontoKey = Object.keys(pedido).find(k=>k.toLowerCase()==='desconto');
+          const totalKey = Object.keys(pedido).find(k=>k.toLowerCase()==='valor_total') || 'VALOR_TOTAL';
+          const obsKey = Object.keys(pedido).find(k=>k.toLowerCase()==='observacao') || 'OBSERVACAO';
+
+          const payload = {};
+          payload[totalKey]=novoTotal;
+          payload[obsKey]=novaObs;
+          if(descontoKey) {
+            payload[descontoKey]=desconto;
+          } else {
+            throw new Error('A coluna DESCONTO ainda não existe na tabela PEDIDOS do Supabase. Crie essa coluna como NUMERIC(10,2) para ativar o desconto.');
+          }
+          payload[Object.keys(pedido).find(k=>k.toLowerCase()==='data_atualizacao') || 'DATA_ATUALIZACAO']=new Date().toISOString();
+
+          await patchPedido(id,payload,pedido);
+          close();
+          showToast('Pedido atualizado','Valor, desconto e observação foram gravados com sucesso.');
+          await carregarPedidos(false);
+        } catch(error) {
+          console.error('Erro ao editar pedido:',error);
+          showToast('Erro ao atualizar',error.message || 'Não foi possível salvar as alterações.');
+          button.disabled=false; button.textContent='💾 Salvar alterações';
+        }
+      });
     }
 
     async function excluirPedido(id) {
@@ -2471,6 +2511,7 @@ return true;
             + options
             + '</select>'
             + '</div>'
+            + '<button class="secondary-button" type="button" onclick="editarPedido(\''+escapeHtml(id)+'\')">✏️ Editar</button>'
             + '<button class="danger-button" type="button" onclick="excluirPedido(\''+escapeHtml(id)+'\')">🗑 Excluir</button>'
             + '</div>';
         return '<tr>'
@@ -2478,10 +2519,11 @@ return true;
           + '<td>'+escapeHtml(cliente)+'</td>'
           + '<td>'+escapeHtml(formatDateTime(data))+'</td>'
           + '<td><span class="status-pill">'+statusEsc+'</span></td>'
+          + '<td>'+escapeHtml(formatMoney(getValue(p,['DESCONTO','desconto'],0)))+'</td>'
           + '<td>'+escapeHtml(formatMoney(total))+'</td>'
           + '<td class="actions-cell">'+actions+'</td>'
           + '</tr>';
-      }).join('') : '<tr><td colspan="6">Nenhum pedido encontrado para este filtro.</td></tr>';
+      }).join('') : '<tr><td colspan="7">Nenhum pedido encontrado para este filtro.</td></tr>';
 
       const tituloFiltro = filtroPedidosAtivo === 'HOJE'
         ? 'Pedidos de hoje'
@@ -2500,7 +2542,7 @@ return true;
       container.innerHTML = '<div class="module-panel">'
         + '<div class="module-toolbar"><div><h2>📦 '+tituloFiltro+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoFiltro+'</p></div><div class="actions-inline">'+botaoFiltro+'<button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
         + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>ENTREGUES</strong> são considerados concluídos e não podem ser editados, ter o status alterado ou ser excluídos.</div>'
-        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
+        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
 
 
@@ -2826,6 +2868,7 @@ return true;
     ====================================================== */
     const financeiroState = {
       despesas: [],
+      vendas: [],
       categorias: [],
       formas: [],
       tabelaDespesas: null,
@@ -2867,13 +2910,15 @@ return true;
       financeiroState.tabelaCategorias = await finResolveTable(['FINANCEIRO_CATEGORIAS','financeiro_categorias']);
       financeiroState.tabelaFormas = await finResolveTable(['FORMAS_PAGAMENTO','formas_pagamento']);
 
-      const [despesas, categorias, formas] = await Promise.all([
+      const [despesas, categorias, formas, vendas] = await Promise.all([
         restRequest(financeiroState.tabelaDespesas, '?select=*'),
         restRequest(financeiroState.tabelaCategorias, '?select=*'),
-        restRequest(financeiroState.tabelaFormas, '?select=*')
+        restRequest(financeiroState.tabelaFormas, '?select=*'),
+        getTable('PEDIDOS', '?select=*')
       ]);
 
       financeiroState.despesas = Array.isArray(despesas) ? despesas : [];
+      financeiroState.vendas = Array.isArray(vendas) ? vendas : [];
       financeiroState.categorias = (Array.isArray(categorias) ? categorias : []).filter(x => {
         const ativo = finField(x,['ATIVO','ativo'],true);
         return ativo !== false && ativo !== 0 && String(ativo).toLowerCase() !== 'false' && String(ativo) !== '0';
@@ -2913,9 +2958,34 @@ return true;
       });
     }
 
+    function finVendaDate(row) {
+      return getValue(row,['created_at','CREATED_AT','DATA','data','data_pedido','DATA_PEDIDO'],'');
+    }
+
+    function finVendaValue(row) {
+      return Number(String(getValue(row,['VALOR_TOTAL','valor_total','TOTAL','total','VALOR','valor'],0)).replace(',','.')) || 0;
+    }
+
+    function finVendasRows(startDate, endDate) {
+      return financeiroState.vendas.filter(row => {
+        const d=localDateKey(finVendaDate(row));
+        return d && (!startDate || d>=startDate) && (!endDate || d<=endDate);
+      });
+    }
+
+    function finVendaStatus(row) {
+      return String(getValue(row,['STATUS','status'],'NOVO')).trim() || 'NOVO';
+    }
+
+    function finVendaDescricao(row) {
+      const numero=getValue(row,['NUMERO_PEDIDO','numero_pedido','ID','id'],'-');
+      const cliente=getValue(row,['CLIENTE_NOME','cliente_nome','NOME_CLIENTE','nome_cliente','NOME','nome'],'Cliente');
+      return 'Pedido #'+numero+' · '+cliente;
+    }
+
     function renderFinanceiroModule() {
       const container=document.getElementById('moduleContent');
-      container.innerHTML=`<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Controle as despesas da KUKI e acompanhe os resultados.</p></div><div class="actions-inline"><button type="button" class="secondary-button" id="finRefresh">↻ Atualizar</button><button type="button" class="secondary-button" id="finCategories">🏷️ Categorias</button><button type="button" class="primary-button" id="finNew">＋ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>`;
+      container.innerHTML=`<div class="module-panel"><div class="module-toolbar"><div><h2>💰 Financeiro</h2><p style="color:var(--cinza);margin-top:6px;">Acompanhe as vendas da KUKI e controle também as despesas.</p></div><div class="actions-inline"><button type="button" class="secondary-button" id="finRefresh">↻ Atualizar</button><button type="button" class="secondary-button" id="finCategories">🏷️ Categorias</button><button type="button" class="primary-button" id="finNew">＋ Nova despesa</button></div></div><div id="financeiroBody"><div class="empty-state"><div class="empty-state-icon">💰</div><strong>Carregando financeiro...</strong></div></div></div>`;
       document.getElementById('finRefresh').addEventListener('click', renderFinanceiroModule);
       document.getElementById('finCategories').addEventListener('click', finOpenCategories);
       document.getElementById('finNew').addEventListener('click', () => finOpenForm(null));
@@ -2932,26 +3002,46 @@ return true;
       const oldStart=document.getElementById('finStart')?.value;
       const oldEnd=document.getElementById('finEnd')?.value;
       const start=oldStart||monthStart, end=oldEnd||today;
-      const todayTotal=finRows(today,today).reduce((s,x)=>s+finValue(x),0);
-      const monthTotal=finRows(monthStart,today).reduce((s,x)=>s+finValue(x),0);
-      const rows=finRows(start,end);
-      const total=rows.reduce((s,x)=>s+finValue(x),0);
+
+      const vendasHoje=finVendasRows(today,today).reduce((s,x)=>s+finVendaValue(x),0);
+      const vendasMes=finVendasRows(monthStart,today).reduce((s,x)=>s+finVendaValue(x),0);
+      const despesasHoje=finRows(today,today).reduce((s,x)=>s+finValue(x),0);
+      const despesasMes=finRows(monthStart,today).reduce((s,x)=>s+finValue(x),0);
+
+      const despesas=finRows(start,end);
+      const vendas=finVendasRows(start,end);
+      const totalVendas=vendas.reduce((s,x)=>s+finVendaValue(x),0);
+      const totalDespesas=despesas.reduce((s,x)=>s+finValue(x),0);
+      const resultado=totalVendas-totalDespesas;
+
+      const movimentos=[
+        ...vendas.map(row=>({tipo:'VENDA',row,data:finVendaDate(row),valor:finVendaValue(row)})),
+        ...despesas.map(row=>({tipo:'DESPESA',row,data:finDate(row),valor:finValue(row)}))
+      ].sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')));
+
       body.innerHTML=`
         <div class="financeiro-grid">
-          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(todayTotal)}</div><div class="hint">${today}</div></div>
-          <div class="financeiro-card negativo"><div class="label">📅 DESPESAS DO MÊS</div><div class="value">${formatMoney(monthTotal)}</div><div class="hint">Do dia 1 até hoje</div></div>
-          <div class="financeiro-card"><div class="label">📊 TOTAL DO PERÍODO</div><div class="value">${formatMoney(total)}</div><div class="hint">${rows.length} lançamento(s)</div></div>
+          <div class="financeiro-card positivo"><div class="label">🛒 VENDAS HOJE</div><div class="value">${formatMoney(vendasHoje)}</div><div class="hint">${finVendasRows(today,today).length} pedido(s)</div></div>
+          <div class="financeiro-card negativo"><div class="label">💸 DESPESAS HOJE</div><div class="value">${formatMoney(despesasHoje)}</div><div class="hint">${finRows(today,today).length} lançamento(s)</div></div>
+          <div class="financeiro-card positivo"><div class="label">📅 VENDAS DO MÊS</div><div class="value">${formatMoney(vendasMes)}</div><div class="hint">Do dia 1 até hoje</div></div>
+          <div class="financeiro-card ${resultado>=0?'positivo':'negativo'}"><div class="label">📊 RESULTADO DO PERÍODO</div><div class="value">${formatMoney(resultado)}</div><div class="hint">Vendas ${formatMoney(totalVendas)} − despesas ${formatMoney(totalDespesas)}</div></div>
         </div>
         <div class="financeiro-filtros">
           <div class="field"><label>Data inicial</label><input type="date" id="finStart" value="${start}"></div>
           <div class="field"><label>Data final</label><input type="date" id="finEnd" value="${end}"></div>
           <button type="button" class="secondary-button" id="finFilter">🔎 Filtrar</button>
         </div>
-        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead><tbody>
-        ${rows.length ? rows.map(row => {
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th>Categoria / Status</th><th>Pagamento</th><th>Valor</th><th>Ações</th></tr></thead><tbody>
+        ${movimentos.length ? movimentos.map(m => {
+          if(m.tipo==='VENDA'){
+            const row=m.row;
+            const pagamento=finField(row,['FORMA_PAGAMENTO','forma_pagamento','PAGAMENTO','pagamento','FORMA_PAGAMENTO_NOME','forma_pagamento_nome'],'-');
+            return `<tr><td>${formatDateTime(m.data).split(',')[0]}</td><td><span class="status-pill" style="background:#eaf8ef;color:#137333">🛒 VENDA</span></td><td>${escapeHtml(finVendaDescricao(row))}</td><td>${escapeHtml(finVendaStatus(row))}</td><td>${escapeHtml(pagamento)}</td><td><strong style="color:#137333">${formatMoney(m.valor)}</strong></td><td>—</td></tr>`;
+          }
+          const row=m.row;
           const index=financeiroState.despesas.indexOf(row);
-          return `<tr><td>${formatDateTime(finDate(row)).split(',')[0]}</td><td>${escapeHtml(finField(row,['DESCRICAO','descricao'],'-'))}</td><td>${escapeHtml(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'-'))}</td><td>${escapeHtml(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'-'))}</td><td><strong>${formatMoney(finValue(row))}</strong></td><td><div class="actions-inline"><button type="button" class="secondary-button fin-edit" data-index="${index}">✏️ Editar</button><button type="button" class="danger-button fin-delete" data-index="${index}">🗑️ Excluir</button></div></td></tr>`;
-        }).join('') : '<tr><td colspan="6">Nenhuma despesa encontrada no período.</td></tr>'}
+          return `<tr><td>${formatDateTime(m.data).split(',')[0]}</td><td><span class="status-pill" style="background:#fff0f1;color:#b00020">💸 DESPESA</span></td><td>${escapeHtml(finField(row,['DESCRICAO','descricao'],'-'))}</td><td>${escapeHtml(finField(row,['CATEGORIA','categoria'],finCategoryName(finField(row,['CATEGORIA_ID','categoria_id']))||'-'))}</td><td>${escapeHtml(finField(row,['FORMA_PAGAMENTO','forma_pagamento'],finPaymentName(finField(row,['FORMA_PAGAMENTO_ID','forma_pagamento_id']))||'-'))}</td><td><strong style="color:#b00020">${formatMoney(m.valor)}</strong></td><td><div class="actions-inline"><button type="button" class="secondary-button fin-edit" data-index="${index}">✏️ Editar</button><button type="button" class="danger-button fin-delete" data-index="${index}">🗑️ Excluir</button></div></td></tr>`;
+        }).join('') : '<tr><td colspan="7">Nenhuma venda ou despesa encontrada no período.</td></tr>'}
         </tbody></table></div>`;
       document.getElementById('finFilter').addEventListener('click', finRender);
       body.querySelectorAll('.fin-edit').forEach(btn=>btn.addEventListener('click',()=>{
@@ -3230,7 +3320,7 @@ return true;
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Controle de despesas e acompanhamento financeiro','Análises':'Indicadores, tendências e inteligência da loja'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Acompanhe vendas, despesas e resultado financeiro','Análises':'Indicadores, tendências e inteligência da loja'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
