@@ -1456,7 +1456,23 @@
         pedidosCache = novosDados;
         ultimoPedidoChave = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
         atualizarDashboard();
-        if (moduloAtual === 'Pedidos') renderPedidosModule();
+
+        /*
+          O polling continua atualizando os pedidos a cada 3 segundos.
+          Porém, se o operador estiver com um controle da tela de pedidos
+          aberto/focado (principalmente o menu de STATUS), não reconstruímos
+          a tabela naquele instante. A reconstrução via innerHTML fazia o
+          navegador fechar o menu suspenso sozinho.
+        */
+        const elementoAtivo = document.activeElement;
+        const janelaPedidosInterativaAberta =
+          elementoAtivo &&
+          (elementoAtivo.matches('.status-select') ||
+           elementoAtivo.closest('.status-menu-wrap'));
+
+        if (moduloAtual === 'Pedidos' && !janelaPedidosInterativaAberta) {
+          renderPedidosModule();
+        }
       } catch (error) {
         console.error('Pedidos:', error);
         const recentOrders = document.getElementById('recentOrders');
@@ -1473,7 +1489,17 @@
       pedidosConhecidos.add(chave);
       pedidosCache = sortPedidos([pedido, ...pedidosCache]);
       atualizarDashboard();
-      if (moduloAtual === 'Pedidos') renderPedidosModule();
+
+      const elementoAtivo = document.activeElement;
+      const janelaPedidosInterativaAberta =
+        elementoAtivo &&
+        (elementoAtivo.matches('.status-select') ||
+         elementoAtivo.closest('.status-menu-wrap'));
+
+      if (moduloAtual === 'Pedidos' && !janelaPedidosInterativaAberta) {
+        renderPedidosModule();
+      }
+
       notificarNovoPedido(1, pedido);
 
       // Busca a linha completa para manter todos os campos sincronizados.
