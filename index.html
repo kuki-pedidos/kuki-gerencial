@@ -2829,6 +2829,7 @@ return true;
       document.getElementById('enderecoRetiradaEndereco').value = row.endereco || '';
       document.getElementById('enderecoRetiradaNumero').value = row.numero || '';
       document.getElementById('enderecoRetiradaBairro').value = row.bairro || '';
+      document.getElementById('enderecoRetiradaComplemento').value = row.complemento || '';
       document.getElementById('enderecoRetiradaCidade').value = row.cidade || '';
       document.getElementById('enderecoRetiradaAtivo').checked = row.ativo === true;
       form.scrollIntoView({behavior:'smooth', block:'start'});
@@ -2842,6 +2843,7 @@ return true;
       const endereco = document.getElementById('enderecoRetiradaEndereco').value.trim();
       const numero = document.getElementById('enderecoRetiradaNumero').value.trim();
       const bairro = document.getElementById('enderecoRetiradaBairro').value.trim();
+      const complemento = document.getElementById('enderecoRetiradaComplemento').value.trim();
       const cidade = document.getElementById('enderecoRetiradaCidade').value.trim();
       const ativo = document.getElementById('enderecoRetiradaAtivo').checked;
 
@@ -2862,6 +2864,7 @@ return true;
           endereco,
           numero: numero || null,
           bairro: bairro || null,
+          complemento: complemento || null,
           cidade: cidade || null,
           ativo: false
         };
@@ -2953,7 +2956,7 @@ return true;
     async function renderEnderecosRetiradaModule() {
       const container = document.getElementById('moduleContent');
       if (!container) return;
-      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>📍 Endereço Retirada</h2><p style="color:var(--cinza);margin-top:6px;">Cadastre até 3 endereços. O endereço marcado como ATIVO será usado automaticamente para pedidos de retirada.</p></div><button class="secondary-button" type="button" onclick="renderEnderecosRetiradaModule()">↻ Atualizar</button></div><div class="crud-form-box"><div class="module-toolbar" style="margin-bottom:14px;"><h3 id="enderecoRetiradaFormTitulo">Novo endereço</h3><button class="secondary-button" type="button" onclick="limparEnderecoRetiradaForm()">Limpar</button></div><form id="formEnderecoRetirada" onsubmit="event.preventDefault(); salvarEnderecoRetirada();"><div class="crud-grid"><label class="crud-field">Nome da loja<input id="enderecoRetiradaNome" type="text" maxlength="100" required placeholder="Ex.: Loja Centro"></label><label class="crud-field">Endereço<input id="enderecoRetiradaEndereco" type="text" maxlength="255" required placeholder="Rua / Avenida"></label><label class="crud-field">Número<input id="enderecoRetiradaNumero" type="text" maxlength="20" placeholder="Número"></label><label class="crud-field">Bairro<input id="enderecoRetiradaBairro" type="text" maxlength="100" placeholder="Bairro"></label><label class="crud-field">Cidade<input id="enderecoRetiradaCidade" type="text" maxlength="100" placeholder="Cidade"></label><label class="crud-field check-field" style="align-self:end;"><input id="enderecoRetiradaAtivo" type="checkbox"> <span>Definir como endereço ATIVO</span></label></div><div class="crud-actions"><button class="primary-button" type="submit">💾 Salvar endereço</button></div></form></div><div id="enderecosRetiradaLista"><div class="empty-state"><div class="empty-state-icon">📍</div><strong>Carregando endereços...</strong></div></div></div>';
+      container.innerHTML = '<div class="module-panel"><div class="module-toolbar"><div><h2>📍 Endereço Retirada</h2><p style="color:var(--cinza);margin-top:6px;">Cadastre até 3 endereços. O endereço marcado como ATIVO será usado automaticamente para pedidos de retirada.</p></div><button class="secondary-button" type="button" onclick="renderEnderecosRetiradaModule()">↻ Atualizar</button></div><div class="crud-form-box"><div class="module-toolbar" style="margin-bottom:14px;"><h3 id="enderecoRetiradaFormTitulo">Novo endereço</h3><button class="secondary-button" type="button" onclick="limparEnderecoRetiradaForm()">Limpar</button></div><form id="formEnderecoRetirada" onsubmit="event.preventDefault(); salvarEnderecoRetirada();"><div class="crud-grid"><label class="crud-field">Nome da loja<input id="enderecoRetiradaNome" type="text" maxlength="100" required placeholder="Ex.: Loja Centro"></label><label class="crud-field">Endereço<input id="enderecoRetiradaEndereco" type="text" maxlength="255" required placeholder="Rua / Avenida"></label><label class="crud-field">Número<input id="enderecoRetiradaNumero" type="text" maxlength="20" placeholder="Número"></label><label class="crud-field">Bairro<input id="enderecoRetiradaBairro" type="text" maxlength="100" placeholder="Bairro"></label><label class="crud-field">Complemento<input id="enderecoRetiradaComplemento" type="text" maxlength="100" placeholder="Sala, loja, bloco, etc."></label><label class="crud-field">Cidade<input id="enderecoRetiradaCidade" type="text" maxlength="100" placeholder="Cidade"></label><label class="crud-field check-field" style="align-self:end;"><input id="enderecoRetiradaAtivo" type="checkbox"> <span>Definir como endereço ATIVO</span></label></div><div class="crud-actions"><button class="primary-button" type="submit">💾 Salvar endereço</button></div></form></div><div id="enderecosRetiradaLista"><div class="empty-state"><div class="empty-state-icon">📍</div><strong>Carregando endereços...</strong></div></div></div>';
       try {
         const rows = await carregarEnderecosRetirada();
         const lista = document.getElementById('enderecosRetiradaLista');
@@ -2964,7 +2967,7 @@ return true;
         }
         lista.innerHTML = rows.map(r => {
           const ativo = r.ativo === true;
-          const local = [r.endereco, r.numero ? 'Nº ' + r.numero : '', r.bairro, r.cidade].filter(Boolean).join(', ');
+          const local = [r.endereco, r.numero ? 'Nº ' + r.numero : '', r.complemento ? r.complemento : '', r.bairro, r.cidade].filter(Boolean).join(', ');
           return '<div class="recent-order" style="align-items:center;margin-bottom:10px;flex-wrap:wrap;">'
             + '<div style="flex:1;min-width:220px;"><strong>📍 '+escapeHtml(r.nome || 'Endereço sem nome')+'</strong><small>'+escapeHtml(local || 'Endereço não informado')+'</small><div style="margin-top:8px;"><span class="status-pill" style="'+(ativo?'background:#eaf8ef;color:#137333;':'background:#f1f1f1;color:#777;')+'">'+(ativo?'ATIVO':'INATIVO')+'</span></div></div>'
             + '<div class="actions-inline"><label class="switch" title="'+(ativo?'Desativar endereço':'Ativar endereço')+'"><input type="checkbox" '+(ativo?'checked':'')+' onchange="alternarEnderecoRetirada(\''+escapeHtml(String(r.id))+'\', this.checked)"><span class="slider"></span></label><button class="secondary-button" type="button" onclick="editarEnderecoRetirada(\''+escapeHtml(String(r.id))+'\')">✏️ Editar</button><button class="danger-button" type="button" onclick="excluirEnderecoRetirada(\''+escapeHtml(String(r.id))+'\')">🗑 Excluir</button></div>'
