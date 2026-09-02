@@ -2358,6 +2358,9 @@ return true;
 
       const totalAtual = getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],'');
       const descontoAtual = getValue(pedido,['DESCONTO','desconto'],'0');
+      // VALOR_TOTAL guarda o valor final do pedido. Para permitir editar o
+      // desconto novamente sem descontar duas vezes, recuperamos o subtotal.
+      const subtotalAtual = Math.max(0, parseMoneyValue(totalAtual) + parseMoneyValue(descontoAtual));
       const obsAtual = getValue(pedido,['OBSERVACAO','observacao'],'');
       const numeroPedido = getValue(pedido,['NUMERO_PEDIDO','numero_pedido','ID','id'],id);
 
@@ -2368,8 +2371,9 @@ return true;
       document.body.classList.add('modal-open');
       modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true">
         <div class="modal-header"><h2>✏️ Editar pedido #${escapeHtml(numeroPedido)}</h2><button type="button" class="icon-button" id="pedidoEditClose">✕</button></div>
-        <div class="field"><label>Valor total</label><input type="number" step="0.01" min="0" id="pedidoEditTotal" value="${escapeHtml(String(totalAtual ?? ''))}"></div>
-        <div class="field"><label>Desconto</label><input type="number" step="0.01" min="0" id="pedidoEditDesconto" value="${escapeHtml(String(descontoAtual ?? '0'))}" placeholder="0,00"><small style="display:block;margin-top:6px;color:var(--cinza);">Informe 0,00 quando não houver desconto.</small></div>
+        <div class="field"><label>Valor dos produtos</label><input type="number" step="0.01" min="0" id="pedidoEditSubtotal" value="${escapeHtml(String(subtotalAtual.toFixed(2)))}"></div>
+        <div class="field"><label>Desconto</label><input type="number" step="0.01" min="0" id="pedidoEditDesconto" value="${escapeHtml(String(parseMoneyValue(descontoAtual).toFixed(2)))}" placeholder="0,00"><small style="display:block;margin-top:6px;color:var(--cinza);">O desconto será abatido automaticamente do total.</small></div>
+        <div class="field"><label>Total com desconto</label><input type="text" id="pedidoEditTotalFinal" value="${escapeHtml(formatMoney(subtotalAtual - parseMoneyValue(descontoAtual)))}" readonly style="font-weight:800;background:#f8eee4;color:var(--vermelho);"></div>
         <div class="field"><label>Observação</label><textarea id="pedidoEditObs">${escapeHtml(obsAtual ?? '')}</textarea></div>
         <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="pedidoEditCancel">Cancelar</button><button type="button" class="primary-button" id="pedidoEditSave">💾 Salvar alterações</button></div>
       </div>`;
@@ -2380,15 +2384,26 @@ return true;
       modal.querySelector('#pedidoEditCancel').addEventListener('click',close);
       modal.addEventListener('click',event=>{ if(event.target===modal) close(); });
 
+      const atualizarTotalFinal = () => {
+        const subtotal = Number(String(modal.querySelector('#pedidoEditSubtotal').value || '0').replace(',','.'));
+        const desconto = Number(String(modal.querySelector('#pedidoEditDesconto').value || '0').replace(',','.'));
+        const totalFinal = Number.isFinite(subtotal) && Number.isFinite(desconto) ? Math.max(0, subtotal - desconto) : 0;
+        modal.querySelector('#pedidoEditTotalFinal').value = formatMoney(totalFinal);
+      };
+      modal.querySelector('#pedidoEditSubtotal').addEventListener('input', atualizarTotalFinal);
+      modal.querySelector('#pedidoEditDesconto').addEventListener('input', atualizarTotalFinal);
+
       modal.querySelector('#pedidoEditSave').addEventListener('click',async()=>{
         const button=modal.querySelector('#pedidoEditSave');
-        const novoTotal=Number(String(modal.querySelector('#pedidoEditTotal').value).replace(',','.'));
+        const subtotal=Number(String(modal.querySelector('#pedidoEditSubtotal').value || '0').replace(',','.'));
         const desconto=Number(String(modal.querySelector('#pedidoEditDesconto').value || '0').replace(',','.'));
         const novaObs=modal.querySelector('#pedidoEditObs').value.trim();
+        const novoTotal=subtotal-desconto;
 
-        if(!Number.isFinite(novoTotal)||novoTotal<0) return showToast('Valor inválido','Informe um valor total numérico válido.');
+        if(!Number.isFinite(subtotal)||subtotal<0) return showToast('Valor inválido','Informe um valor dos produtos numérico válido.');
         if(!Number.isFinite(desconto)||desconto<0) return showToast('Desconto inválido','Informe um desconto igual ou maior que zero.');
-        if(desconto>novoTotal) return showToast('Desconto inválido','O desconto não pode ser maior que o valor total do pedido.');
+        if(desconto>subtotal) return showToast('Desconto inválido','O desconto não pode ser maior que o valor dos produtos.');
+        if(!Number.isFinite(novoTotal)||novoTotal<0) return showToast('Valor inválido','O total com desconto não pode ser negativo.');
         if(!confirm('Confirmar alteração do pedido #'+numeroPedido+'?')) return;
 
         try {
@@ -2413,7 +2428,7 @@ return true;
 
           await patchPedido(id,payload,pedido);
           close();
-          showToast('Pedido atualizado','Valor, desconto e observação foram gravados com sucesso.');
+          showToast('Pedido atualizado','Desconto aplicado e total atualizado com sucesso.');
           await carregarPedidos(false);
         } catch(error) {
           console.error('Erro ao editar pedido:',error);
