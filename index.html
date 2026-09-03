@@ -427,6 +427,11 @@
       display: none;
     }
 
+    .mobile-menu-toggle,
+    .mobile-menu-backdrop {
+      display: none;
+    }
+
 
 
     /* =========================
@@ -602,7 +607,33 @@
 
     @media (max-width: 760px) {
       .sidebar {
-        display: none;
+        display: flex;
+        width: min(86vw, 320px);
+        padding: 22px 15px calc(22px + env(safe-area-inset-bottom));
+        transform: translateX(-105%);
+        transition: transform .25s ease;
+        z-index: 6001;
+        box-shadow: 8px 0 28px rgba(0,0,0,.25);
+      }
+
+      .sidebar.mobile-menu-open {
+        transform: translateX(0);
+      }
+
+      .mobile-menu-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,.42);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity .25s ease, visibility .25s ease;
+        z-index: 6000;
+      }
+
+      .mobile-menu-backdrop.is-visible {
+        opacity: 1;
+        visibility: visible;
       }
 
       .main {
@@ -634,6 +665,12 @@
         padding: 9px 12px;
         border-radius: 8px;
         font-weight: 700;
+      }
+
+      .mobile-header .mobile-menu-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
       }
 
       .topbar {
@@ -938,7 +975,7 @@
 
     <!-- MENU LATERAL -->
 
-    <aside class="sidebar">
+    <aside class="sidebar" id="mainMenu">
 
       <div class="sidebar-welcome">
         <strong>Bem-vindo! 🍪</strong>
@@ -1010,12 +1047,18 @@
 
     </aside>
 
+    <div id="mobileMenuBackdrop" class="mobile-menu-backdrop" aria-hidden="true" onclick="setMobileMenu(false)"></div>
 
     <!-- CONTEÚDO -->
 
     <main class="main">
 
       <div class="mobile-header">
+
+        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle"
+                aria-controls="mainMenu" aria-expanded="false" onclick="toggleMobileMenu()">
+          ☰ Menu
+        </button>
 
         <img
           src="logo-kuki-transparente.png"
@@ -3579,6 +3622,27 @@ return true;
         item.classList.toggle('active', label.includes(name));
       });
     }
+    function setMobileMenu(open){
+      const menu = document.getElementById('mainMenu');
+      const backdrop = document.getElementById('mobileMenuBackdrop');
+      const button = document.getElementById('mobileMenuToggle');
+      if (!menu || !backdrop || !button) return;
+      const shouldOpen = Boolean(open) && window.matchMedia('(max-width: 760px)').matches;
+      menu.classList.toggle('mobile-menu-open', shouldOpen);
+      backdrop.classList.toggle('is-visible', shouldOpen);
+      backdrop.setAttribute('aria-hidden', String(!shouldOpen));
+      button.setAttribute('aria-expanded', String(shouldOpen));
+    }
+    function toggleMobileMenu(){
+      const menu = document.getElementById('mainMenu');
+      setMobileMenu(!menu?.classList.contains('mobile-menu-open'));
+    }
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') setMobileMenu(false);
+    });
+    window.addEventListener('resize', () => {
+      if (!window.matchMedia('(max-width: 760px)').matches) setMobileMenu(false);
+    });
     function navigateToModule(name, options={}){
       const push=options.push!==false;
       const route=moduleToRoute(name);
@@ -3596,6 +3660,7 @@ return true;
       // Assim a tela principal mostra todos os pedidos existentes.
       if (name === 'Pedidos') filtroPedidosAtivo = 'TODOS';
       navigateToModule(name,{push:true});
+      setMobileMenu(false);
     }
     function selectMenuByName(name) {
       // Acesso direto ao módulo PEDIDOS também deve mostrar todos os pedidos.
