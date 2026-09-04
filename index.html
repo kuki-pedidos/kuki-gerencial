@@ -1393,6 +1393,7 @@
        ESTADO / DADOS
     ====================================================== */
     let pedidosCache = [];
+    let itensPedidoCache = {};
     let horariosCache = [];
     let ultimoPedidoChave = null;
     let pedidosConhecidos = new Set();
@@ -1609,9 +1610,57 @@
       });
     }
 
+    /*
+      Os itens de cada pedido ficam na tabela ITENS_PEDIDO, relacionados
+      pela coluna PEDIDO_ID. Para exibir os itens na tela de Pedidos
+      (facilitando a produção), agrupamos todos os itens por PEDIDO_ID
+      assim que os pedidos são carregados/atualizados.
+    */
+    function agruparItensPorPedido(itens) {
+      const mapa = {};
+      (itens || []).forEach(item => {
+        const pedidoId = getValue(item, ['PEDIDO_ID','pedido_id'], null);
+        if (pedidoId === null || pedidoId === undefined || pedidoId === '') return;
+        const chave = String(pedidoId);
+        if (!mapa[chave]) mapa[chave] = [];
+        mapa[chave].push(item);
+      });
+      return mapa;
+    }
+
+    async function carregarItensPedido() {
+      try {
+        const rows = await getTable('ITENS_PEDIDO', '?select=*');
+        itensPedidoCache = agruparItensPorPedido(Array.isArray(rows) ? rows : []);
+      } catch (e) {
+        console.error('Itens do pedido:', e);
+        itensPedidoCache = {};
+      }
+    }
+
+    function getItensDoPedido(pedido) {
+      const id = getPedidoId(pedido);
+      return itensPedidoCache[String(id)] || [];
+    }
+
+    function renderItensPedidoCelula(pedido) {
+      const itens = getItensDoPedido(pedido);
+      if (!itens.length) return '<span style="color:var(--cinza);font-size:12px;">Sem itens</span>';
+      const linhas = itens.map(item => {
+        const nome = getValue(item, ['produto_nome','PRODUTO_NOME','nome_produto','NOME_PRODUTO','produto','PRODUTO','descricao','DESCRICAO','nome','NOME'], 'Item');
+        const qtd = Number(getValue(item, ['quantidade','QUANTIDADE','qtd','QTD'], '1')) || 1;
+        const obs = getValue(item, ['observacao','OBSERVACAO','obs','OBS'], '');
+        return '<li><strong>' + qtd + 'x</strong> ' + escapeHtml(nome) + (obs ? ' <span style="color:var(--cinza);">(' + escapeHtml(obs) + ')</span>' : '') + '</li>';
+      }).join('');
+      return '<ul style="margin:0;padding-left:16px;font-size:12px;line-height:1.5;">' + linhas + '</ul>';
+    }
+
     async function carregarPedidos(initial=false, notificarNovos=true) {
       try {
-        const rows = await getTable('PEDIDOS', '?select=*');
+        const [rows] = await Promise.all([
+          getTable('PEDIDOS', '?select=*'),
+          carregarItensPedido()
+        ]);
         const novosDados = Array.isArray(rows) ? sortPedidos(rows) : [];
 
         if (initial) {
@@ -2798,11 +2847,12 @@ return true;
           + '<td>'+escapeHtml(cliente)+'</td>'
           + '<td>'+escapeHtml(formatDateTime(data))+'</td>'
           + '<td><span class="status-pill">'+statusEsc+'</span></td>'
+          + '<td>'+renderItensPedidoCelula(p)+'</td>'
           + '<td>'+escapeHtml(formatMoney(getValue(p,['DESCONTO','desconto'],0)))+'</td>'
           + '<td>'+escapeHtml(formatMoney(total))+'</td>'
           + '<td class="actions-cell">'+actions+'</td>'
           + '</tr>';
-      }).join('') : '<tr><td colspan="7">Nenhum pedido encontrado para este filtro.</td></tr>';
+      }).join('') : '<tr><td colspan="8">Nenhum pedido encontrado para este filtro.</td></tr>';
 
       const tituloFiltro = filtroPedidosAtivo === 'HOJE'
         ? 'Pedidos de hoje'
@@ -2821,7 +2871,7 @@ return true;
       container.innerHTML = '<div class="module-panel">'
         + '<div class="module-toolbar"><div><h2>📦 '+tituloFiltro+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoFiltro+'</p></div><div class="actions-inline">'+botaoFiltro+'<button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
         + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>ENTREGUES</strong> são considerados concluídos e não podem ser editados, ter o status alterado ou ser excluídos.</div>'
-        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
+        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Itens (produção)</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
 
 
