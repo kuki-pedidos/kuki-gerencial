@@ -1311,14 +1311,21 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
-  <!-- O JAVASCRIPT CONTINUA NA PARTE 2 -->
     /* =====================================================
        SUPABASE
     ====================================================== */
 
-    const SUPABASE_URL = 'https://delakuvbbayovkpxemgm.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_FqBkrIbKuNSmh78DidDpow_30o7P4kP';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const SUPABASE_URL =
+      'https://delakuvbbayovkpxemgm.supabase.co';
+
+    const SUPABASE_KEY =
+      'sb_publishable_FqBkrIbKuNSmh78DidDpow_30o7P4kP';
+
+    const supabaseClient =
+      window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+      );
 
     const USUARIOS_LOGIN = {
       'admin': 'robesousa@gmail.com',
@@ -1326,19 +1333,40 @@
     };
 
     function normalizarUsuario(usuario) {
-      return (usuario || '').trim().toLowerCase().replace(/\s+/g, '');
+      return (usuario || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
     }
 
     function obterNomeUsuarioPorEmail(email) {
-      const usuario = Object.keys(USUARIOS_LOGIN).find(nome => USUARIOS_LOGIN[nome] === email);
+      const usuario = Object.keys(USUARIOS_LOGIN).find(function(nome) {
+        return USUARIOS_LOGIN[nome] === email;
+      });
+
       return usuario || 'Usuário';
     }
 
-    const loginScreen = document.getElementById('loginScreen');
-    const appScreen = document.getElementById('appScreen');
-    const loginForm = document.getElementById('loginForm');
-    const loginButton = document.getElementById('loginButton');
-    const loginError = document.getElementById('loginError');
+
+    /* =====================================================
+       ELEMENTOS
+    ====================================================== */
+
+    const loginScreen =
+      document.getElementById('loginScreen');
+
+    const appScreen =
+      document.getElementById('appScreen');
+
+    const loginForm =
+      document.getElementById('loginForm');
+
+    const loginButton =
+      document.getElementById('loginButton');
+
+    const loginError =
+      document.getElementById('loginError');
+
 
     /* =====================================================
        ESTADO / DADOS
@@ -1355,6 +1383,9 @@
     let moduloAtual = 'Dashboard';
     let filtroPedidosAtivo = 'TODOS';
 
+    /* =====================================================
+       SESSÃO POR INATIVIDADE
+    ====================================================== */
     const INATIVIDADE_LIMITE_MS = 60 * 60 * 1000;
     const INATIVIDADE_STORAGE_KEY = 'kuki_gerencial_ultima_atividade';
     let inactivityTimer = null;
@@ -1547,72 +1578,95 @@
     }
 
     /* =====================================================
-       ITENS DE PEDIDO
+       ITENS DE PEDIDO - VÍNCULO CORRIGIDO
     ====================================================== */
     function agruparItensPorPedido(itens) {
       const mapa = {};
       (itens || []).forEach(item => {
-        const fk = getValue(item, [
-          'PEDIDO_ID', 'pedido_id',
-          'ID_PEDIDO', 'id_pedido',
-          'NUMERO_PEDIDO', 'numero_pedido',
-          'PEDIDO', 'pedido',
-          'ORDER_ID', 'order_id'
-        ], null);
-        if (fk !== null && fk !== undefined && fk !== '') {
-          const chave = String(fk).trim();
-          if (!mapa[chave]) mapa[chave] = [];
-          mapa[chave].push(item);
-        }
+        if (!item || typeof item !== 'object') return;
+        const chavesFk = Object.keys(item).filter(k => {
+          const ku = k.toUpperCase();
+          return ku.includes('PEDIDO') || ku === 'ORDER_ID' || ku === 'ID';
+        });
+
+        chavesFk.forEach(k => {
+          const val = item[k];
+          if (val !== null && val !== undefined && String(val).trim() !== '') {
+            const str = String(val).trim();
+            if (!mapa[str]) mapa[str] = [];
+            if (!mapa[str].includes(item)) mapa[str].push(item);
+          }
+        });
       });
       return mapa;
     }
 
     async function carregarItensPedido() {
-      const tabelas = ['ITENS_PEDIDO', 'itens_pedido', 'itens_pedidos', 'pedido_itens', 'pedidos_itens', 'itens'];
-      let itens = [];
-      for (const t of tabelas) {
-        try {
-          const rows = await restRequest(t, '?select=*');
-          if (Array.isArray(rows) && rows.length > 0) {
-            itens = rows;
-            break;
-          }
-        } catch (e) {}
+      try {
+        const { data, error } = await supabaseClient.from('ITENS_PEDIDO').select('*');
+        if (!error && Array.isArray(data) && data.length > 0) {
+          itensPedidoCache = agruparItensPorPedido(data);
+          return;
+        }
+      } catch (e) {}
+
+      try {
+        const rows = await restRequest('ITENS_PEDIDO', '?select=*');
+        itensPedidoCache = agruparItensPorPedido(Array.isArray(rows) ? rows : []);
+      } catch (e) {
+        itensPedidoCache = {};
       }
-      itensPedidoCache = agruparItensPorPedido(itens);
     }
 
     function getItensDoPedido(pedido) {
       if (!pedido) return [];
 
-      const chaves = [
-        getPedidoId(pedido),
-        getValue(pedido, ['id', 'ID']),
-        getValue(pedido, ['numero_pedido', 'NUMERO_PEDIDO']),
-        getValue(pedido, ['pedido_id', 'PEDIDO_ID'])
-      ].filter(Boolean).map(v => String(v).trim());
+      const idsDoPedido = Object.keys(pedido)
+        .filter(k => {
+          const ku = k.toUpperCase();
+          return ku === 'ID' || ku.includes('PEDIDO') || ku.includes('NUMERO');
+        })
+        .map(k => String(pedido[k] ?? '').trim())
+        .filter(Boolean);
 
-      for (const k of chaves) {
-        if (itensPedidoCache[k] && itensPedidoCache[k].length > 0) {
-          return itensPedidoCache[k];
+      idsDoPedido.push(String(getPedidoId(pedido) || '').trim());
+      idsDoPedido.push(String(getValue(pedido, ['NUMERO_PEDIDO', 'numero_pedido', 'id', 'ID'], '')).trim());
+
+      for (const idCandidato of [...new Set(idsDoPedido)]) {
+        if (idCandidato && itensPedidoCache[idCandidato] && itensPedidoCache[idCandidato].length > 0) {
+          return itensPedidoCache[idCandidato];
         }
       }
 
-      const direto = getValue(pedido, ['itens', 'ITENS', 'produtos', 'PRODUTOS', 'carrinho', 'CARRINHO', 'items', 'ITEMS', 'detalhes', 'descricao'], null);
-      if (direto) {
-        if (Array.isArray(direto)) return direto;
-        if (typeof direto === 'string') {
-          try {
-            const parsed = JSON.parse(direto);
-            if (Array.isArray(parsed)) return parsed;
-            if (parsed && typeof parsed === 'object') {
-              const sub = getValue(parsed, ['itens', 'produtos', 'carrinho', 'items'], null);
-              if (Array.isArray(sub)) return sub;
-              return [parsed];
+      for (const k of Object.keys(pedido)) {
+        const kl = k.toLowerCase();
+        if (kl.includes('item') || kl.includes('prod') || kl.includes('carrinho') || kl === 'detalhes' || kl === 'descricao') {
+          const val = pedido[k];
+          if (!val) continue;
+          if (Array.isArray(val) && val.length > 0) return val;
+          if (typeof val === 'string' && val.trim()) {
+            const s = val.trim();
+            if ((s.startsWith('[') && s.endsWith(']')) || (s.startsWith('{') && s.endsWith('}'))) {
+              try {
+                const parsed = JSON.parse(s);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+                if (parsed && typeof parsed === 'object') {
+                  const sub = getValue(parsed, ['itens', 'produtos', 'carrinho', 'items'], null);
+                  if (Array.isArray(sub) && sub.length > 0) return sub;
+                  return [parsed];
+                }
+              } catch (e) {}
             }
-          } catch (e) {
-            return direto.split(/[\n;]+/).map(s => ({ produto_nome: s.trim(), quantidade: 1 })).filter(x => x.produto_nome);
+            if (s.includes('x ') || s.includes('\n') || s.includes(';')) {
+              const linhas = s.split(/[\n;]+/).map(x => x.trim()).filter(Boolean);
+              if (linhas.length > 0 && !linhas[0].toLowerCase().startsWith('http')) {
+                return linhas.map(l => {
+                  const match = l.match(/^(\d+)\s*x\s*(.+)/i);
+                  if (match) return { quantidade: match[1], produto_nome: match[2].trim() };
+                  return { quantidade: 1, produto_nome: l };
+                });
+              }
+            }
           }
         }
       }
@@ -1622,14 +1676,36 @@
 
     function renderItensPedidoCelula(pedido) {
       const itens = getItensDoPedido(pedido);
-      if (!itens.length) return '<span style="color:var(--cinza);font-size:12px;">Sem itens</span>';
+      if (!itens || !itens.length) return '<span style="color:var(--cinza);font-size:12px;">Sem itens</span>';
       const linhas = itens.map(item => {
         if (typeof item === 'string') return '<li>' + escapeHtml(item) + '</li>';
-        const nome = getValue(item, ['produto_nome','PRODUTO_NOME','nome_produto','NOME_PRODUTO','produto','PRODUTO','descricao','DESCRICAO','nome','NOME'], 'Item');
-        const qtd = Number(getValue(item, ['quantidade','QUANTIDADE','qtd','QTD'], '1')) || 1;
-        const obs = getValue(item, ['observacao','OBSERVACAO','obs','OBS'], '');
+        const nome = getValue(item, [
+          'produto_nome', 'PRODUTO_NOME',
+          'nome_produto', 'NOME_PRODUTO',
+          'produto', 'PRODUTO',
+          'nome', 'NOME',
+          'descricao', 'DESCRICAO',
+          'item', 'ITEM',
+          'title'
+        ], 'Item');
+
+        const qtd = Number(getValue(item, [
+          'quantidade', 'QUANTIDADE',
+          'qtd', 'QTD',
+          'quant', 'QUANT',
+          'qnt', 'QNT'
+        ], '1')) || 1;
+
+        const obs = getValue(item, [
+          'observacao', 'OBSERVACAO',
+          'obs', 'OBS',
+          'observacoes', 'OBSERVACOES',
+          'detalhes', 'DETALHES'
+        ], '');
+
         return '<li><strong>' + qtd + 'x</strong> ' + escapeHtml(nome) + (obs ? ' <span style="color:var(--cinza);">(' + escapeHtml(obs) + ')</span>' : '') + '</li>';
       }).join('');
+
       return '<ul style="margin:0;padding-left:16px;font-size:12px;line-height:1.5;">' + linhas + '</ul>';
     }
 
@@ -1661,7 +1737,8 @@
         const elementoAtivo = document.activeElement;
         const janelaPedidosInterativaAberta =
           elementoAtivo &&
-          (elementoAtivo.matches('.status-select') || elementoAtivo.closest('.status-menu-wrap'));
+          (elementoAtivo.matches('.status-select') ||
+           elementoAtivo.closest('.status-menu-wrap'));
 
         if (moduloAtual === 'Pedidos' && !janelaPedidosInterativaAberta) {
           renderPedidosModule();
@@ -1685,7 +1762,8 @@
       const elementoAtivo = document.activeElement;
       const janelaPedidosInterativaAberta =
         elementoAtivo &&
-        (elementoAtivo.matches('.status-select') || elementoAtivo.closest('.status-menu-wrap'));
+        (elementoAtivo.matches('.status-select') ||
+         elementoAtivo.closest('.status-menu-wrap'));
 
       if (moduloAtual === 'Pedidos' && !janelaPedidosInterativaAberta) {
         renderPedidosModule();
@@ -1718,15 +1796,19 @@
         });
 
       pedidosRealtimeChannelLower = criarCanalRealtimePedidos('kuki-pedidos-realtime-lower', 'pedidos')
-        .subscribe((status) => {});
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn('Realtime minúsculo indisponível. O polling continuará ativo.');
+          }
+        });
     }
 
     async function pararRealtimePedidos() {
       if (pedidosRealtimeChannel) {
-        try { await supabaseClient.removeChannel(pedidosRealtimeChannel); } catch (e) {}
+        try { await supabaseClient.removeChannel(pedidosRealtimeChannel); } catch (e) { console.error('Realtime:', e); }
       }
       if (pedidosRealtimeChannelLower) {
-        try { await supabaseClient.removeChannel(pedidosRealtimeChannelLower); } catch (e) {}
+        try { await supabaseClient.removeChannel(pedidosRealtimeChannelLower); } catch (e) { console.error('Realtime:', e); }
       }
       pedidosRealtimeChannel = null;
       pedidosRealtimeChannelLower = null;
@@ -1770,6 +1852,22 @@
       }
     }
 
+    function renderRecentOrders() {
+      const el = document.getElementById('recentOrders');
+      if (!el) return;
+      if (!pedidosCache.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><strong>Nenhum pedido encontrado.</strong></div>';
+        return;
+      }
+      el.innerHTML = pedidosCache.slice(0,5).map(p => {
+        const id = getValue(p,['id','ID','pedido_id','PEDIDO_ID'],'#');
+        const nome = getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'Pedido');
+        const total = getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],'');
+        const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
+        return '<div class="recent-order"><div><strong>#'+escapeHtml(id)+' · '+escapeHtml(nome)+'</strong><small>'+escapeHtml(formatDateTime(data))+'</small></div><div><strong>'+escapeHtml(total !== '' ? formatMoney(total) : '')+'</strong></div></div>';
+      }).join('');
+    }
+
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     }
@@ -1784,7 +1882,7 @@
     }
 
     /* =====================================================
-       ÁUDIO
+       ALERTA SONORO DE NOVO PEDIDO
     ====================================================== */
     let kukiAudioContext = null;
     let somNovoPedidoAtivo = false;
@@ -1807,6 +1905,7 @@
         if (!kukiAudioContext) kukiAudioContext = new AudioCtx();
         return kukiAudioContext;
       } catch(e) {
+        console.warn('Áudio KUKI:', e);
         return null;
       }
     }
@@ -1819,6 +1918,7 @@
         if (ctx.state !== 'running') return null;
         return ctx;
       } catch(e) {
+        console.warn('Não foi possível liberar o áudio:', e);
         return null;
       }
     }
@@ -1828,7 +1928,9 @@
       if (!btn) return;
       btn.classList.toggle('sound-on', somNovoPedidoAtivo);
       btn.textContent = somNovoPedidoAtivo ? '🔊 Som ativado' : '🔇 Som desativado';
-      btn.title = somNovoPedidoAtivo ? 'Som de novos pedidos ativado' : 'Clique para ativar o som de novos pedidos';
+      btn.title = somNovoPedidoAtivo
+        ? 'Som de novos pedidos ativado'
+        : 'Clique para ativar o som de novos pedidos';
     }
 
     async function ativarSomManual() {
@@ -1839,6 +1941,7 @@
         showToast('Áudio bloqueado', 'Clique novamente no botão para liberar o som deste navegador.');
         return;
       }
+
       somNovoPedidoAtivo = true;
       salvarPreferenciaSom(true);
       atualizarBotaoSom();
@@ -1863,6 +1966,7 @@
 
     async function tocarToqueNovoPedido(preview=false) {
       if (!preview && !somNovoPedidoAtivo) return;
+
       if (alertaSonoroEmExecucao) {
         if (!preview) alertaSonoroFila = Math.min(alertaSonoroFila + 1, 3);
         return;
@@ -1872,12 +1976,27 @@
       if (!ctx) return;
 
       alertaSonoroEmExecucao = true;
+
       const sequencia = [
-        [880, 0.00, 0.28, 0.15], [1046.5, 0.34, 0.28, 0.15], [1318.5, 0.68, 0.42, 0.18],
-        [880, 1.35, 0.28, 0.15], [1046.5, 1.69, 0.28, 0.15], [1318.5, 2.03, 0.42, 0.18],
-        [880, 2.70, 0.28, 0.15], [1046.5, 3.04, 0.28, 0.15], [1318.5, 3.38, 0.42, 0.18],
-        [880, 4.05, 0.28, 0.15], [1046.5, 4.39, 0.28, 0.15], [1396.9, 4.73, 0.48, 0.20],
-        [880, 5.45, 0.28, 0.15], [1046.5, 5.79, 0.28, 0.15], [1568.0, 6.13, 0.50, 0.22]
+        [880,    0.00, 0.28, 0.15],
+        [1046.5, 0.34, 0.28, 0.15],
+        [1318.5, 0.68, 0.42, 0.18],
+
+        [880,    1.35, 0.28, 0.15],
+        [1046.5, 1.69, 0.28, 0.15],
+        [1318.5, 2.03, 0.42, 0.18],
+
+        [880,    2.70, 0.28, 0.15],
+        [1046.5, 3.04, 0.28, 0.15],
+        [1318.5, 3.38, 0.42, 0.18],
+
+        [880,    4.05, 0.28, 0.15],
+        [1046.5, 4.39, 0.28, 0.15],
+        [1396.9, 4.73, 0.48, 0.20],
+
+        [880,    5.45, 0.28, 0.15],
+        [1046.5, 5.79, 0.28, 0.15],
+        [1568.0, 6.13, 0.50, 0.22]
       ];
 
       sequencia.forEach(([frequencia, inicio, duracao, volume]) => {
@@ -1886,6 +2005,7 @@
 
       setTimeout(async () => {
         alertaSonoroEmExecucao = false;
+
         if (!preview && alertaSonoroFila > 0) {
           alertaSonoroFila--;
           await tocarToqueNovoPedido(false);
@@ -1914,6 +2034,8 @@
     somNovoPedidoAtivo = somEstaSalvoComoAtivo();
     atualizarBotaoSom();
 
+    function beep() { tocarToqueNovoPedido(false); }
+
     function atualizarBadge() {
       const badge = document.getElementById('notificationBadge');
       if (!badge) return;
@@ -1921,18 +2043,30 @@
       badge.style.display = notificacoesPendentes ? 'flex' : 'none';
     }
 
+    function marcarNotificacoesLidas() {
+      notificacoesPendentes = 0;
+      atualizarBadge();
+      if (pedidosCache[0]) showToast('Pedidos recentes', 'Há '+pedidosCache.length+' pedido(s) carregado(s) no sistema.');
+    }
+
     function notificarNovoPedido(qtd, pedido) {
       notificacoesPendentes += qtd;
       atualizarBadge();
       const id = getValue(pedido,['id','ID','pedido_id','PEDIDO_ID'],'');
-      const mensagem = qtd > 1 ? qtd+' novos pedidos chegaram.' : 'O pedido #'+id+' acabou de chegar!';
+      const mensagem = qtd > 1
+        ? qtd+' novos pedidos chegaram.'
+        : 'O pedido #'+id+' acabou de chegar!';
 
       showToast('🔔 Novo pedido!', mensagem);
+
       if (somNovoPedidoAtivo) tocarToqueNovoPedido(false);
 
       if ('Notification' in window && Notification.permission === 'granted') {
         try {
-          new Notification('KUKI Gerencial', { body: mensagem, tag: 'kuki-novo-pedido' });
+          new Notification('KUKI Gerencial', {
+            body: mensagem,
+            tag: 'kuki-novo-pedido'
+          });
         } catch(e) {}
       }
     }
@@ -1943,7 +2077,8 @@
       }
     }
 
-    /* =====================================================
+    <!-- FIM DA PARTE 1 -->
+/* =====================================================
        KUKI INTELIGÊNCIA / ANALYTICS
     ====================================================== */
     const KUKI_IA_WEBHOOK_URL = 'https://n8n.rikasolucoes.com.br/webhook/kuki/ia-gerencial';
@@ -2220,12 +2355,17 @@
     }
 
     /* =====================================================
-       PEDIDOS - REGRAS E EXCLUSÃO
+       PEDIDOS - REGRAS E EXCLUSÃO DEFINITIVA
     ====================================================== */
-    const PEDIDO_STATUS_BLOQUEADOS = new Set(['ENTREGUE']);
+    const PEDIDO_STATUS_BLOQUEADOS = new Set([
+      'ENTREGUE'
+    ]);
 
     function normalizarStatus(status) {
-      return String(status || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+      return String(status || '')
+        .trim()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
     }
 
     function pedidoEstaBloqueado(status) {
@@ -2242,13 +2382,17 @@
 
     async function patchPedido(id, payload, pedidoAtual=null) {
       const idKey = pedidoAtual
-        ? (Object.keys(pedidoAtual).find(k => k.toLowerCase() === 'id') || 'id')
-        : 'id';
+        ? (Object.keys(pedidoAtual).find(k => k.toLowerCase() === 'id') || 'ID')
+        : 'ID';
 
       const filter = '?' + encodeURIComponent(idKey) + '=eq.' + encodeURIComponent(id);
+
       const payloadReal = {};
       Object.keys(payload).forEach(key => {
-        if (!pedidoAtual) { payloadReal[key] = payload[key]; return; }
+        if (!pedidoAtual) {
+          payloadReal[key] = payload[key];
+          return;
+        }
         const realKey = Object.keys(pedidoAtual).find(k => k.toLowerCase() === key.toLowerCase()) || key;
         payloadReal[realKey] = payload[key];
       });
@@ -2259,6 +2403,7 @@
       ];
 
       let ultimoErro = null;
+
       for (const tentativa of tentativas) {
         try {
           const resultado = await restRequest(tentativa.table, filter, {
@@ -2266,67 +2411,84 @@
             headers:{'Prefer':'return=representation'},
             body:JSON.stringify(tentativa.body)
           });
+
           if (!Array.isArray(resultado) || resultado.length !== 1) {
             throw new Error('O Supabase não confirmou a atualização do pedido. Nenhuma linha foi alterada.');
           }
+
           return resultado;
         } catch (e) {
           ultimoErro = e;
         }
       }
+
       throw ultimoErro || new Error('Não foi possível atualizar o pedido.');
     }
 
     async function deletePedido(id, pedidoAtual = null) {
       const pedido = pedidoAtual || obterPedidoAtual(id) || {};
-      const idPrincipal = getValue(pedido, ['id', 'ID', 'pedido_id', 'PEDIDO_ID'], id);
-      const numeroPedido = getValue(pedido, ['numero_pedido', 'NUMERO_PEDIDO'], null);
+      const idKey = Object.keys(pedido).find(k => k.toLowerCase() === 'id') || 'id';
+      const idVal = pedido[idKey] !== undefined && pedido[idKey] !== null ? pedido[idKey] : id;
+      const numKey = Object.keys(pedido).find(k => k.toLowerCase() === 'numero_pedido');
+      const numVal = numKey ? pedido[numKey] : null;
 
-      const chavesIdentificadoras = [...new Set([String(idPrincipal), String(id), numeroPedido ? String(numeroPedido) : null].filter(Boolean))];
+      const chavesParaExcluir = [...new Set([String(idVal), numVal ? String(numVal) : null, String(id)].filter(Boolean))];
 
-      const tabelasItens = ['ITENS_PEDIDO', 'itens_pedido', 'itens_pedidos', 'pedido_itens'];
-      const colunasFkItens = ['PEDIDO_ID', 'pedido_id', 'numero_pedido', 'NUMERO_PEDIDO', 'id_pedido', 'ID_PEDIDO'];
-
-      for (const tabItem of tabelasItens) {
-        for (const colFk of colunasFkItens) {
-          for (const val of chavesIdentificadoras) {
-            try {
-              await restRequest(tabItem, '?' + encodeURIComponent(colFk) + '=eq.' + encodeURIComponent(val), { method: 'DELETE' });
-            } catch (e) {}
-          }
-        }
+      // 1. Remove dependências de ITENS_PEDIDO para evitar trava de chave estrangeira
+      for (const val of chavesParaExcluir) {
+        try { await supabaseClient.from('ITENS_PEDIDO').delete().eq('PEDIDO_ID', val); } catch (e) {}
+        try { await supabaseClient.from('ITENS_PEDIDO').delete().eq('pedido_id', val); } catch (e) {}
+        try { await restRequest('ITENS_PEDIDO', '?PEDIDO_ID=eq.' + encodeURIComponent(val), { method: 'DELETE' }); } catch (e) {}
+        try { await restRequest('ITENS_PEDIDO', '?pedido_id=eq.' + encodeURIComponent(val), { method: 'DELETE' }); } catch (e) {}
       }
 
-      const tabelasPedido = ['PEDIDOS', 'pedidos'];
-      const colunasId = ['id', 'ID', 'numero_pedido', 'NUMERO_PEDIDO', 'pedido_id', 'PEDIDO_ID'];
+      // 2. Remove o pedido na tabela PEDIDOS
       let excluiu = false;
-      let erroBanco = null;
+      let erroFinal = null;
 
-      for (const tabPed of tabelasPedido) {
-        for (const col of colunasId) {
-          for (const val of chavesIdentificadoras) {
-            try {
-              const resp = await restRequest(tabPed, '?' + encodeURIComponent(col) + '=eq.' + encodeURIComponent(val), {
-                method: 'DELETE',
-                headers: { 'Prefer': 'return=representation' }
-              });
-              if (Array.isArray(resp) && resp.length > 0) {
-                excluiu = true;
-                break;
-              }
-            } catch (e) {
-              erroBanco = e;
-            }
+      try {
+        const { data, error } = await supabaseClient
+          .from('PEDIDOS')
+          .delete()
+          .eq(idKey, idVal)
+          .select();
+
+        if (error) erroFinal = error;
+        else if (Array.isArray(data) && data.length > 0) excluiu = true;
+      } catch (err) {
+        erroFinal = err;
+      }
+
+      if (!excluiu && numKey && numVal) {
+        try {
+          const { data, error } = await supabaseClient
+            .from('PEDIDOS')
+            .delete()
+            .eq(numKey, numVal)
+            .select();
+
+          if (!error && Array.isArray(data) && data.length > 0) excluiu = true;
+        } catch (err) {}
+      }
+
+      if (!excluiu) {
+        try {
+          const resp = await restRequest('PEDIDOS', '?' + encodeURIComponent(idKey) + '=eq.' + encodeURIComponent(String(idVal)), {
+            method: 'DELETE',
+            headers: { 'Prefer': 'return=representation' }
+          });
+          if (Array.isArray(resp) && resp.length > 0) {
+            excluiu = true;
           }
-          if (excluiu) break;
+        } catch (err) {
+          if (!erroFinal) erroFinal = err;
         }
-        if (excluiu) break;
       }
 
       if (!excluiu) {
         throw new Error(
-          erroBanco?.message ||
-          'Nenhuma linha foi apagada no Supabase. Verifique se o RLS (Row Level Security) da tabela PEDIDOS possui uma Policy habilitando DELETE para usuários autenticados.'
+          erroFinal?.message ||
+          'Nenhuma linha foi apagada no banco. Verifique se o RLS (Row Level Security) da tabela PEDIDOS possui permissão de DELETE liberada.'
         );
       }
 
@@ -2349,7 +2511,9 @@
     }
 
     function normalizarTextoComparacao(valor) {
-      return String(valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim().replace(/\s+/g,' ');
+      return String(valor ?? '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+        .toUpperCase().trim().replace(/\s+/g,' ');
     }
 
     function pontuarClienteDoPedido(cliente, pedido) {
@@ -2460,7 +2624,9 @@
       await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: {
+          'Content-Type': 'text/plain'
+        },
         body: JSON.stringify(payload)
       });
       return true;
@@ -2470,7 +2636,7 @@
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       const statusAtual = getPedidoStatus(pedido);
-      if (pedidoEstaBloqueado(statusAtual)) { showToast('🔒 Pedido bloqueado','Pedidos concluídos não podem ser alterados.'); return; }
+      if (pedidoEstaBloqueado(statusAtual)) { showToast('🔒 Pedido bloqueado','Pedidos concluídos, fechados ou finalizados não podem ser alterados.'); return; }
       const select = document.getElementById('statusPedido_'+id);
       const novoStatus = String(statusSelecionado || (select ? select.value : '') || '').trim();
       if (!novoStatus) { showToast('Status obrigatório','Escolha o novo status.'); return; }
@@ -2479,7 +2645,8 @@
 
       try {
         let clienteResolvido = null;
-        try { clienteResolvido = await obterClienteDoPedido(pedido); } catch (e) {}
+        try { clienteResolvido = await obterClienteDoPedido(pedido); }
+        catch (e) { console.error('Erro ao localizar cliente:',e); }
 
         const chaveStatus = Object.keys(pedido).find(k => k.toLowerCase() === 'status') || 'STATUS';
         const chaveDataAtualizacao = Object.keys(pedido).find(k => k.toLowerCase() === 'data_atualizacao') || null;
@@ -2513,7 +2680,8 @@
             await enviarStatusWhatsApp(pedidoAtualizado || pedido, statusAtual, novoStatus, clienteResolvido);
             showToast('Status atualizado','Pedido atualizado e mensagem enviada ao WhatsApp do cliente.');
           } catch (zapError) {
-            showToast('Status atualizado','Pedido salvo, mas o WhatsApp não foi notificado: '+zapError.message);
+            console.error('WhatsApp:', zapError);
+            showToast('Status atualizado','Pedido salvo, mas a mensagem do WhatsApp não foi enviada: '+zapError.message);
           }
         } else {
           showToast('Status atualizado','Pedido atualizado com sucesso.');
@@ -2620,7 +2788,11 @@
       if (!confirm('EXCLUIR o pedido #' + id + '?\n\nEsta ação apagará os itens e o pedido definitivamente.')) return;
       try {
         await deletePedido(id, pedido);
-        pedidosCache = pedidosCache.filter(p => String(getPedidoId(p)) !== String(id) && String(getValue(p, ['numero_pedido','NUMERO_PEDIDO'])) !== String(id));
+        pedidosCache = pedidosCache.filter(p => {
+          const pId = getPedidoId(p);
+          const pNum = getValue(p, ['NUMERO_PEDIDO', 'numero_pedido', 'id', 'ID'], null);
+          return String(pId) !== String(id) && String(pNum) !== String(id);
+        });
         atualizarDashboard();
         renderPedidosModule();
         showToast('Pedido excluído','O pedido #' + id + ' foi removido com sucesso.');
@@ -3120,7 +3292,8 @@
       document.getElementById('moduleContent').innerHTML = '<div class="module-panel empty-module"><div class="empty-state-icon">'+(icons[name]||'⚙️')+'</div><h2>'+escapeHtml(name)+'</h2><p style="margin-top:10px;">Este módulo será conectado ao Supabase na próxima etapa.</p></div>';
     }
 
-    /* =====================================================
+    <!-- FIM DA PARTE 2 -->
+/* =====================================================
        VERIFICAR LOGIN EXISTENTE
     ====================================================== */
     async function verificarSessao() {
@@ -3706,7 +3879,7 @@
     });
 
     /* =====================================================
-       INICIAR
+       INICIAR - LOGIN OBRIGATÓRIO
     ====================================================== */
     loginScreen.style.display = 'flex';
     appScreen.style.display = 'none';
