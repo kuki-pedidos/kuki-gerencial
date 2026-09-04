@@ -1373,6 +1373,7 @@
     ====================================================== */
     let pedidosCache = [];
     let itensPedidoCache = {};
+    let produtosNomeCache = {};
     let horariosCache = [];
     let ultimoPedidoChave = null;
     let pedidosConhecidos = new Set();
@@ -1578,8 +1579,25 @@
     }
 
     /* =====================================================
-       ITENS DE PEDIDO - VÍNCULO CORRIGIDO
+       ITENS DE PEDIDO & VÍNCULO COM PRODUTOS
     ====================================================== */
+    async function carregarProdutosCache() {
+      try {
+        const rows = await getTable('PRODUTOS', '?select=*');
+        if (Array.isArray(rows)) {
+          rows.forEach(p => {
+            const id = getValue(p, ['id', 'ID'], null);
+            const nome = getValue(p, ['nome', 'NOME', 'descricao', 'DESCRICAO', 'titulo', 'TITULO'], '');
+            if (id !== null && id !== undefined && nome) {
+              produtosNomeCache[String(id).trim()] = String(nome).trim();
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('Cache produtos:', e);
+      }
+    }
+
     function agruparItensPorPedido(itens) {
       const mapa = {};
       (itens || []).forEach(item => {
@@ -1674,21 +1692,63 @@
       return [];
     }
 
+    function obterNomeDoItem(item) {
+      if (!item) return 'Item';
+      if (typeof item === 'string') return item;
+
+      const camposNome = [
+        'produto_nome', 'PRODUTO_NOME',
+        'nome_produto', 'NOME_PRODUTO',
+        'nome', 'NOME',
+        'descricao', 'DESCRICAO',
+        'descricao_produto', 'DESCRICAO_PRODUTO',
+        'sabor', 'SABOR',
+        'titulo', 'TITULO',
+        'item', 'ITEM'
+      ];
+
+      for (const campo of camposNome) {
+        const val = item[campo];
+        if (val && typeof val === 'string' && isNaN(Number(val.trim())) && val.trim().toLowerCase() !== 'item') {
+          return val.trim();
+        }
+      }
+
+      const camposId = [
+        'produto_id', 'PRODUTO_ID',
+        'id_produto', 'ID_PRODUTO',
+        'produto', 'PRODUTO',
+        'item_id', 'ITEM_ID'
+      ];
+
+      for (const campo of camposId) {
+        const idProd = item[campo];
+        if (idProd !== null && idProd !== undefined && String(idProd).trim() !== '') {
+          const idStr = String(idProd).trim();
+          if (produtosNomeCache[idStr]) {
+            return produtosNomeCache[idStr];
+          }
+        }
+      }
+
+      for (const [k, v] of Object.entries(item)) {
+        if (typeof v === 'string' && v.trim().length > 1 && isNaN(Number(v.trim()))) {
+          const kl = k.toLowerCase();
+          if (!kl.includes('obs') && !kl.includes('date') && !kl.includes('data') && !kl.includes('id') && v.trim().toLowerCase() !== 'item') {
+            return v.trim();
+          }
+        }
+      }
+
+      return 'Item';
+    }
+
     function renderItensPedidoCelula(pedido) {
       const itens = getItensDoPedido(pedido);
       if (!itens || !itens.length) return '<span style="color:var(--cinza);font-size:12px;">Sem itens</span>';
       const linhas = itens.map(item => {
         if (typeof item === 'string') return '<li>' + escapeHtml(item) + '</li>';
-        const nome = getValue(item, [
-          'produto_nome', 'PRODUTO_NOME',
-          'nome_produto', 'NOME_PRODUTO',
-          'produto', 'PRODUTO',
-          'nome', 'NOME',
-          'descricao', 'DESCRICAO',
-          'item', 'ITEM',
-          'title'
-        ], 'Item');
-
+        const nome = obterNomeDoItem(item);
         const qtd = Number(getValue(item, [
           'quantidade', 'QUANTIDADE',
           'qtd', 'QTD',
@@ -1713,7 +1773,8 @@
       try {
         const [rows] = await Promise.all([
           getTable('PEDIDOS', '?select=*'),
-          carregarItensPedido()
+          carregarItensPedido(),
+          carregarProdutosCache()
         ]);
         const novosDados = Array.isArray(rows) ? sortPedidos(rows) : [];
 
@@ -2039,6 +2100,7 @@
     function atualizarBadge() {
       const badge = document.getElementById('notificationBadge');
       if (!badge) return;
+
       badge.textContent = notificacoesPendentes > 99 ? '99+' : notificacoesPendentes;
       badge.style.display = notificacoesPendentes ? 'flex' : 'none';
     }
@@ -2079,7 +2141,9 @@
 
     <!-- FIM DA PARTE 1 -->
 /* =====================================================
-       KUKI INTELIGÊNCIA / ANALYTICS
+       KUKI INTELIGÊNCIA
+       A IA é chamada pelo n8n. Nenhuma chave de provedor
+       de IA fica exposta no navegador.
     ====================================================== */
     const KUKI_IA_WEBHOOK_URL = 'https://n8n.rikasolucoes.com.br/webhook/kuki/ia-gerencial';
     let dashboardPeriodo = 7;
@@ -2094,23 +2158,23 @@
     }
 
     function pedidosNoPeriodo(days) {
-      const now = new Date(), inicio = new Date(now);
+      const now=new Date(), inicio=new Date(now);
       inicio.setHours(0,0,0,0); inicio.setDate(inicio.getDate()-(days-1));
       return pedidosCache.filter(p=>{
-        const d = new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));
+        const d=new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));
         return !isNaN(d)&&d>=inicio&&d<=now;
       });
     }
 
     function formatPercent(v) {
       if(!isFinite(v)) return '—';
-      const sign = v > 0 ? '+' : '';
-      return sign + v.toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%';
+      const sign=v>0?'+':'';
+      return sign+v.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
     }
 
     function trendText(current,previous,label) {
       if(!previous) return 'Sem histórico comparável';
-      const pct = ((current-previous)/previous)*100;
+      const pct=((current-previous)/previous)*100;
       return (label?label+' ':'')+formatPercent(pct)+' vs. período anterior';
     }
 
@@ -2145,30 +2209,16 @@
     }
 
     async function carregarProdutosParaAnalytics(){
-      try {
-        await carregarItensPedido();
-        const itensAgrupados = Object.values(itensPedidoCache).flat();
-        if (itensAgrupados.length > 0) {
-          produtosAnalyticsCache = itensAgrupados;
-          return;
-        }
-      } catch(e) {}
-
-      const extraidos = [];
-      pedidosCache.forEach(p => {
-        const itens = getItensDoPedido(p);
-        itens.forEach(it => extraidos.push(it));
-      });
-      produtosAnalyticsCache = extraidos;
+      try{const rows=await getTable('ITENS_PEDIDO','?select=*');produtosAnalyticsCache=Array.isArray(rows)?rows:[];}catch(e){produtosAnalyticsCache=[];}
     }
 
     function renderTopProducts(){
       const el=document.getElementById('topProducts');if(!el)return;
-      if(!produtosAnalyticsCache.length){el.innerHTML='<div class="empty-state" style="padding:25px;"><div class="empty-state-icon">🍪</div><strong>Ranking de produtos ainda indisponível</strong><p style="margin-top:6px;font-size:12px;">Não foram encontrados dados legíveis nos pedidos.</p></div>';return;}
+      if(!produtosAnalyticsCache.length){el.innerHTML='<div class="empty-state" style="padding:25px;"><div class="empty-state-icon">🍪</div><strong>Ranking de produtos ainda indisponível</strong><p style="margin-top:6px;font-size:12px;">Não foram encontrados dados legíveis em ITENS_PEDIDO.</p></div>';return;}
       const map={};
       produtosAnalyticsCache.forEach(item=>{
-        const name = typeof item === 'string' ? item : getValue(item,['produto_nome','PRODUTO_NOME','nome_produto','NOME_PRODUTO','produto','PRODUTO','descricao','DESCRICAO','nome','NOME'],'Produto');
-        const qty = Number(typeof item === 'object' ? getValue(item,['quantidade','QUANTIDADE','qtd','QTD'],'1') : 1) || 1;
+        const name=obterNomeDoItem(item);
+        const qty=Number(getValue(item,['quantidade','QUANTIDADE','qtd','QTD'],'1'))||1;
         map[String(name)]=(map[String(name)]||0)+qty;
       });
       const arr=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -2355,7 +2405,7 @@
     }
 
     /* =====================================================
-       PEDIDOS - REGRAS E EXCLUSÃO DEFINITIVA
+       PEDIDOS - REGRAS DE INTEGRIDADE E EXCLUSÃO DEFINITIVA
     ====================================================== */
     const PEDIDO_STATUS_BLOQUEADOS = new Set([
       'ENTREGUE'
@@ -3107,6 +3157,8 @@
 
     /* =====================================================
        ENDEREÇOS DE RETIRADA
+       Cadastro dos 3 possíveis endereços da loja.
+       Apenas um endereço pode ficar ATIVO por vez.
     ====================================================== */
     let enderecosRetiradaCache = [];
 
@@ -3343,6 +3395,9 @@
     /* =====================================================
        PROTEÇÃO DE AUTENTICAÇÃO
     ====================================================== */
+
+    // Se a sessão for encerrada ou expirar enquanto o sistema estiver aberto,
+    // volta imediatamente para a tela de login.
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         if (pollingTimer) clearInterval(pollingTimer);
@@ -3363,6 +3418,8 @@
       appScreen.style.display = 'block';
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
 
+      // F5/reabertura mantém a sessão enquanto ainda estiver dentro da janela
+      // de 1 hora. Um novo login também reinicia essa janela.
       salvarUltimaAtividade();
       programarExpiracaoInatividade();
 
@@ -3385,8 +3442,9 @@
       document.getElementById('username').value = ''; document.getElementById('password').value = '';
     }
 
+
     /* =====================================================
-       FINANCEIRO
+       FINANCEIRO - REFEITO DO ZERO
     ====================================================== */
     const financeiroState = {
       despesas: [],
@@ -3426,6 +3484,8 @@
     }
 
     async function finLoad() {
+      // Descobre uma única vez o nome REAL das tabelas e guarda o resultado.
+      // Depois disso, listar, inserir, editar e excluir usam exatamente o mesmo nome.
       financeiroState.tabelaDespesas = await finResolveTable(['FINANCEIRO_DESPESAS','financeiro_despesas']);
       financeiroState.tabelaCategorias = await finResolveTable(['FINANCEIRO_CATEGORIAS','financeiro_categorias']);
       financeiroState.tabelaFormas = await finResolveTable(['FORMAS_PAGAMENTO','formas_pagamento']);
@@ -3577,6 +3637,8 @@
     }
 
     function finOptions(list,current,names) {
+      // O select exibe o nome, mas envia o ID. A tabela FINANCEIRO_DESPESAS
+      // usa chaves estrangeiras (CATEGORIA_ID / FORMA_PAGAMENTO_ID), não os nomes.
       return list.map(row=>{
         const id=finField(row,['ID','id'],'');
         const name=String(finField(row,names,'')).trim();
@@ -3586,7 +3648,7 @@
     }
 
     /* =====================================================
-       FINANCEIRO - CATEGORIAS
+       FINANCEIRO - CATEGORIAS (CRUD)
     ====================================================== */
     async function finReloadCategories() {
       const categorias = await restRequest(financeiroState.tabelaCategorias, '?select=*');
@@ -3740,6 +3802,9 @@
       const observation=document.getElementById('finObservation').value.trim()||null;
       if(!date||!description||!(amount>0)) throw new Error('Informe data, descrição e valor válido.');
 
+      // A estrutura real da FINANCEIRO_DESPESAS não possui CATEGORIA nem
+      // FORMA_PAGAMENTO. Ela guarda os relacionamentos por *_ID.
+      // Mantemos os nomes reais das demais colunas conforme o registro existente.
       const sample=row||financeiroState.despesas[0]||{};
       const put=(obj,candidates,value,fallback)=>{obj[finColumnName(sample,candidates,fallback)]=value;};
       const payload={};
@@ -3748,6 +3813,7 @@
       put(payload,['CATEGORIA_ID','categoria_id'],categoryId,'CATEGORIA_ID');
       put(payload,['FORMA_PAGAMENTO_ID','forma_pagamento_id'],paymentId,'FORMA_PAGAMENTO_ID');
       put(payload,['VALOR','valor'],amount,'VALOR');
+      // OBSERVACAO só é enviado se a coluna existir; assim evitamos erro de schema.
       const obsField=finColumnName(sample,['OBSERVACAO','observacao'],null);
       if(obsField) payload[obsField]=observation;
       return payload;
@@ -3774,7 +3840,6 @@
         showToast('Despesa excluída','O lançamento foi removido.'); renderFinanceiroModule();
       } catch(e) { console.error('FINANCEIRO DELETE:',e); showToast('Erro ao excluir',e.message||'Não foi possível excluir a despesa.'); }
     }
-
     /* =====================================================
        MENU + HISTÓRICO DO NAVEGADOR
     ====================================================== */
@@ -3838,11 +3903,16 @@
       abrirModulo(name);
     }
     function selectMenu(button, name) {
+      // Ao abrir PEDIDOS pelo menu, sempre iniciar sem filtro de status/data.
+      // Assim a tela principal mostra todos os pedidos existentes.
       if (name === 'Pedidos') filtroPedidosAtivo = 'TODOS';
       navigateToModule(name,{push:true});
       setMobileMenu(false);
     }
     function selectMenuByName(name) {
+      // Acesso direto ao módulo PEDIDOS também deve mostrar todos os pedidos.
+      // Os filtros continuam disponíveis apenas quando acionados pelos cards
+      // do Dashboard (Pedidos Novos / Pedidos Hoje).
       if (name === 'Pedidos') filtroPedidosAtivo = 'TODOS';
       navigateToModule(name,{push:true});
     }
@@ -3877,10 +3947,13 @@
       const name=routeToModule();
       if(name!==moduloAtual){ updateActiveMenu(name); abrirModulo(name); }
     });
-
     /* =====================================================
        INICIAR - LOGIN OBRIGATÓRIO
     ====================================================== */
+
+    // Ao atualizar (F5), o Supabase restaura a sessão existente.
+    // Só exige novo login quando a sessão não existe ou passou 1 hora
+    // sem qualquer interação no sistema.
     loginScreen.style.display = 'flex';
     appScreen.style.display = 'none';
 
