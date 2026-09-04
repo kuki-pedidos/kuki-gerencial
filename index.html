@@ -436,8 +436,6 @@
       display: none;
     }
 
-
-
     /* =========================
        BEM-VINDO / NOTIFICAÇÕES / MÓDULOS
     ========================= */
@@ -483,7 +481,6 @@
     }
     @media(max-width:760px){.sound-toggle{flex:1}}
 
-
     .toast-container {
       position:fixed; right:24px; top:24px; z-index:5000;
       display:flex; flex-direction:column; gap:10px; max-width:360px;
@@ -503,8 +500,7 @@
     .primary-button:hover { background:var(--vermelho-escuro); }
     .table-wrap { overflow-x:auto; }
 
-    /* FOTOS DOS PRODUTOS: sempre ficam dentro de um quadrado pequeno.
-       A imagem nunca usa o tamanho natural do arquivo. */
+    /* FOTOS DOS PRODUTOS */
     .product-thumb {
       display:block;
       width:78px;
@@ -581,7 +577,7 @@
     .recent-order small { color:var(--cinza); }
     .empty-module { text-align:center; padding:50px 20px; color:var(--cinza); }
 
-    /* AÇÕES DE PEDIDOS - HARDENED */
+    /* AÇÕES DE PEDIDOS */
     .actions-cell { white-space:nowrap; }
     .action-group { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .secondary-button, .danger-button, .locked-button { border:none; padding:9px 12px; border-radius:9px; font-weight:800; cursor:pointer; font-size:12px; }
@@ -726,7 +722,6 @@
     .crud-form-box h3{margin-bottom:14px}.crud-field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;font-weight:700}.crud-field input{padding:12px;border:1px solid #d9c8bb;border-radius:10px;font:inherit}.check-field{flex-direction:row;align-items:center}.crud-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.actions-inline{display:flex;gap:8px;align-items:center;justify-content:flex-start;flex-wrap:nowrap}.actions-inline button{margin:0!important;min-width:92px}.crud-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.crud-grid .crud-field{margin-bottom:0}
     @media(max-width:700px){.actions-inline{gap:6px}.actions-inline button{min-width:0;padding:9px 8px;font-size:12px}.crud-grid{grid-template-columns:1fr}}
 
-
     .dashboard-card-action{
       width:100%;
       font:inherit;
@@ -750,7 +745,6 @@
       color:var(--cinza);
       line-height:1.35;
     }
-
 
     .card-novos-destaque{
       position:relative;
@@ -805,7 +799,6 @@
       .card-novos-destaque,.card-novos-destaque::before,.novo-alerta-pulse{animation:none !important;}
     }
 
-
     .financeiro-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:18px 0}
     .financeiro-card{padding:20px;border:1px solid var(--borda);border-radius:18px;background:#fff}
     .financeiro-card .label{font-size:.82rem;font-weight:800;color:var(--cinza);letter-spacing:.04em}
@@ -825,7 +818,6 @@
       .financeiro-filtros .field{min-width:100%}
     }
 
-
     .financeiro-menu-button{
       display:flex !important;
       align-items:center;
@@ -833,7 +825,6 @@
       visibility:visible !important;
       opacity:1 !important;
     }
-
 
     /* =====================================================
        MODAL DO FINANCEIRO - SOBREPOSTO E RESPONSIVO
@@ -1320,74 +1311,34 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <script>
-
+  <!-- O JAVASCRIPT CONTINUA NA PARTE 2 -->
     /* =====================================================
        SUPABASE
     ====================================================== */
 
-    const SUPABASE_URL =
-      'https://delakuvbbayovkpxemgm.supabase.co';
+    const SUPABASE_URL = 'https://delakuvbbayovkpxemgm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_FqBkrIbKuNSmh78DidDpow_30o7P4kP';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const SUPABASE_KEY =
-      'sb_publishable_FqBkrIbKuNSmh78DidDpow_30o7P4kP';
-
-    const supabaseClient =
-      window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-      );
-
-    /*
-      =====================================================
-      USUÁRIOS DE LOGIN
-      =====================================================
-
-      O usuário informa somente o nome de usuário na tela.
-      O e-mail continua sendo usado internamente pelo Supabase Auth.
-
-      Para cadastrar outro usuário futuramente, adicione:
-      'novo_usuario': 'email-do-usuario@dominio.com',
-    */
     const USUARIOS_LOGIN = {
       'admin': 'robesousa@gmail.com',
-       'robesousa': 'robesousa@gmail.com'
+      'robesousa': 'robesousa@gmail.com'
     };
 
     function normalizarUsuario(usuario) {
-      return (usuario || '')
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '');
+      return (usuario || '').trim().toLowerCase().replace(/\s+/g, '');
     }
 
     function obterNomeUsuarioPorEmail(email) {
-      const usuario = Object.keys(USUARIOS_LOGIN).find(function(nome) {
-        return USUARIOS_LOGIN[nome] === email;
-      });
-
+      const usuario = Object.keys(USUARIOS_LOGIN).find(nome => USUARIOS_LOGIN[nome] === email);
       return usuario || 'Usuário';
     }
 
-
-    /* =====================================================
-       ELEMENTOS
-    ====================================================== */
-
-    const loginScreen =
-      document.getElementById('loginScreen');
-
-    const appScreen =
-      document.getElementById('appScreen');
-
-    const loginForm =
-      document.getElementById('loginForm');
-
-    const loginButton =
-      document.getElementById('loginButton');
-
-    const loginError =
-      document.getElementById('loginError');
-
+    const loginScreen = document.getElementById('loginScreen');
+    const appScreen = document.getElementById('appScreen');
+    const loginForm = document.getElementById('loginForm');
+    const loginButton = document.getElementById('loginButton');
+    const loginError = document.getElementById('loginError');
 
     /* =====================================================
        ESTADO / DADOS
@@ -1403,12 +1354,7 @@
     let pedidosRealtimeChannelLower = null;
     let moduloAtual = 'Dashboard';
     let filtroPedidosAtivo = 'TODOS';
-    /* =====================================================
-       SESSÃO POR INATIVIDADE
-       O login permanece válido ao atualizar (F5).
-       Após 1 hora sem qualquer interação no sistema,
-       a sessão é encerrada e o próximo acesso exige login.
-    ====================================================== */
+
     const INATIVIDADE_LIMITE_MS = 60 * 60 * 1000;
     const INATIVIDADE_STORAGE_KEY = 'kuki_gerencial_ultima_atividade';
     let inactivityTimer = null;
@@ -1484,7 +1430,6 @@
       }
     }
 
-    // Qualquer interação relevante conta como atividade.
     ['pointerdown','keydown','touchstart','wheel','scroll','click'].forEach(eventName => {
       window.addEventListener(eventName, registrarAtividadeUsuario, {passive:true});
     });
@@ -1500,7 +1445,6 @@
       }
     });
 
-
     function atualizarData() {
       const agora = new Date();
       document.getElementById('currentDate').textContent = agora.toLocaleDateString('pt-BR', {
@@ -1509,9 +1453,6 @@
     }
     atualizarData();
 
-
-    // Webhook do n8n responsável por enviar a atualização do status ao WhatsApp do cliente.
-    // O workflow precisa estar publicado neste endpoint no n8n.
     const STATUS_PEDIDO_WEBHOOK_URL = 'https://n8n.rikasolucoes.com.br/webhook/kuki/status-pedido';
 
     function getValue(obj, names, fallback='') {
@@ -1526,9 +1467,6 @@
     }
 
     async function restRequest(table, path='', options={}) {
-      // O Gerencial exige login. Para que o RLS reconheça o usuário
-      // autenticado, o Authorization precisa usar o access_token da sessão,
-      // e não a chave pública do projeto.
       let accessToken = SUPABASE_KEY;
       try {
         const { data } = await supabaseClient.auth.getSession();
@@ -1575,8 +1513,6 @@
       const hasComma = text.includes(',');
       const hasDot = text.includes('.');
 
-      // Valores vindos do Supabase normalmente são decimais como 24.8/24.80.
-      // Só tratamos o ponto como separador de milhar quando existe vírgula decimal.
       if (hasComma && hasDot) {
         text = text.replace(/\./g, '').replace(',', '.');
       } else if (hasComma) {
@@ -1610,43 +1546,85 @@
       });
     }
 
-    /*
-      Os itens de cada pedido ficam na tabela ITENS_PEDIDO, relacionados
-      pela coluna PEDIDO_ID. Para exibir os itens na tela de Pedidos
-      (facilitando a produção), agrupamos todos os itens por PEDIDO_ID
-      assim que os pedidos são carregados/atualizados.
-    */
+    /* =====================================================
+       ITENS DE PEDIDO
+    ====================================================== */
     function agruparItensPorPedido(itens) {
       const mapa = {};
       (itens || []).forEach(item => {
-        const pedidoId = getValue(item, ['PEDIDO_ID','pedido_id'], null);
-        if (pedidoId === null || pedidoId === undefined || pedidoId === '') return;
-        const chave = String(pedidoId);
-        if (!mapa[chave]) mapa[chave] = [];
-        mapa[chave].push(item);
+        const fk = getValue(item, [
+          'PEDIDO_ID', 'pedido_id',
+          'ID_PEDIDO', 'id_pedido',
+          'NUMERO_PEDIDO', 'numero_pedido',
+          'PEDIDO', 'pedido',
+          'ORDER_ID', 'order_id'
+        ], null);
+        if (fk !== null && fk !== undefined && fk !== '') {
+          const chave = String(fk).trim();
+          if (!mapa[chave]) mapa[chave] = [];
+          mapa[chave].push(item);
+        }
       });
       return mapa;
     }
 
     async function carregarItensPedido() {
-      try {
-        const rows = await getTable('ITENS_PEDIDO', '?select=*');
-        itensPedidoCache = agruparItensPorPedido(Array.isArray(rows) ? rows : []);
-      } catch (e) {
-        console.error('Itens do pedido:', e);
-        itensPedidoCache = {};
+      const tabelas = ['ITENS_PEDIDO', 'itens_pedido', 'itens_pedidos', 'pedido_itens', 'pedidos_itens', 'itens'];
+      let itens = [];
+      for (const t of tabelas) {
+        try {
+          const rows = await restRequest(t, '?select=*');
+          if (Array.isArray(rows) && rows.length > 0) {
+            itens = rows;
+            break;
+          }
+        } catch (e) {}
       }
+      itensPedidoCache = agruparItensPorPedido(itens);
     }
 
     function getItensDoPedido(pedido) {
-      const id = getPedidoId(pedido);
-      return itensPedidoCache[String(id)] || [];
+      if (!pedido) return [];
+
+      const chaves = [
+        getPedidoId(pedido),
+        getValue(pedido, ['id', 'ID']),
+        getValue(pedido, ['numero_pedido', 'NUMERO_PEDIDO']),
+        getValue(pedido, ['pedido_id', 'PEDIDO_ID'])
+      ].filter(Boolean).map(v => String(v).trim());
+
+      for (const k of chaves) {
+        if (itensPedidoCache[k] && itensPedidoCache[k].length > 0) {
+          return itensPedidoCache[k];
+        }
+      }
+
+      const direto = getValue(pedido, ['itens', 'ITENS', 'produtos', 'PRODUTOS', 'carrinho', 'CARRINHO', 'items', 'ITEMS', 'detalhes', 'descricao'], null);
+      if (direto) {
+        if (Array.isArray(direto)) return direto;
+        if (typeof direto === 'string') {
+          try {
+            const parsed = JSON.parse(direto);
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && typeof parsed === 'object') {
+              const sub = getValue(parsed, ['itens', 'produtos', 'carrinho', 'items'], null);
+              if (Array.isArray(sub)) return sub;
+              return [parsed];
+            }
+          } catch (e) {
+            return direto.split(/[\n;]+/).map(s => ({ produto_nome: s.trim(), quantidade: 1 })).filter(x => x.produto_nome);
+          }
+        }
+      }
+
+      return [];
     }
 
     function renderItensPedidoCelula(pedido) {
       const itens = getItensDoPedido(pedido);
       if (!itens.length) return '<span style="color:var(--cinza);font-size:12px;">Sem itens</span>';
       const linhas = itens.map(item => {
+        if (typeof item === 'string') return '<li>' + escapeHtml(item) + '</li>';
         const nome = getValue(item, ['produto_nome','PRODUTO_NOME','nome_produto','NOME_PRODUTO','produto','PRODUTO','descricao','DESCRICAO','nome','NOME'], 'Item');
         const qtd = Number(getValue(item, ['quantidade','QUANTIDADE','qtd','QTD'], '1')) || 1;
         const obs = getValue(item, ['observacao','OBSERVACAO','obs','OBS'], '');
@@ -1680,18 +1658,10 @@
         ultimoPedidoChave = pedidosCache[0] ? pedidoKey(pedidosCache[0]) : null;
         atualizarDashboard();
 
-        /*
-          O polling continua atualizando os pedidos a cada 3 segundos.
-          Porém, se o operador estiver com um controle da tela de pedidos
-          aberto/focado (principalmente o menu de STATUS), não reconstruímos
-          a tabela naquele instante. A reconstrução via innerHTML fazia o
-          navegador fechar o menu suspenso sozinho.
-        */
         const elementoAtivo = document.activeElement;
         const janelaPedidosInterativaAberta =
           elementoAtivo &&
-          (elementoAtivo.matches('.status-select') ||
-           elementoAtivo.closest('.status-menu-wrap'));
+          (elementoAtivo.matches('.status-select') || elementoAtivo.closest('.status-menu-wrap'));
 
         if (moduloAtual === 'Pedidos' && !janelaPedidosInterativaAberta) {
           renderPedidosModule();
@@ -1708,7 +1678,6 @@
       const chave = pedidoKey(pedido);
       if (!chave || pedidosConhecidos.has(chave)) return;
 
-      // Marca imediatamente para impedir que Realtime e polling gerem o mesmo alerta.
       pedidosConhecidos.add(chave);
       pedidosCache = sortPedidos([pedido, ...pedidosCache]);
       atualizarDashboard();
@@ -1716,16 +1685,13 @@
       const elementoAtivo = document.activeElement;
       const janelaPedidosInterativaAberta =
         elementoAtivo &&
-        (elementoAtivo.matches('.status-select') ||
-         elementoAtivo.closest('.status-menu-wrap'));
+        (elementoAtivo.matches('.status-select') || elementoAtivo.closest('.status-menu-wrap'));
 
       if (moduloAtual === 'Pedidos' && !janelaPedidosInterativaAberta) {
         renderPedidosModule();
       }
 
       notificarNovoPedido(1, pedido);
-
-      // Busca a linha completa para manter todos os campos sincronizados.
       await carregarPedidos(false, false);
     }
 
@@ -1737,7 +1703,6 @@
           schema: 'public',
           table: tabela
         }, async (payload) => {
-          console.log('KUKI Realtime INSERT:', tabela, payload);
           await processarPedidoRealtime(payload && payload.new ? payload.new : null);
         });
     }
@@ -1745,32 +1710,23 @@
     async function iniciarRealtimePedidos() {
       if (pedidosRealtimeChannel || pedidosRealtimeChannelLower) return;
 
-      // O PostgreSQL normalmente usa nomes em minúsculas, mas o projeto pode ter
-      // sido criado com a tabela entre aspas como "PEDIDOS". Mantemos os dois canais
-      // para funcionar nos dois cenários.
       pedidosRealtimeChannel = criarCanalRealtimePedidos('kuki-pedidos-realtime-upper', 'PEDIDOS')
         .subscribe((status) => {
-          console.log('KUKI Realtime PEDIDOS (maiúsculo):', status);
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             showToast('Realtime', 'Tentando conexão alternativa para atualização dos pedidos.');
           }
         });
 
       pedidosRealtimeChannelLower = criarCanalRealtimePedidos('kuki-pedidos-realtime-lower', 'pedidos')
-        .subscribe((status) => {
-          console.log('KUKI Realtime pedidos (minúsculo):', status);
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn('Realtime minúsculo indisponível. O polling continuará ativo.');
-          }
-        });
+        .subscribe((status) => {});
     }
 
     async function pararRealtimePedidos() {
       if (pedidosRealtimeChannel) {
-        try { await supabaseClient.removeChannel(pedidosRealtimeChannel); } catch (e) { console.error('Realtime:', e); }
+        try { await supabaseClient.removeChannel(pedidosRealtimeChannel); } catch (e) {}
       }
       if (pedidosRealtimeChannelLower) {
-        try { await supabaseClient.removeChannel(pedidosRealtimeChannelLower); } catch (e) { console.error('Realtime:', e); }
+        try { await supabaseClient.removeChannel(pedidosRealtimeChannelLower); } catch (e) {}
       }
       pedidosRealtimeChannel = null;
       pedidosRealtimeChannelLower = null;
@@ -1786,9 +1742,6 @@
     }
 
     function atualizarDashboard() {
-      // IMPORTANTE: usa a data LOCAL do navegador. Assim, um pedido criado
-      // às 21:51 do dia anterior no Brasil não é contado como "hoje" apenas
-      // porque o timestamp do Supabase está armazenado em UTC.
       const hoje = localDateKey(new Date());
       const pedidosHoje = pedidosCache.filter(p => {
         const v = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
@@ -1817,22 +1770,6 @@
       }
     }
 
-    function renderRecentOrders() {
-      const el = document.getElementById('recentOrders');
-      if (!el) return;
-      if (!pedidosCache.length) {
-        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><strong>Nenhum pedido encontrado.</strong></div>';
-        return;
-      }
-      el.innerHTML = pedidosCache.slice(0,5).map(p => {
-        const id = getValue(p,['id','ID','pedido_id','PEDIDO_ID'],'#');
-        const nome = getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE','nome','NOME'],'Pedido');
-        const total = getValue(p,['total','TOTAL','valor_total','VALOR_TOTAL','valor'],'');
-        const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
-        return '<div class="recent-order"><div><strong>#'+escapeHtml(id)+' · '+escapeHtml(nome)+'</strong><small>'+escapeHtml(formatDateTime(data))+'</small></div><div><strong>'+escapeHtml(total !== '' ? formatMoney(total) : '')+'</strong></div></div>';
-      }).join('');
-    }
-
     function escapeHtml(value) {
       return String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
     }
@@ -1846,12 +1783,8 @@
       setTimeout(() => toast.remove(), 7000);
     }
 
-
     /* =====================================================
-       ALERTA SONORO DE NOVO PEDIDO - ROBUSTO
-       O navegador exige uma interação do usuário para liberar
-       áudio. Depois de liberado, o estado fica salvo nesta máquina
-       e o áudio é reativado automaticamente quando possível.
+       ÁUDIO
     ====================================================== */
     let kukiAudioContext = null;
     let somNovoPedidoAtivo = false;
@@ -1874,7 +1807,6 @@
         if (!kukiAudioContext) kukiAudioContext = new AudioCtx();
         return kukiAudioContext;
       } catch(e) {
-        console.warn('Áudio KUKI:', e);
         return null;
       }
     }
@@ -1887,7 +1819,6 @@
         if (ctx.state !== 'running') return null;
         return ctx;
       } catch(e) {
-        console.warn('Não foi possível liberar o áudio:', e);
         return null;
       }
     }
@@ -1897,9 +1828,7 @@
       if (!btn) return;
       btn.classList.toggle('sound-on', somNovoPedidoAtivo);
       btn.textContent = somNovoPedidoAtivo ? '🔊 Som ativado' : '🔇 Som desativado';
-      btn.title = somNovoPedidoAtivo
-        ? 'Som de novos pedidos ativado'
-        : 'Clique para ativar o som de novos pedidos';
+      btn.title = somNovoPedidoAtivo ? 'Som de novos pedidos ativado' : 'Clique para ativar o som de novos pedidos';
     }
 
     async function ativarSomManual() {
@@ -1910,7 +1839,6 @@
         showToast('Áudio bloqueado', 'Clique novamente no botão para liberar o som deste navegador.');
         return;
       }
-
       somNovoPedidoAtivo = true;
       salvarPreferenciaSom(true);
       atualizarBotaoSom();
@@ -1935,7 +1863,6 @@
 
     async function tocarToqueNovoPedido(preview=false) {
       if (!preview && !somNovoPedidoAtivo) return;
-
       if (alertaSonoroEmExecucao) {
         if (!preview) alertaSonoroFila = Math.min(alertaSonoroFila + 1, 3);
         return;
@@ -1945,33 +1872,12 @@
       if (!ctx) return;
 
       alertaSonoroEmExecucao = true;
-
-      /*
-        CHAMADO LONGO DE NOVO PEDIDO
-        Aproximadamente 6,5 segundos.
-        A repetição é intencional para ser percebida mesmo
-        quando o operador estiver longe do computador.
-      */
       const sequencia = [
-        [880,    0.00, 0.28, 0.15],
-        [1046.5, 0.34, 0.28, 0.15],
-        [1318.5, 0.68, 0.42, 0.18],
-
-        [880,    1.35, 0.28, 0.15],
-        [1046.5, 1.69, 0.28, 0.15],
-        [1318.5, 2.03, 0.42, 0.18],
-
-        [880,    2.70, 0.28, 0.15],
-        [1046.5, 3.04, 0.28, 0.15],
-        [1318.5, 3.38, 0.42, 0.18],
-
-        [880,    4.05, 0.28, 0.15],
-        [1046.5, 4.39, 0.28, 0.15],
-        [1396.9, 4.73, 0.48, 0.20],
-
-        [880,    5.45, 0.28, 0.15],
-        [1046.5, 5.79, 0.28, 0.15],
-        [1568.0, 6.13, 0.50, 0.22]
+        [880, 0.00, 0.28, 0.15], [1046.5, 0.34, 0.28, 0.15], [1318.5, 0.68, 0.42, 0.18],
+        [880, 1.35, 0.28, 0.15], [1046.5, 1.69, 0.28, 0.15], [1318.5, 2.03, 0.42, 0.18],
+        [880, 2.70, 0.28, 0.15], [1046.5, 3.04, 0.28, 0.15], [1318.5, 3.38, 0.42, 0.18],
+        [880, 4.05, 0.28, 0.15], [1046.5, 4.39, 0.28, 0.15], [1396.9, 4.73, 0.48, 0.20],
+        [880, 5.45, 0.28, 0.15], [1046.5, 5.79, 0.28, 0.15], [1568.0, 6.13, 0.50, 0.22]
       ];
 
       sequencia.forEach(([frequencia, inicio, duracao, volume]) => {
@@ -1980,7 +1886,6 @@
 
       setTimeout(async () => {
         alertaSonoroEmExecucao = false;
-
         if (!preview && alertaSonoroFila > 0) {
           alertaSonoroFila--;
           await tocarToqueNovoPedido(false);
@@ -1996,8 +1901,6 @@
       }
     }
 
-    // Reativa o AudioContext após interações do usuário, caso o navegador
-    // tenha suspendido o áudio por economia de energia ou troca de aba.
     ['pointerdown','keydown','touchstart','click'].forEach(eventName => {
       window.addEventListener(eventName, async () => {
         if (!somNovoPedidoAtivo) return;
@@ -2008,58 +1911,31 @@
       }, {passive:true});
     });
 
-    // Recupera a preferência de som ao apertar F5 sem exigir que o usuário
-    // reative o botão. Se o navegador bloquear automaticamente, a próxima
-    // interação do usuário libera o contexto novamente.
     somNovoPedidoAtivo = somEstaSalvoComoAtivo();
     atualizarBotaoSom();
 
-    // Compatibilidade com chamadas antigas.
-    function beep() { tocarToqueNovoPedido(false); }
-
-
     function atualizarBadge() {
       const badge = document.getElementById('notificationBadge');
-
-      // O indicador visual pode não existir em algumas telas/versões.
-      // Isso não pode interromper o processamento do pedido em tempo real.
       if (!badge) return;
-
       badge.textContent = notificacoesPendentes > 99 ? '99+' : notificacoesPendentes;
       badge.style.display = notificacoesPendentes ? 'flex' : 'none';
     }
-
-    function marcarNotificacoesLidas() {
-      notificacoesPendentes = 0;
-      atualizarBadge();
-      if (pedidosCache[0]) showToast('Pedidos recentes', 'Há '+pedidosCache.length+' pedido(s) carregado(s) no sistema.');
-    }
-
 
     function notificarNovoPedido(qtd, pedido) {
       notificacoesPendentes += qtd;
       atualizarBadge();
       const id = getValue(pedido,['id','ID','pedido_id','PEDIDO_ID'],'');
-      const mensagem = qtd > 1
-        ? qtd+' novos pedidos chegaram.'
-        : 'O pedido #'+id+' acabou de chegar!';
+      const mensagem = qtd > 1 ? qtd+' novos pedidos chegaram.' : 'O pedido #'+id+' acabou de chegar!';
 
       showToast('🔔 Novo pedido!', mensagem);
-
-      // O alerta não depende da tela atual. Dashboard, Pedidos, Financeiro,
-      // Produtos, Clientes ou qualquer outro módulo recebem o mesmo evento.
       if (somNovoPedidoAtivo) tocarToqueNovoPedido(false);
 
       if ('Notification' in window && Notification.permission === 'granted') {
         try {
-          new Notification('KUKI Gerencial', {
-            body: mensagem,
-            tag: 'kuki-novo-pedido'
-          });
+          new Notification('KUKI Gerencial', { body: mensagem, tag: 'kuki-novo-pedido' });
         } catch(e) {}
       }
     }
-
 
     async function pedirPermissaoNotificacao() {
       if ('Notification' in window && Notification.permission === 'default') {
@@ -2067,11 +1943,8 @@
       }
     }
 
-
     /* =====================================================
-       KUKI INTELIGÊNCIA
-       A IA é chamada pelo n8n. Nenhuma chave de provedor
-       de IA fica exposta no navegador.
+       KUKI INTELIGÊNCIA / ANALYTICS
     ====================================================== */
     const KUKI_IA_WEBHOOK_URL = 'https://n8n.rikasolucoes.com.br/webhook/kuki/ia-gerencial';
     let dashboardPeriodo = 7;
@@ -2086,23 +1959,23 @@
     }
 
     function pedidosNoPeriodo(days) {
-      const now=new Date(), inicio=new Date(now);
+      const now = new Date(), inicio = new Date(now);
       inicio.setHours(0,0,0,0); inicio.setDate(inicio.getDate()-(days-1));
       return pedidosCache.filter(p=>{
-        const d=new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));
+        const d = new Date(getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],''));
         return !isNaN(d)&&d>=inicio&&d<=now;
       });
     }
 
     function formatPercent(v) {
       if(!isFinite(v)) return '—';
-      const sign=v>0?'+':'';
-      return sign+v.toLocaleString('pt-BR',{maximumFractionDigits:1})+'%';
+      const sign = v > 0 ? '+' : '';
+      return sign + v.toLocaleString('pt-BR',{maximumFractionDigits:1}) + '%';
     }
 
     function trendText(current,previous,label) {
       if(!previous) return 'Sem histórico comparável';
-      const pct=((current-previous)/previous)*100;
+      const pct = ((current-previous)/previous)*100;
       return (label?label+' ':'')+formatPercent(pct)+' vs. período anterior';
     }
 
@@ -2137,14 +2010,32 @@
     }
 
     async function carregarProdutosParaAnalytics(){
-      try{const rows=await getTable('ITENS_PEDIDO','?select=*');produtosAnalyticsCache=Array.isArray(rows)?rows:[];}catch(e){produtosAnalyticsCache=[];}
+      try {
+        await carregarItensPedido();
+        const itensAgrupados = Object.values(itensPedidoCache).flat();
+        if (itensAgrupados.length > 0) {
+          produtosAnalyticsCache = itensAgrupados;
+          return;
+        }
+      } catch(e) {}
+
+      const extraidos = [];
+      pedidosCache.forEach(p => {
+        const itens = getItensDoPedido(p);
+        itens.forEach(it => extraidos.push(it));
+      });
+      produtosAnalyticsCache = extraidos;
     }
 
     function renderTopProducts(){
       const el=document.getElementById('topProducts');if(!el)return;
-      if(!produtosAnalyticsCache.length){el.innerHTML='<div class="empty-state" style="padding:25px;"><div class="empty-state-icon">🍪</div><strong>Ranking de produtos ainda indisponível</strong><p style="margin-top:6px;font-size:12px;">Não foram encontrados dados legíveis em ITENS_PEDIDO.</p></div>';return;}
+      if(!produtosAnalyticsCache.length){el.innerHTML='<div class="empty-state" style="padding:25px;"><div class="empty-state-icon">🍪</div><strong>Ranking de produtos ainda indisponível</strong><p style="margin-top:6px;font-size:12px;">Não foram encontrados dados legíveis nos pedidos.</p></div>';return;}
       const map={};
-      produtosAnalyticsCache.forEach(item=>{const name=getValue(item,['produto_nome','PRODUTO_NOME','nome_produto','NOME_PRODUTO','produto','PRODUTO','descricao','DESCRICAO','nome','NOME'],'Produto');const qty=Number(getValue(item,['quantidade','QUANTIDADE','qtd','QTD'],'1'))||1;map[String(name)]=(map[String(name)]||0)+qty;});
+      produtosAnalyticsCache.forEach(item=>{
+        const name = typeof item === 'string' ? item : getValue(item,['produto_nome','PRODUTO_NOME','nome_produto','NOME_PRODUTO','produto','PRODUTO','descricao','DESCRICAO','nome','NOME'],'Produto');
+        const qty = Number(typeof item === 'object' ? getValue(item,['quantidade','QUANTIDADE','qtd','QTD'],'1') : 1) || 1;
+        map[String(name)]=(map[String(name)]||0)+qty;
+      });
       const arr=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,5);
       el.innerHTML=arr.map((r,i)=>'<div class="rank-row"><div class="rank-number">'+(i+1)+'</div><div class="rank-name">'+escapeHtml(r[0])+'</div><div class="rank-value">'+r[1]+' un.</div></div>').join('');
     }
@@ -2329,19 +2220,12 @@
     }
 
     /* =====================================================
-       PEDIDOS - REGRAS DE INTEGRIDADE
-       Pedido ENTREGUE é considerado concluído e fica imutável na UI.
-       Toda operação valida novamente o status antes do PATCH/DELETE.
+       PEDIDOS - REGRAS E EXCLUSÃO
     ====================================================== */
-    const PEDIDO_STATUS_BLOQUEADOS = new Set([
-      'ENTREGUE'
-    ]);
+    const PEDIDO_STATUS_BLOQUEADOS = new Set(['ENTREGUE']);
 
     function normalizarStatus(status) {
-      return String(status || '')
-        .trim()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .toUpperCase();
+      return String(status || '').trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
     }
 
     function pedidoEstaBloqueado(status) {
@@ -2357,26 +2241,14 @@
     }
 
     async function patchPedido(id, payload, pedidoAtual=null) {
-      /*
-        Atualização robusta do pedido:
-        - usa o nome/capitalização real das colunas retornadas pelo Supabase;
-        - usa o nome real da coluna ID;
-        - exige que o PATCH retorne exatamente a linha atualizada.
-        Isso evita o problema em que o status é escolhido na tela, mas volta
-        para EM PROCESSAMENTO após o recarregamento da lista.
-      */
       const idKey = pedidoAtual
         ? (Object.keys(pedidoAtual).find(k => k.toLowerCase() === 'id') || 'id')
         : 'id';
 
       const filter = '?' + encodeURIComponent(idKey) + '=eq.' + encodeURIComponent(id);
-
       const payloadReal = {};
       Object.keys(payload).forEach(key => {
-        if (!pedidoAtual) {
-          payloadReal[key] = payload[key];
-          return;
-        }
+        if (!pedidoAtual) { payloadReal[key] = payload[key]; return; }
         const realKey = Object.keys(pedidoAtual).find(k => k.toLowerCase() === key.toLowerCase()) || key;
         payloadReal[realKey] = payload[key];
       });
@@ -2387,7 +2259,6 @@
       ];
 
       let ultimoErro = null;
-
       for (const tentativa of tentativas) {
         try {
           const resultado = await restRequest(tentativa.table, filter, {
@@ -2395,71 +2266,90 @@
             headers:{'Prefer':'return=representation'},
             body:JSON.stringify(tentativa.body)
           });
-
           if (!Array.isArray(resultado) || resultado.length !== 1) {
             throw new Error('O Supabase não confirmou a atualização do pedido. Nenhuma linha foi alterada.');
           }
-
           return resultado;
         } catch (e) {
           ultimoErro = e;
         }
       }
-
       throw ultimoErro || new Error('Não foi possível atualizar o pedido.');
     }
 
-    async function deletePedido(id) {
-      const pedidoId = encodeURIComponent(id);
+    async function deletePedido(id, pedidoAtual = null) {
+      const pedido = pedidoAtual || obterPedidoAtual(id) || {};
+      const idPrincipal = getValue(pedido, ['id', 'ID', 'pedido_id', 'PEDIDO_ID'], id);
+      const numeroPedido = getValue(pedido, ['numero_pedido', 'NUMERO_PEDIDO'], null);
 
-      /*
-       * Os itens do pedido ficam em ITENS_PEDIDO e possuem PEDIDO_ID.
-       * Primeiro removemos os itens e somente depois o pedido.
-       * Isso evita erro de chave estrangeira ao excluir um pedido
-       * que já possui itens gravados.
-       */
+      const chavesIdentificadoras = [...new Set([String(idPrincipal), String(id), numeroPedido ? String(numeroPedido) : null].filter(Boolean))];
 
-      const filtroItens = '?PEDIDO_ID=eq.' + pedidoId;
+      const tabelasItens = ['ITENS_PEDIDO', 'itens_pedido', 'itens_pedidos', 'pedido_itens'];
+      const colunasFkItens = ['PEDIDO_ID', 'pedido_id', 'numero_pedido', 'NUMERO_PEDIDO', 'id_pedido', 'ID_PEDIDO'];
 
-      try {
-        await restRequest('ITENS_PEDIDO', filtroItens, {
-          method:'DELETE'
-        });
-      } catch (e) {
-        await restRequest('itens_pedido', filtroItens, {
-          method:'DELETE'
-        });
+      for (const tabItem of tabelasItens) {
+        for (const colFk of colunasFkItens) {
+          for (const val of chavesIdentificadoras) {
+            try {
+              await restRequest(tabItem, '?' + encodeURIComponent(colFk) + '=eq.' + encodeURIComponent(val), { method: 'DELETE' });
+            } catch (e) {}
+          }
+        }
       }
 
-      const filtroPedido = '?id=eq.' + pedidoId;
+      const tabelasPedido = ['PEDIDOS', 'pedidos'];
+      const colunasId = ['id', 'ID', 'numero_pedido', 'NUMERO_PEDIDO', 'pedido_id', 'PEDIDO_ID'];
+      let excluiu = false;
+      let erroBanco = null;
 
-      try {
-        return await restRequest('PEDIDOS', filtroPedido, {
-          method:'DELETE'
-        });
-      } catch (e) {
-        return await restRequest('pedidos', filtroPedido, {
-          method:'DELETE'
-        });
+      for (const tabPed of tabelasPedido) {
+        for (const col of colunasId) {
+          for (const val of chavesIdentificadoras) {
+            try {
+              const resp = await restRequest(tabPed, '?' + encodeURIComponent(col) + '=eq.' + encodeURIComponent(val), {
+                method: 'DELETE',
+                headers: { 'Prefer': 'return=representation' }
+              });
+              if (Array.isArray(resp) && resp.length > 0) {
+                excluiu = true;
+                break;
+              }
+            } catch (e) {
+              erroBanco = e;
+            }
+          }
+          if (excluiu) break;
+        }
+        if (excluiu) break;
       }
+
+      if (!excluiu) {
+        throw new Error(
+          erroBanco?.message ||
+          'Nenhuma linha foi apagada no Supabase. Verifique se o RLS (Row Level Security) da tabela PEDIDOS possui uma Policy habilitando DELETE para usuários autenticados.'
+        );
+      }
+
+      return true;
     }
 
     function obterPedidoAtual(id) {
-      return pedidosCache.find(p => String(getPedidoId(p)) === String(id)) || null;
+      return pedidosCache.find(p => {
+        const pId = getPedidoId(p);
+        const pNum = getValue(p, ['NUMERO_PEDIDO', 'numero_pedido', 'id', 'ID'], null);
+        return String(pId) === String(id) || String(pNum) === String(id);
+      }) || null;
     }
 
     function normalizarTelefoneWhatsApp(valor) {
       let numero = String(valor ?? '').replace(/\D/g, '');
       if (!numero) return '';
-      // Se vier apenas DDD + número, acrescenta o DDI do Brasil.
       if (numero.length === 10 || numero.length === 11) numero = '55' + numero;
       return numero;
     }
 
     function normalizarTextoComparacao(valor) {
-      return String(valor ?? '')
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-        .toUpperCase().trim().replace(/\s+/g,' ');
+      return String(valor ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim().replace(/\s+/g,' ');
     }
 
     function pontuarClienteDoPedido(cliente, pedido) {
@@ -2500,7 +2390,6 @@
     }
 
     async function obterClienteDoPedido(pedido) {
-      // 1) Telefone diretamente no pedido.
       const direto = getValue(pedido,['WHATSAPP','whatsapp','TELEFONE','telefone','CELULAR','celular','PHONE','phone'],'');
       const nomeDireto = getValue(pedido,['CLIENTE_NOME','cliente_nome','NOME_CLIENTE','nome_cliente','NOME','nome'],'');
       if (normalizarTelefoneWhatsApp(direto)) {
@@ -2510,7 +2399,6 @@
       const clientes = await getTable('CLIENTES','?select=*');
       const lista = Array.isArray(clientes) ? clientes : [];
 
-      // 2) CLIENTE_ID gravado no pedido.
       const clienteId = getValue(pedido,['CLIENTE_ID','cliente_id'],null);
       if (clienteId !== null && clienteId !== undefined && String(clienteId) !== '') {
         const encontrado = lista.find(c => String(getValue(c,['ID','id'],'')) === String(clienteId));
@@ -2518,8 +2406,6 @@
         if (resolvido) return resolvido;
       }
 
-      // 3) Pedidos antigos podem estar sem CLIENTE_ID. Procura um cliente pelo endereço.
-      // Só aceita um resultado inequivocamente melhor para evitar notificação para pessoa errada.
       const candidatos = lista
         .map(c => ({ cliente:c, pontos:pontuarClienteDoPedido(c,pedido) }))
         .filter(x => x.pontos >= 8)
@@ -2571,23 +2457,20 @@
           : `Total: ${formatMoney(getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],0))}`,
         observacao: getValue(pedido,['OBSERVACAO','observacao'],'')
       };
-      const response = await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
-  method: 'POST',
-  mode: 'no-cors',
-  headers: {
-    'Content-Type': 'text/plain'
-  },
-  body: JSON.stringify(payload)
-});
-
-return true;
+      await fetch(STATUS_PEDIDO_WEBHOOK_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(payload)
+      });
+      return true;
     }
 
     async function atualizarStatusPedido(id, statusSelecionado = '') {
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       const statusAtual = getPedidoStatus(pedido);
-      if (pedidoEstaBloqueado(statusAtual)) { showToast('🔒 Pedido bloqueado','Pedidos concluídos, fechados ou finalizados não podem ser alterados.'); return; }
+      if (pedidoEstaBloqueado(statusAtual)) { showToast('🔒 Pedido bloqueado','Pedidos concluídos não podem ser alterados.'); return; }
       const select = document.getElementById('statusPedido_'+id);
       const novoStatus = String(statusSelecionado || (select ? select.value : '') || '').trim();
       if (!novoStatus) { showToast('Status obrigatório','Escolha o novo status.'); return; }
@@ -2595,18 +2478,9 @@ return true;
       if (!confirm('Confirmar alteração do status do pedido #'+id+' de "'+statusAtual+'" para "'+novoStatus+'"?')) return;
 
       try {
-        // Resolve o cliente antes de atualizar. Se o pedido antigo estiver sem CLIENTE_ID,
-        // tenta identificá-lo pelo endereço e passa a gravar o vínculo automaticamente.
         let clienteResolvido = null;
-        try { clienteResolvido = await obterClienteDoPedido(pedido); }
-        catch (e) { console.error('Erro ao localizar cliente:',e); }
+        try { clienteResolvido = await obterClienteDoPedido(pedido); } catch (e) {}
 
-        /*
-          Monta o payload usando exatamente os nomes das colunas existentes
-          no registro retornado pelo Supabase. O código anterior enviava
-          STATUS/DATA_ATUALIZACAO sempre em maiúsculo, o que podia fazer a
-          atualização não atingir a coluna real da tabela.
-        */
         const chaveStatus = Object.keys(pedido).find(k => k.toLowerCase() === 'status') || 'STATUS';
         const chaveDataAtualizacao = Object.keys(pedido).find(k => k.toLowerCase() === 'data_atualizacao') || null;
         const payloadUpdate = {};
@@ -2621,20 +2495,12 @@ return true;
         }
 
         const resultadoPatch = await patchPedido(id, payloadUpdate, pedido);
-
-        /*
-          Atualiza o cache imediatamente com o valor confirmado pelo banco,
-          evitando que a renderização volte a mostrar o status anterior.
-        */
         const pedidoAtualizado = Array.isArray(resultadoPatch) ? resultadoPatch[0] : null;
         if (pedidoAtualizado) {
           const indice = pedidosCache.findIndex(p => String(getPedidoId(p)) === String(id));
           if (indice >= 0) pedidosCache[indice] = {...pedidosCache[indice], ...pedidoAtualizado};
         }
 
-        // A primeira mensagem ao cliente só é enviada quando o pedido entra em
-// PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO. Assim o operador consegue revisar
-// o pedido e aplicar o desconto antes da confirmação chegar ao WhatsApp.
         const deveEnviarWhatsApp = [
           'PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO',
           'PAGAMENTO CONFIRMADO, EM PRODUÇÃO',
@@ -2647,8 +2513,7 @@ return true;
             await enviarStatusWhatsApp(pedidoAtualizado || pedido, statusAtual, novoStatus, clienteResolvido);
             showToast('Status atualizado','Pedido atualizado e mensagem enviada ao WhatsApp do cliente.');
           } catch (zapError) {
-            console.error('WhatsApp:', zapError);
-            showToast('Status atualizado','Pedido salvo, mas a mensagem do WhatsApp não foi enviada: '+zapError.message);
+            showToast('Status atualizado','Pedido salvo, mas o WhatsApp não foi notificado: '+zapError.message);
           }
         } else {
           showToast('Status atualizado','Pedido atualizado com sucesso.');
@@ -2670,8 +2535,6 @@ return true;
 
       const totalAtual = getValue(pedido,['VALOR_TOTAL','valor_total','TOTAL','total'],'');
       const descontoAtual = getValue(pedido,['DESCONTO','desconto'],'0');
-      // VALOR_TOTAL guarda o valor final do pedido. Para permitir editar o
-      // desconto novamente sem descontar duas vezes, recuperamos o subtotal.
       const subtotalAtual = Math.max(0, parseMoneyValue(totalAtual) + parseMoneyValue(descontoAtual));
       const obsAtual = getValue(pedido,['OBSERVACAO','observacao'],'');
       const numeroPedido = getValue(pedido,['NUMERO_PEDIDO','numero_pedido','ID','id'],id);
@@ -2721,9 +2584,6 @@ return true;
         try {
           button.disabled=true; button.textContent='Salvando...';
 
-          // DESCONTO é salvo na coluna DESCONTO quando ela existir no registro.
-          // Se a coluna ainda não existir no Supabase, o usuário verá uma mensagem
-          // clara orientando a criação da coluna.
           const descontoKey = Object.keys(pedido).find(k=>k.toLowerCase()==='desconto');
           const totalKey = Object.keys(pedido).find(k=>k.toLowerCase()==='valor_total') || 'VALOR_TOTAL';
           const obsKey = Object.keys(pedido).find(k=>k.toLowerCase()==='observacao') || 'OBSERVACAO';
@@ -2754,17 +2614,20 @@ return true;
       const pedido = obterPedidoAtual(id);
       if (!pedido) { showToast('Pedido não encontrado','Atualize a lista e tente novamente.'); return; }
       if (pedidoEstaBloqueado(getPedidoStatus(pedido))) {
-        showToast('🔒 Pedido bloqueado','Pedidos concluídos/fechados/finalizados não podem ser excluídos.');
+        showToast('🔒 Pedido bloqueado','Pedidos concluídos não podem ser excluídos.');
         return;
       }
-      if (!confirm('EXCLUIR o pedido #' + id + '?\n\nEsta ação não poderá ser desfeita.')) return;
+      if (!confirm('EXCLUIR o pedido #' + id + '?\n\nEsta ação apagará os itens e o pedido definitivamente.')) return;
       try {
-        await deletePedido(id);
-        showToast('Pedido excluído','O pedido #' + id + ' foi removido.');
+        await deletePedido(id, pedido);
+        pedidosCache = pedidosCache.filter(p => String(getPedidoId(p)) !== String(id) && String(getValue(p, ['numero_pedido','NUMERO_PEDIDO'])) !== String(id));
+        atualizarDashboard();
+        renderPedidosModule();
+        showToast('Pedido excluído','O pedido #' + id + ' foi removido com sucesso.');
         await carregarPedidos(false);
       } catch (error) {
         console.error('Erro ao excluir pedido:', error);
-        showToast('Erro ao excluir','Não foi possível excluir: ' + error.message);
+        showToast('Erro ao excluir', error.message);
       }
     }
 
@@ -2780,16 +2643,6 @@ return true;
     }
 
     function getPedidosFiltradosDashboard() {
-      /*
-        MÓDULO PEDIDOS:
-        A tela principal deve listar TODOS os pedidos, independentemente
-        do status (NOVO, PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO,
-        PAGAMENTO CONFIRMADO, EM PRODUÇÃO, PRONTO PARA RETIRADA,
-        ou ENTREGUE).
-
-        Os filtros abaixo continuam existindo somente para os atalhos
-        específicos do Dashboard.
-      */
       if (filtroPedidosAtivo === 'HOJE') {
         const hoje = localDateKey(new Date());
         return pedidosCache.filter(p => {
@@ -2805,7 +2658,6 @@ return true;
         });
       }
 
-      // TODOS: nenhum filtro por status.
       return Array.isArray(pedidosCache) ? [...pedidosCache] : [];
     }
 
@@ -2874,7 +2726,6 @@ return true;
         + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Itens (produção)</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
 
-
     /* =====================================================
        CRUD DOS MÓDULOS
     ====================================================== */
@@ -2885,12 +2736,6 @@ return true;
       'Formas de entrega': { table:'FORMAS_ENTREGA', icon:'🛵', fields:['NOME','VALOR','ATIVO'] }
     };
 
-    /*
-       As fotos deixam de depender do GitHub.
-       O arquivo da foto vai para o Supabase Storage e o campo criado na tabela
-       PRODUTOS guarda somente a URL pública da imagem.
-       O nome do campo é detectado automaticamente quando contém FOTO/IMAGEM/IMAGE.
-    */
     const KUKI_STORAGE_BUCKET = 'produtos';
     const MAX_PRODUTO_IMAGEM_BYTES = 5 * 1024 * 1024;
     const crudCache = {};
@@ -3066,7 +2911,6 @@ return true;
           if(!Array.isArray(result)||result.length!==1)throw new Error('Nenhum registro foi atualizado. Verifique as permissões do Supabase.');
           const registroConfirmado=await verificarEdicaoCrud(cfg,idInfo,body);if(crudCache[name])crudCache[name][Number(idx)]=registroConfirmado;
         }else{
-          // Primeiro cria o produto para obter o ID; depois envia a foto usando esse ID.
           const result=await restRequest(cfg.table,'',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(body)});
           if(!Array.isArray(result)||result.length<1)throw new Error('O cadastro não foi retornado pelo Supabase.');
           if(name==='Produtos' && imageField && imageInput&&imageInput.files&&imageInput.files[0]){
@@ -3091,8 +2935,6 @@ return true;
 
     /* =====================================================
        ENDEREÇOS DE RETIRADA
-       Cadastro dos 3 possíveis endereços da loja.
-       Apenas um endereço pode ficar ATIVO por vez.
     ====================================================== */
     let enderecosRetiradaCache = [];
 
@@ -3164,7 +3006,6 @@ return true;
           ativo: false
         };
 
-        // Se este endereço for marcado como ativo, primeiro desativa o atual.
         if (ativo) {
           await restRequest('enderecos_retirada', '?ativo=eq.true', {
             method: 'PATCH',
@@ -3329,9 +3170,6 @@ return true;
     /* =====================================================
        PROTEÇÃO DE AUTENTICAÇÃO
     ====================================================== */
-
-    // Se a sessão for encerrada ou expirar enquanto o sistema estiver aberto,
-    // volta imediatamente para a tela de login.
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         if (pollingTimer) clearInterval(pollingTimer);
@@ -3352,8 +3190,6 @@ return true;
       appScreen.style.display = 'block';
       document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
 
-      // F5/reabertura mantém a sessão enquanto ainda estiver dentro da janela
-      // de 1 hora. Um novo login também reinicia essa janela.
       salvarUltimaAtividade();
       programarExpiracaoInatividade();
 
@@ -3376,9 +3212,8 @@ return true;
       document.getElementById('username').value = ''; document.getElementById('password').value = '';
     }
 
-
     /* =====================================================
-       FINANCEIRO - REFEITO DO ZERO
+       FINANCEIRO
     ====================================================== */
     const financeiroState = {
       despesas: [],
@@ -3418,8 +3253,6 @@ return true;
     }
 
     async function finLoad() {
-      // Descobre uma única vez o nome REAL das tabelas e guarda o resultado.
-      // Depois disso, listar, inserir, editar e excluir usam exatamente o mesmo nome.
       financeiroState.tabelaDespesas = await finResolveTable(['FINANCEIRO_DESPESAS','financeiro_despesas']);
       financeiroState.tabelaCategorias = await finResolveTable(['FINANCEIRO_CATEGORIAS','financeiro_categorias']);
       financeiroState.tabelaFormas = await finResolveTable(['FORMAS_PAGAMENTO','formas_pagamento']);
@@ -3571,8 +3404,6 @@ return true;
     }
 
     function finOptions(list,current,names) {
-      // O select exibe o nome, mas envia o ID. A tabela FINANCEIRO_DESPESAS
-      // usa chaves estrangeiras (CATEGORIA_ID / FORMA_PAGAMENTO_ID), não os nomes.
       return list.map(row=>{
         const id=finField(row,['ID','id'],'');
         const name=String(finField(row,names,'')).trim();
@@ -3582,7 +3413,7 @@ return true;
     }
 
     /* =====================================================
-       FINANCEIRO - CATEGORIAS (CRUD)
+       FINANCEIRO - CATEGORIAS
     ====================================================== */
     async function finReloadCategories() {
       const categorias = await restRequest(financeiroState.tabelaCategorias, '?select=*');
@@ -3736,9 +3567,6 @@ return true;
       const observation=document.getElementById('finObservation').value.trim()||null;
       if(!date||!description||!(amount>0)) throw new Error('Informe data, descrição e valor válido.');
 
-      // A estrutura real da FINANCEIRO_DESPESAS não possui CATEGORIA nem
-      // FORMA_PAGAMENTO. Ela guarda os relacionamentos por *_ID.
-      // Mantemos os nomes reais das demais colunas conforme o registro existente.
       const sample=row||financeiroState.despesas[0]||{};
       const put=(obj,candidates,value,fallback)=>{obj[finColumnName(sample,candidates,fallback)]=value;};
       const payload={};
@@ -3747,7 +3575,6 @@ return true;
       put(payload,['CATEGORIA_ID','categoria_id'],categoryId,'CATEGORIA_ID');
       put(payload,['FORMA_PAGAMENTO_ID','forma_pagamento_id'],paymentId,'FORMA_PAGAMENTO_ID');
       put(payload,['VALOR','valor'],amount,'VALOR');
-      // OBSERVACAO só é enviado se a coluna existir; assim evitamos erro de schema.
       const obsField=finColumnName(sample,['OBSERVACAO','observacao'],null);
       if(obsField) payload[obsField]=observation;
       return payload;
@@ -3774,6 +3601,7 @@ return true;
         showToast('Despesa excluída','O lançamento foi removido.'); renderFinanceiroModule();
       } catch(e) { console.error('FINANCEIRO DELETE:',e); showToast('Erro ao excluir',e.message||'Não foi possível excluir a despesa.'); }
     }
+
     /* =====================================================
        MENU + HISTÓRICO DO NAVEGADOR
     ====================================================== */
@@ -3837,16 +3665,11 @@ return true;
       abrirModulo(name);
     }
     function selectMenu(button, name) {
-      // Ao abrir PEDIDOS pelo menu, sempre iniciar sem filtro de status/data.
-      // Assim a tela principal mostra todos os pedidos existentes.
       if (name === 'Pedidos') filtroPedidosAtivo = 'TODOS';
       navigateToModule(name,{push:true});
       setMobileMenu(false);
     }
     function selectMenuByName(name) {
-      // Acesso direto ao módulo PEDIDOS também deve mostrar todos os pedidos.
-      // Os filtros continuam disponíveis apenas quando acionados pelos cards
-      // do Dashboard (Pedidos Novos / Pedidos Hoje).
       if (name === 'Pedidos') filtroPedidosAtivo = 'TODOS';
       navigateToModule(name,{push:true});
     }
@@ -3881,13 +3704,10 @@ return true;
       const name=routeToModule();
       if(name!==moduloAtual){ updateActiveMenu(name); abrirModulo(name); }
     });
-    /* =====================================================
-       INICIAR - LOGIN OBRIGATÓRIO
-    ====================================================== */
 
-    // Ao atualizar (F5), o Supabase restaura a sessão existente.
-    // Só exige novo login quando a sessão não existe ou passou 1 hora
-    // sem qualquer interação no sistema.
+    /* =====================================================
+       INICIAR
+    ====================================================== */
     loginScreen.style.display = 'flex';
     appScreen.style.display = 'none';
 
