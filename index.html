@@ -1327,24 +1327,41 @@
         SUPABASE_KEY
       );
 
-    const USUARIOS_LOGIN = {
-      'admin': 'robesousa@gmail.com',
-      'robesousa': 'robesousa@gmail.com'
-    };
-
-    function normalizarUsuario(usuario) {
+        function normalizarUsuario(usuario) {
       return (usuario || '')
         .trim()
         .toLowerCase()
         .replace(/\s+/g, '');
     }
 
-    function obterNomeUsuarioPorEmail(email) {
-      const usuario = Object.keys(USUARIOS_LOGIN).find(function(nome) {
-        return USUARIOS_LOGIN[nome] === email;
-      });
+    async function obterEmailPorUsuario(usuario) {
+      try {
+        const { data, error } = await supabaseClient
+          .rpc('obter_email_login', { p_usuario: usuario });
+        if (error) {
+          console.warn('Não foi possível resolver o usuário:', error);
+          return null;
+        }
+        return Array.isArray(data) ? (data[0] || null) : (data || null);
+      } catch (e) {
+        console.warn('Não foi possível resolver o usuário:', e);
+        return null;
+      }
+    }
 
-      return usuario || 'Usuário';
+    async function obterNomeUsuarioPorEmail(email) {
+      try {
+        const { data, error } = await supabaseClient
+          .from('usuarios')
+          .select('nome')
+          .eq('email', email)
+          .limit(1)
+          .maybeSingle();
+        if (!error && data && data.nome) return data.nome;
+      } catch (e) {
+        console.warn('Não foi possível obter o nome do usuário:', e);
+      }
+      return 'Usuário';
     }
 
 
@@ -3394,15 +3411,16 @@
     loginForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       loginError.style.display = 'none';
-      const username = normalizarUsuario(document.getElementById('username').value);
+            const username = normalizarUsuario(document.getElementById('username').value);
       const password = document.getElementById('password').value;
-      const email = USUARIOS_LOGIN[username];
-      if (!email) {
-        loginError.textContent = 'Usuário ou senha inválidos.';
-        loginError.style.display = 'block'; return;
-      }
       loginButton.disabled = true; loginButton.textContent = 'ENTRANDO...';
       try {
+        const email = await obterEmailPorUsuario(username);
+        if (!email) {
+          loginError.textContent = 'Usuário ou senha inválidos.';
+          loginError.style.display = 'block';
+          return;
+        }
         const { data, error } = await supabaseClient.auth.signInWithPassword({email, password});
         if (error) throw error;
         loginError.style.display = 'none';
