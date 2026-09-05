@@ -1234,6 +1234,13 @@
             <div class="card-hint">Ver todos os pedidos de hoje</div>
           </button>
 
+          <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('APROVADOS')">
+            <div class="card-icon">✅</div>
+            <div class="card-label">PEDIDOS APROVADOS</div>
+            <div class="card-value" id="pedidosAprovados">0</div>
+            <div class="card-hint">Pagamento confirmado (Pix / link de pagamento), em produção</div>
+          </button>
+
         </div>
 
 
@@ -1936,10 +1943,16 @@
         return ['NOVO','NOVOS'].includes(st);
       }).length;
 
+      const aprovados = pedidosCache.filter(p => {
+        return normalizarStatus(getValue(p,['status','STATUS'],'')) === 'PAGAMENTO CONFIRMADO, EM PRODUCAO';
+      }).length;
+
       const pedidosHojeEl = document.getElementById('pedidosHoje');
       const pedidosNovosEl = document.getElementById('pedidosNovos');
+      const pedidosAprovadosEl = document.getElementById('pedidosAprovados');
       if (pedidosHojeEl) pedidosHojeEl.textContent = pedidosHoje.length;
       if (pedidosNovosEl) pedidosNovosEl.textContent = novos;
+      if (pedidosAprovadosEl) pedidosAprovadosEl.textContent = aprovados;
 
       const cardNovos = document.querySelector('.card-novos-destaque');
       if (cardNovos) {
@@ -2894,7 +2907,7 @@
     }
 
     function abrirPedidosFiltrados(tipo) {
-      filtroPedidosAtivo = tipo === 'HOJE' ? 'HOJE' : 'NOVOS';
+      filtroPedidosAtivo = ['HOJE','APROVADOS'].includes(tipo) ? tipo : 'NOVOS';
 
       if (filtroPedidosAtivo === 'NOVOS') {
         const cardNovos = document.querySelector('.card-novos-destaque');
@@ -2920,6 +2933,12 @@
         });
       }
 
+      if (filtroPedidosAtivo === 'APROVADOS') {
+        return pedidosCache.filter(p => {
+          return normalizarStatus(getValue(p,['status','STATUS'],'')) === 'PAGAMENTO CONFIRMADO, EM PRODUCAO';
+        });
+      }
+
       return Array.isArray(pedidosCache) ? [...pedidosCache] : [];
     }
 
@@ -2941,6 +2960,8 @@
         const bloqueado = pedidoEstaBloqueado(status);
         const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
         const total = getValue(p,['VALOR_TOTAL','valor_total','TOTAL','total','valor'],0);
+        const pagamento = getValue(p,['FORMA_PAGAMENTO','forma_pagamento','PAGAMENTO','pagamento'],'-');
+        const observacaoPedido = getValue(p,['OBSERVACAO','observacao'],'');
         const statusEsc = escapeHtml(status);
         const options = ['NOVO','PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO','PAGAMENTO CONFIRMADO, EM PRODUÇÃO','PRONTO PARA RETIRADA','ENTREGUE']
           .map(st => '<option value="'+escapeHtml(st)+'" '+(normalizarStatus(st)===normalizarStatus(status)?'selected':'')+'>'+escapeHtml(st)+'</option>').join('');
@@ -2962,21 +2983,26 @@
           + '<td>'+escapeHtml(formatDateTime(data))+'</td>'
           + '<td><span class="status-pill">'+statusEsc+'</span></td>'
           + '<td>'+renderItensPedidoCelula(p)+'</td>'
+          + '<td>'+escapeHtml(pagamento)+'</td>'
+          + '<td>'+(observacaoPedido ? escapeHtml(observacaoPedido) : '<span style="color:var(--cinza);">—</span>')+'</td>'
           + '<td>'+escapeHtml(formatMoney(getValue(p,['DESCONTO','desconto'],0)))+'</td>'
           + '<td>'+escapeHtml(formatMoney(total))+'</td>'
           + '<td class="actions-cell">'+actions+'</td>'
           + '</tr>';
-      }).join('') : '<tr><td colspan="8">Nenhum pedido encontrado para este filtro.</td></tr>';
+      }).join('') : '<tr><td colspan="10">Nenhum pedido encontrado para este filtro.</td></tr>';
 
       const tituloFiltro = filtroPedidosAtivo === 'HOJE'
         ? 'Pedidos de hoje'
-        : (filtroPedidosAtivo === 'NOVOS' ? 'Pedidos novos' : 'Pedidos');
+        : (filtroPedidosAtivo === 'NOVOS' ? 'Pedidos novos'
+        : (filtroPedidosAtivo === 'APROVADOS' ? 'Pedidos aprovados' : 'Pedidos'));
 
       const descricaoFiltro = filtroPedidosAtivo === 'HOJE'
         ? 'Todos os pedidos criados na data de hoje.'
         : (filtroPedidosAtivo === 'NOVOS'
           ? 'Somente pedidos com status NOVO.'
-          : 'Todos os pedidos recebidos pela KUKI, independentemente do status. Pedidos ENTREGUES ficam somente para consulta.');
+          : (filtroPedidosAtivo === 'APROVADOS'
+            ? 'Pedidos com pagamento confirmado (Pix ou link de pagamento) e em produção.'
+            : 'Todos os pedidos recebidos pela KUKI, independentemente do status. Pedidos ENTREGUES ficam somente para consulta.'));
 
       const botaoFiltro = filtroPedidosAtivo !== 'TODOS'
         ? '<button class="secondary-button" type="button" onclick="limparFiltroPedidos()">← Ver todos</button>'
@@ -2985,7 +3011,7 @@
       container.innerHTML = '<div class="module-panel">'
         + '<div class="module-toolbar"><div><h2>📦 '+tituloFiltro+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoFiltro+'</p></div><div class="actions-inline">'+botaoFiltro+'<button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
         + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>ENTREGUES</strong> são considerados concluídos e não podem ser editados, ter o status alterado ou ser excluídos.</div>'
-        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Itens (produção)</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
+        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Itens (produção)</th><th>Pagamento</th><th>Observação</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
     }
 
     /* =====================================================
