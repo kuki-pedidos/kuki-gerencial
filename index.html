@@ -1146,6 +1146,10 @@
           <span>📈</span> Análises
         </button>
 
+        <button onclick="selectMenu(this, 'Relatórios')">
+          <span>🧾</span> Relatórios
+        </button>
+
 
       </nav>
 
@@ -2399,6 +2403,389 @@
         adicionarMensagemIA(String(data?.resposta||data?.answer||data?.output||data?.message||text||'A IA não retornou uma resposta.'),'assistant');
       }catch(e){console.error('KUKI IA:',e);adicionarMensagemIA('O painel está pronto para a IA, mas o webhook do n8n ainda precisa estar publicado e conectado ao provedor de IA.','assistant');}
       finally{btn.disabled=false;btn.textContent='ENVIAR';}
+    }
+
+    /* =====================================================
+       RELATÓRIOS
+    ====================================================== */
+    const relatoriosState = {
+      tipo: 'fluxo-caixa',
+      start: null,
+      end: null,
+      carregado: false,
+      exportHeaders: [],
+      exportRows: [],
+      dados: { pedidos:[], itens:[], clientes:[], produtos:[], formasPagamento:[], formasEntrega:[] }
+    };
+
+    function relatoriosToday(){ return localDateKey(new Date()); }
+
+    function relFormatDateBR(dateKey){
+      if(!dateKey) return '-';
+      const partes=String(dateKey).split('-');
+      return partes.length===3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : String(dateKey);
+    }
+
+    async function renderRelatoriosModule(){
+      const container=document.getElementById('moduleContent');
+      const today=relatoriosToday();
+      const monthStart=today.slice(0,7)+'-01';
+      if(!relatoriosState.start) relatoriosState.start=monthStart;
+      if(!relatoriosState.end) relatoriosState.end=today;
+
+      container.innerHTML=`<div class="module-panel" style="margin-bottom:18px;">
+        <div class="module-toolbar">
+          <div><h2>🧾 Relatórios</h2><p style="color:var(--cinza);margin-top:6px;">Escolha um relatório, filtre o período e exporte os dados em CSV.</p></div>
+        </div>
+        <div class="financeiro-filtros">
+          <div class="field"><label>Relatório</label>
+            <select id="relTipo">
+              <option value="fluxo-caixa">💵 Fluxo de caixa</option>
+              <option value="produtos">🍪 Produtos mais vendidos</option>
+              <option value="pagamento">💳 Vendas por forma de pagamento</option>
+              <option value="entrega">🛵 Vendas por forma de entrega</option>
+              <option value="clientes">👥 Clientes (ticket médio e inatividade)</option>
+              <option value="horarios">🕐 Horários de pico</option>
+              <option value="comparativo">📊 Comparativo de períodos</option>
+            </select>
+          </div>
+          <div class="field"><label>Data inicial</label><input type="date" id="relStart" value="${relatoriosState.start}"></div>
+          <div class="field"><label>Data final</label><input type="date" id="relEnd" value="${relatoriosState.end}"></div>
+          <button type="button" class="secondary-button" id="relFilter">🔎 Gerar</button>
+          <button type="button" class="primary-button" id="relExport">⬇️ Exportar CSV</button>
+        </div>
+        <div id="relatorioBody"><div class="empty-state"><div class="empty-state-icon">🧾</div><strong>Carregando dados...</strong></div></div>
+      </div>`;
+
+      document.getElementById('relTipo').value=relatoriosState.tipo;
+      document.getElementById('relTipo').addEventListener('change', e=>{ relatoriosState.tipo=e.target.value; relRenderAtual(); });
+      document.getElementById('relFilter').addEventListener('click', ()=>{
+        relatoriosState.start=document.getElementById('relStart').value || monthStart;
+        relatoriosState.end=document.getElementById('relEnd').value || today;
+        relRenderAtual();
+      });
+      document.getElementById('relExport').addEventListener('click', relExportarCsvAtual);
+
+      try{
+        await relCarregarDados();
+        relRenderAtual();
+      }catch(e){
+        console.error('RELATORIOS:',e);
+        const body=document.getElementById('relatorioBody');
+        if(body) body.innerHTML=`<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os relatórios.</strong><p style="margin-top:8px;">${escapeHtml(e.message||'Erro de conexão.')}</p></div>`;
+      }
+    }
+
+    async function relCarregarDados(force=false){
+      if(relatoriosState.carregado && !force) return;
+      const [pedidos,itens,clientes,produtos,formasPagamento,formasEntrega]=await Promise.all([
+        getTable('PEDIDOS','?select=*'),
+        getTable('ITENS_PEDIDO','?select=*'),
+        getTable('CLIENTES','?select=*'),
+        getTable('PRODUTOS','?select=*'),
+        getTable('FORMAS_PAGAMENTO','?select=*'),
+        getTable('FORMAS_ENTREGA','?select=*')
+      ]);
+      relatoriosState.dados={
+        pedidos: Array.isArray(pedidos)?pedidos:[],
+        itens: Array.isArray(itens)?itens:[],
+        clientes: Array.isArray(clientes)?clientes:[],
+        produtos: Array.isArray(produtos)?produtos:[],
+        formasPagamento: Array.isArray(formasPagamento)?formasPagamento:[],
+        formasEntrega: Array.isArray(formasEntrega)?formasEntrega:[]
+      };
+      relatoriosState.carregado=true;
+    }
+
+    function relPedidoData(p){ return getValue(p,['DATA','data','created_at','CREATED_AT'],''); }
+    function relPedidoDateKey(p){ const v=relPedidoData(p); return v?localDateKey(v):''; }
+    function relPedidoValor(p){ return parseMoneyValue(getValue(p,['VALOR_TOTAL','valor_total'],0)); }
+    function relPedidoId(p){ return getValue(p,['id','ID'],null); }
+    function relPedidoNumero(p){ return getValue(p,['NUMERO_PEDIDO','numero_pedido'],'-'); }
+    function relPedidoStatus(p){ return getValue(p,['STATUS','status'],'') || '-'; }
+    function relFormaPagamentoNome(id){
+      if(id===null||id===undefined||id==='') return '';
+      const row=relatoriosState.dados.formasPagamento.find(f=>String(getValue(f,['id','ID'],''))===String(id));
+      return row?String(getValue(row,['NOME','nome'],'')||''):'';
+    }
+    function relFormaEntregaNome(id){
+      if(id===null||id===undefined||id==='') return '';
+      const row=relatoriosState.dados.formasEntrega.find(f=>String(getValue(f,['id','ID'],''))===String(id));
+      return row?String(getValue(row,['NOME','nome'],'')||''):'';
+    }
+    function relPedidoPagamento(p){
+      const texto=getValue(p,['FORMA_PAGAMENTO','forma_pagamento'],'');
+      if(texto) return texto;
+      const porId=relFormaPagamentoNome(getValue(p,['FORMA_PAGAMENTO_ID','forma_pagamento_id'],null));
+      return porId || 'Não informado';
+    }
+    function relClienteNome(id){
+      if(id===null||id===undefined||id==='') return '-';
+      const row=relatoriosState.dados.clientes.find(c=>String(getValue(c,['id','ID'],''))===String(id));
+      return row?(String(getValue(row,['NOME','nome'],'')||'').trim()||'-'):'-';
+    }
+    function relClienteTelefone(id){
+      if(id===null||id===undefined||id==='') return '';
+      const row=relatoriosState.dados.clientes.find(c=>String(getValue(c,['id','ID'],''))===String(id));
+      return row?String(getValue(row,['TELEFONE','telefone'],'')||''):'';
+    }
+    function relProdutoNome(id){
+      if(id===null||id===undefined||id==='') return '—';
+      const row=relatoriosState.dados.produtos.find(pr=>String(getValue(pr,['id','ID'],''))===String(id));
+      return row?(String(getValue(row,['NOME','nome'],'')||'').trim()||'—'):'—';
+    }
+    function relPedidosNoPeriodo(start,end){
+      return relatoriosState.dados.pedidos.filter(p=>{ const d=relPedidoDateKey(p); return d && d>=start && d<=end; });
+    }
+    function relItensDoPedido(pedidoId){
+      return relatoriosState.dados.itens.filter(it=>String(getValue(it,['PEDIDO_ID','pedido_id'],''))===String(pedidoId));
+    }
+
+    function relRenderAtual(){
+      const body=document.getElementById('relatorioBody');
+      if(!body) return;
+      const { start, end } = relatoriosState;
+      const mapa={
+        'fluxo-caixa': relRenderFluxoCaixa,
+        'produtos': relRenderProdutos,
+        'pagamento': relRenderPagamento,
+        'entrega': relRenderEntrega,
+        'clientes': relRenderClientes,
+        'horarios': relRenderHorarios,
+        'comparativo': relRenderComparativo
+      };
+      (mapa[relatoriosState.tipo] || relRenderFluxoCaixa)(body,start,end);
+    }
+
+    function relRenderFluxoCaixa(body,start,end){
+      const pedidos=relPedidosNoPeriodo(start,end).sort((a,b)=>String(relPedidoData(b)).localeCompare(String(relPedidoData(a))));
+      const linhas=[];
+      pedidos.forEach(p=>{
+        const itens=relItensDoPedido(relPedidoId(p));
+        const clienteNome=relClienteNome(getValue(p,['CLIENTE_ID','cliente_id'],null));
+        const pagamento=relPedidoPagamento(p);
+        const status=relPedidoStatus(p);
+        const dataFmt=formatDateTime(relPedidoData(p));
+        if(itens.length){
+          itens.forEach(it=>{
+            linhas.push({
+              data:dataFmt, pedido:relPedidoNumero(p), cliente:clienteNome,
+              produto:relProdutoNome(getValue(it,['PRODUTO_ID','produto_id'],null)),
+              qtd:getValue(it,['QUANTIDADE','quantidade'],0),
+              valorUnit:parseMoneyValue(getValue(it,['PRECO_UNITARIO','preco_unitario'],0)),
+              valorItem:parseMoneyValue(getValue(it,['VALOR_ITEM','valor_item'],0)),
+              pagamento, status
+            });
+          });
+        } else {
+          linhas.push({data:dataFmt,pedido:relPedidoNumero(p),cliente:clienteNome,produto:'—',qtd:'-',valorUnit:0,valorItem:relPedidoValor(p),pagamento,status});
+        }
+      });
+      const totalValor=linhas.reduce((s,l)=>s+(Number(l.valorItem)||0),0);
+      relatoriosState.exportHeaders=['Data','Pedido','Cliente','Produto','Qtd','Valor Unitário','Valor Item','Forma de Pagamento','Status'];
+      relatoriosState.exportRows=linhas.map(l=>[l.data,l.pedido,l.cliente,l.produto,l.qtd,l.valorUnit,l.valorItem,l.pagamento,l.status]);
+      body.innerHTML=`
+        <div class="financeiro-grid" style="margin-bottom:16px;">
+          <div class="financeiro-card positivo"><div class="label">💵 TOTAL NO PERÍODO</div><div class="value">${formatMoney(totalValor)}</div><div class="hint">${pedidos.length} pedido(s)</div></div>
+          <div class="financeiro-card"><div class="label">🧾 ITENS NO RELATÓRIO</div><div class="value">${linhas.length}</div><div class="hint">linha(s)</div></div>
+        </div>
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Data</th><th>Pedido</th><th>Cliente</th><th>Produto</th><th>Qtd</th><th>Valor Unit.</th><th>Valor Item</th><th>Pagamento</th><th>Status</th></tr></thead><tbody>
+        ${linhas.length?linhas.map(l=>`<tr><td>${escapeHtml(l.data)}</td><td>${escapeHtml(String(l.pedido))}</td><td>${escapeHtml(l.cliente)}</td><td>${escapeHtml(l.produto)}</td><td>${escapeHtml(String(l.qtd))}</td><td>${formatMoney(l.valorUnit)}</td><td><strong>${formatMoney(l.valorItem)}</strong></td><td>${escapeHtml(l.pagamento)}</td><td>${escapeHtml(l.status)}</td></tr>`).join(''):'<tr><td colspan="9">Nenhum pedido encontrado no período.</td></tr>'}
+        </tbody></table></div>`;
+    }
+
+    function relRenderProdutos(body,start,end){
+      const pedidos=relPedidosNoPeriodo(start,end);
+      const pedidoIds=new Set(pedidos.map(p=>String(relPedidoId(p))));
+      const agregados=new Map();
+      relatoriosState.dados.itens.forEach(it=>{
+        if(!pedidoIds.has(String(getValue(it,['PEDIDO_ID','pedido_id'],'')))) return;
+        const nome=relProdutoNome(getValue(it,['PRODUTO_ID','produto_id'],null));
+        const qtd=Number(getValue(it,['QUANTIDADE','quantidade'],0))||0;
+        const valor=parseMoneyValue(getValue(it,['VALOR_ITEM','valor_item'],0));
+        const atual=agregados.get(nome)||{nome,qtd:0,valor:0};
+        atual.qtd+=qtd; atual.valor+=valor;
+        agregados.set(nome,atual);
+      });
+      const linhas=[...agregados.values()].sort((a,b)=>b.valor-a.valor);
+      const totalValor=linhas.reduce((s,l)=>s+l.valor,0);
+      relatoriosState.exportHeaders=['Produto','Quantidade Vendida','Valor Total'];
+      relatoriosState.exportRows=linhas.map(l=>[l.nome,l.qtd,l.valor]);
+      body.innerHTML=`
+        <div class="financeiro-grid" style="margin-bottom:16px;">
+          <div class="financeiro-card"><div class="label">🍪 PRODUTOS DIFERENTES</div><div class="value">${linhas.length}</div><div class="hint">vendidos no período</div></div>
+          <div class="financeiro-card positivo"><div class="label">💰 RECEITA DE PRODUTOS</div><div class="value">${formatMoney(totalValor)}</div><div class="hint">soma dos itens vendidos</div></div>
+        </div>
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>#</th><th>Produto</th><th>Qtd Vendida</th><th>Valor Total</th><th>% do total</th></tr></thead><tbody>
+        ${linhas.length?linhas.map((l,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(l.nome)}</td><td>${l.qtd}</td><td><strong>${formatMoney(l.valor)}</strong></td><td>${totalValor?((l.valor/totalValor)*100).toFixed(1):'0'}%</td></tr>`).join(''):'<tr><td colspan="5">Nenhuma venda encontrada no período.</td></tr>'}
+        </tbody></table></div>`;
+    }
+
+    function relRenderPagamento(body,start,end){
+      const pedidos=relPedidosNoPeriodo(start,end);
+      const agregados=new Map();
+      pedidos.forEach(p=>{
+        const nome=relPedidoPagamento(p);
+        const valor=relPedidoValor(p);
+        const atual=agregados.get(nome)||{nome,qtd:0,valor:0};
+        atual.qtd+=1; atual.valor+=valor;
+        agregados.set(nome,atual);
+      });
+      const linhas=[...agregados.values()].sort((a,b)=>b.valor-a.valor);
+      const totalValor=linhas.reduce((s,l)=>s+l.valor,0);
+      relatoriosState.exportHeaders=['Forma de Pagamento','Qtd Pedidos','Valor Total','% do total'];
+      relatoriosState.exportRows=linhas.map(l=>[l.nome,l.qtd,l.valor,(totalValor?((l.valor/totalValor)*100).toFixed(1):'0')+'%']);
+      body.innerHTML=`
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Forma de Pagamento</th><th>Qtd Pedidos</th><th>Valor Total</th><th>% do total</th></tr></thead><tbody>
+        ${linhas.length?linhas.map(l=>`<tr><td>${escapeHtml(l.nome)}</td><td>${l.qtd}</td><td><strong>${formatMoney(l.valor)}</strong></td><td>${totalValor?((l.valor/totalValor)*100).toFixed(1):'0'}%</td></tr>`).join(''):'<tr><td colspan="4">Nenhum pedido encontrado no período.</td></tr>'}
+        </tbody></table></div>`;
+    }
+
+    function relRenderEntrega(body,start,end){
+      const pedidos=relPedidosNoPeriodo(start,end);
+      const agregados=new Map();
+      pedidos.forEach(p=>{
+        const nome=relFormaEntregaNome(getValue(p,['FORMA_ENTREGA_ID','forma_entrega_id'],null))||'Não informado';
+        const valor=relPedidoValor(p);
+        const atual=agregados.get(nome)||{nome,qtd:0,valor:0};
+        atual.qtd+=1; atual.valor+=valor;
+        agregados.set(nome,atual);
+      });
+      const linhas=[...agregados.values()].sort((a,b)=>b.valor-a.valor);
+      const totalValor=linhas.reduce((s,l)=>s+l.valor,0);
+      relatoriosState.exportHeaders=['Forma de Entrega','Qtd Pedidos','Valor Total','% do total'];
+      relatoriosState.exportRows=linhas.map(l=>[l.nome,l.qtd,l.valor,(totalValor?((l.valor/totalValor)*100).toFixed(1):'0')+'%']);
+      body.innerHTML=`
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Forma de Entrega</th><th>Qtd Pedidos</th><th>Valor Total</th><th>% do total</th></tr></thead><tbody>
+        ${linhas.length?linhas.map(l=>`<tr><td>${escapeHtml(l.nome)}</td><td>${l.qtd}</td><td><strong>${formatMoney(l.valor)}</strong></td><td>${totalValor?((l.valor/totalValor)*100).toFixed(1):'0'}%</td></tr>`).join(''):'<tr><td colspan="4">Nenhum pedido encontrado no período.</td></tr>'}
+        </tbody></table></div>`;
+    }
+
+    function relRenderClientes(body,start,end){
+      const hoje=relatoriosToday();
+      const porCliente=new Map();
+      relatoriosState.dados.pedidos.forEach(p=>{
+        const clienteId=getValue(p,['CLIENTE_ID','cliente_id'],null);
+        if(clienteId===null||clienteId===undefined||clienteId==='') return;
+        const key=String(clienteId);
+        const valor=relPedidoValor(p);
+        const dataPedido=relPedidoDateKey(p);
+        const atual=porCliente.get(key)||{clienteId,qtd:0,valor:0,ultimaData:''};
+        atual.qtd+=1; atual.valor+=valor;
+        if(dataPedido && dataPedido>atual.ultimaData) atual.ultimaData=dataPedido;
+        porCliente.set(key,atual);
+      });
+      const linhas=[...porCliente.values()].map(c=>{
+        const nome=relClienteNome(c.clienteId);
+        const telefone=relClienteTelefone(c.clienteId);
+        const ticket=c.qtd?c.valor/c.qtd:0;
+        let diasInativo=null;
+        if(c.ultimaData){
+          diasInativo=Math.max(0,Math.floor((new Date(hoje+'T00:00:00')-new Date(c.ultimaData+'T00:00:00'))/86400000));
+        }
+        return {nome,telefone,qtd:c.qtd,valor:c.valor,ticket,ultimaData:c.ultimaData,diasInativo};
+      }).sort((a,b)=>b.valor-a.valor);
+      relatoriosState.exportHeaders=['Cliente','Telefone','Qtd Pedidos','Total Gasto','Ticket Médio','Último Pedido','Dias sem comprar'];
+      relatoriosState.exportRows=linhas.map(l=>[l.nome,l.telefone,l.qtd,l.valor,l.ticket,relFormatDateBR(l.ultimaData),l.diasInativo===null?'-':l.diasInativo]);
+      body.innerHTML=`
+        <p style="color:var(--cinza);margin:-6px 0 14px;font-size:13px;">Este relatório considera todo o histórico de pedidos, independente do período selecionado acima.</p>
+        <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Cliente</th><th>Telefone</th><th>Qtd Pedidos</th><th>Total Gasto</th><th>Ticket Médio</th><th>Último Pedido</th><th>Inatividade</th></tr></thead><tbody>
+        ${linhas.length?linhas.map(l=>{
+          const alerta=(typeof l.diasInativo==='number' && l.diasInativo>=30);
+          const inatividadeTxt=l.diasInativo===null?'-':`${l.diasInativo} dia(s)`;
+          return `<tr><td>${escapeHtml(l.nome)}</td><td>${escapeHtml(l.telefone||'-')}</td><td>${l.qtd}</td><td><strong>${formatMoney(l.valor)}</strong></td><td>${formatMoney(l.ticket)}</td><td>${relFormatDateBR(l.ultimaData)}</td><td>${alerta?`<span class="status-pill" style="background:#fff0f1;color:#b00020">⚠️ ${escapeHtml(inatividadeTxt)}</span>`:escapeHtml(inatividadeTxt)}</td></tr>`;
+        }).join(''):'<tr><td colspan="7">Nenhum pedido com cliente identificado.</td></tr>'}
+        </tbody></table></div>`;
+    }
+
+    function relRenderHorarios(body,start,end){
+      const pedidos=relPedidosNoPeriodo(start,end);
+      const porHora=new Array(24).fill(0).map(()=>({qtd:0,valor:0}));
+      const diasSemana=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+      const porDia=diasSemana.map(()=>({qtd:0,valor:0}));
+      pedidos.forEach(p=>{
+        const raw=relPedidoData(p);
+        if(!raw) return;
+        const d=new Date(raw);
+        if(isNaN(d.getTime())) return;
+        const valor=relPedidoValor(p);
+        porHora[d.getHours()].qtd+=1; porHora[d.getHours()].valor+=valor;
+        porDia[d.getDay()].qtd+=1; porDia[d.getDay()].valor+=valor;
+      });
+      const maxHoraQtd=Math.max(1,...porHora.map(h=>h.qtd));
+      relatoriosState.exportHeaders=['Hora','Qtd Pedidos','Valor Total'];
+      relatoriosState.exportRows=porHora.map((h,i)=>[String(i).padStart(2,'0')+':00',h.qtd,h.valor]);
+      body.innerHTML=`
+        <div class="panel" style="margin-bottom:18px;"><div class="panel-header"><h2>🕐 Pedidos por hora do dia</h2></div>
+          <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Hora</th><th>Qtd</th><th>Valor</th><th>Distribuição</th></tr></thead><tbody>
+          ${porHora.some(h=>h.qtd)?porHora.map((h,i)=>h.qtd?`<tr><td>${String(i).padStart(2,'0')}:00</td><td>${h.qtd}</td><td>${formatMoney(h.valor)}</td><td><div style="background:#e8823c;height:8px;border-radius:4px;width:${Math.max(4,Math.round(h.qtd/maxHoraQtd*100))}%;"></div></td></tr>`:'').join(''):'<tr><td colspan="4">Nenhum pedido no período.</td></tr>'}
+          </tbody></table></div>
+        </div>
+        <div class="panel"><div class="panel-header"><h2>📅 Pedidos por dia da semana</h2></div>
+          <div class="table-wrap"><table class="financeiro-tabela"><thead><tr><th>Dia</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>
+          ${porDia.map((d,i)=>`<tr><td>${diasSemana[i]}</td><td>${d.qtd}</td><td>${formatMoney(d.valor)}</td></tr>`).join('')}
+          </tbody></table></div>
+        </div>`;
+    }
+
+    function relRenderComparativo(body,start,end){
+      const d1=new Date(start+'T00:00:00'), d2=new Date(end+'T00:00:00');
+      const diasPeriodo=Math.max(1,Math.round((d2-d1)/86400000)+1);
+      const anteriorFim=new Date(d1); anteriorFim.setDate(anteriorFim.getDate()-1);
+      const anteriorInicio=new Date(anteriorFim); anteriorInicio.setDate(anteriorInicio.getDate()-(diasPeriodo-1));
+      const anteriorStart=localDateKey(anteriorInicio), anteriorEnd=localDateKey(anteriorFim);
+
+      const atualPedidos=relPedidosNoPeriodo(start,end);
+      const anteriorPedidos=relPedidosNoPeriodo(anteriorStart,anteriorEnd);
+      const atualValor=atualPedidos.reduce((s,p)=>s+relPedidoValor(p),0);
+      const anteriorValor=anteriorPedidos.reduce((s,p)=>s+relPedidoValor(p),0);
+      const atualTicket=atualPedidos.length?atualValor/atualPedidos.length:0;
+      const anteriorTicket=anteriorPedidos.length?anteriorValor/anteriorPedidos.length:0;
+
+      const variacao=(a,b)=>b===0?(a>0?100:0):((a-b)/b*100);
+      const varValor=variacao(atualValor,anteriorValor);
+      const varQtd=variacao(atualPedidos.length,anteriorPedidos.length);
+      const varTicket=variacao(atualTicket,anteriorTicket);
+      const seta=v=>v>0?'▲':(v<0?'▼':'—');
+      const cor=v=>v>0?'#137333':(v<0?'#b00020':'var(--cinza)');
+
+      relatoriosState.exportHeaders=['Indicador','Período Atual','Período Anterior','Variação'];
+      relatoriosState.exportRows=[
+        ['Faturamento',atualValor,anteriorValor,varValor.toFixed(1)+'%'],
+        ['Qtd Pedidos',atualPedidos.length,anteriorPedidos.length,varQtd.toFixed(1)+'%'],
+        ['Ticket Médio',atualTicket,anteriorTicket,varTicket.toFixed(1)+'%']
+      ];
+
+      body.innerHTML=`
+        <p style="color:var(--cinza);margin:-6px 0 14px;font-size:13px;">Comparando <strong>${relFormatDateBR(start)} a ${relFormatDateBR(end)}</strong> com o período imediatamente anterior de mesma duração (<strong>${relFormatDateBR(anteriorStart)} a ${relFormatDateBR(anteriorEnd)}</strong>).</p>
+        <div class="financeiro-grid">
+          <div class="financeiro-card"><div class="label">💰 FATURAMENTO</div><div class="value">${formatMoney(atualValor)}</div><div class="hint" style="color:${cor(varValor)}">${seta(varValor)} ${Math.abs(varValor).toFixed(1)}% vs ${formatMoney(anteriorValor)}</div></div>
+          <div class="financeiro-card"><div class="label">📦 PEDIDOS</div><div class="value">${atualPedidos.length}</div><div class="hint" style="color:${cor(varQtd)}">${seta(varQtd)} ${Math.abs(varQtd).toFixed(1)}% vs ${anteriorPedidos.length}</div></div>
+          <div class="financeiro-card"><div class="label">🎯 TICKET MÉDIO</div><div class="value">${formatMoney(atualTicket)}</div><div class="hint" style="color:${cor(varTicket)}">${seta(varTicket)} ${Math.abs(varTicket).toFixed(1)}% vs ${formatMoney(anteriorTicket)}</div></div>
+        </div>`;
+    }
+
+    function relCsvEscape(value){
+      if(value===null||value===undefined) return '';
+      let s = typeof value==='number' ? String(value).replace('.',',') : String(value);
+      if(/["";\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"';
+      return s;
+    }
+    function relExportarCsvAtual(){
+      const headers=relatoriosState.exportHeaders||[];
+      const rows=relatoriosState.exportRows||[];
+      if(!rows.length){ showToast('Nada para exportar','Não há dados no período selecionado para este relatório.'); return; }
+      const linhas=[headers.map(relCsvEscape).join(';'), ...rows.map(r=>r.map(relCsvEscape).join(';'))];
+      const csv='﻿'+linhas.join('\r\n');
+      const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+      const url=URL.createObjectURL(blob);
+      const nomes={'fluxo-caixa':'fluxo-de-caixa','produtos':'produtos-mais-vendidos','pagamento':'vendas-por-forma-de-pagamento','entrega':'vendas-por-forma-de-entrega','clientes':'clientes','horarios':'horarios-de-pico','comparativo':'comparativo-de-periodos'};
+      const nomeArquivo=(nomes[relatoriosState.tipo]||'relatorio')+'_'+relatoriosState.start+'_a_'+relatoriosState.end+'.csv';
+      const a=document.createElement('a');
+      a.href=url; a.download=nomeArquivo;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Exportado!','O arquivo CSV foi baixado. Abra no Excel ou Google Planilhas.');
     }
 
     /* =====================================================
@@ -3921,7 +4308,8 @@
       'endereco-retirada':'Endereço Retirada',
       'horarios':'Horários',
       'configuracoes':'Configurações',
-      'analises':'Análises'
+      'analises':'Análises',
+      'relatorios':'Relatórios'
     };
     function moduleToRoute(name){
       return Object.keys(ROUTE_TO_MODULE).find(route => ROUTE_TO_MODULE[route]===name) || 'dashboard';
@@ -3990,7 +4378,7 @@
       const moduleContent = document.getElementById('moduleContent');
       document.getElementById('pageTitle').textContent = name;
       const subtitles = {
-        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Endereço Retirada':'Cadastre os endereços e defina o endereço ativo do dia','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Acompanhe vendas, despesas e resultado financeiro','Análises':'Indicadores, tendências e inteligência da loja'
+        'Dashboard':'Visão geral da sua loja','Pedidos':'Acompanhe e gerencie todos os pedidos','Produtos':'Cadastre e gerencie os produtos da KUKI','Clientes':'Consulte os clientes cadastrados','Formas de pagamento':'Gerencie as opções de pagamento','Formas de entrega':'Gerencie as formas de entrega','Endereço Retirada':'Cadastre os endereços e defina o endereço ativo do dia','Horários':'Defina os horários de funcionamento da loja','Configurações':'Configurações gerais do sistema','Financeiro':'Acompanhe vendas, despesas e resultado financeiro','Análises':'Indicadores, tendências e inteligência da loja','Relatórios':'Relatórios exportáveis com os dados da sua loja'
       };
       document.getElementById('pageSubtitle').textContent = subtitles[name] || '';
       if (name === 'Dashboard') { dashboard.style.display='block'; moduleContent.style.display='none'; atualizarDashboard(); return; }
@@ -4000,6 +4388,7 @@
       else if (name === 'Pedidos') renderPedidosModule();
       else if (name === 'Endereço Retirada') renderEnderecosRetiradaModule();
       else if (name === 'Análises') renderKukiIAModule();
+      else if (name === 'Relatórios') renderRelatoriosModule();
       else if (CRUD_TABLES[name]) renderCrudModule(name);
       else renderPlaceholderModule(name);
     }
