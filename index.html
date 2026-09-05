@@ -1838,11 +1838,31 @@
       return supabaseClient
         .channel(nomeCanal)
         .on('postgres_changes', {
-          event: 'INSERT',
+          event: '*', 
           schema: 'public',
           table: tabela
         }, async (payload) => {
-          await processarPedidoRealtime(payload && payload.new ? payload.new : null);
+          if (payload.eventType === 'INSERT') {
+            await processarPedidoRealtime(payload && payload.new ? payload.new : null);
+          } else if (payload.eventType === 'UPDATE' && payload.new) {
+            const id = payload.new.id || payload.new.ID;
+            const indice = pedidosCache.findIndex(p => String(getPedidoId(p)) === String(id));
+            
+            if (indice >= 0) {
+              pedidosCache[indice] = {...pedidosCache[indice], ...payload.new};
+              atualizarDashboard(); 
+              
+              const elementoAtivo = document.activeElement;
+              const janelaPedidosInterativaAberta =
+                elementoAtivo &&
+                (elementoAtivo.matches('.status-select') ||
+                 elementoAtivo.closest('.status-menu-wrap'));
+
+              if (moduloAtual === 'Pedidos' && !janelaPedidosInterativaAberta) {
+                renderPedidosModule();
+              }
+            }
+          }
         });
     }
 
