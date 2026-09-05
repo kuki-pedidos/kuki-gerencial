@@ -1327,13 +1327,15 @@
         SUPABASE_KEY
       );
 
-        function normalizarUsuario(usuario) {
+    function normalizarUsuario(usuario) {
       return (usuario || '')
         .trim()
         .toLowerCase()
         .replace(/\s+/g, '');
     }
 
+    // Resolve usuário -> e-mail chamando uma função segura no banco
+    // (não existe mais nenhum e-mail/usuário fixo escrito no código).
     async function obterEmailPorUsuario(usuario) {
       try {
         const { data, error } = await supabaseClient
@@ -1349,6 +1351,7 @@
       }
     }
 
+    // Nome de exibição vindo da tabela usuarios (exige sessão autenticada).
     async function obterNomeUsuarioPorEmail(email) {
       try {
         const { data, error } = await supabaseClient
@@ -3411,7 +3414,7 @@
     loginForm.addEventListener('submit', async function(event) {
       event.preventDefault();
       loginError.style.display = 'none';
-            const username = normalizarUsuario(document.getElementById('username').value);
+      const username = normalizarUsuario(document.getElementById('username').value);
       const password = document.getElementById('password').value;
       loginButton.disabled = true; loginButton.textContent = 'ENTRANDO...';
       try {
@@ -3454,7 +3457,7 @@
     async function abrirSistema(user, restaurandoSessao=false) {
       loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
-            document.getElementById('userName').textContent = await obterNomeUsuarioPorEmail(user.email);
+      document.getElementById('userName').textContent = await obterNomeUsuarioPorEmail(user.email);
 
       // F5/reabertura mantém a sessão enquanto ainda estiver dentro da janela
       // de 1 hora. Um novo login também reinicia essa janela.
