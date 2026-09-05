@@ -1237,7 +1237,7 @@
             <div class="novo-alerta-pulse" aria-hidden="true"></div><div class="card-icon">🔔</div>
             <div class="card-label">PEDIDOS NOVOS</div>
             <div class="card-value" id="pedidosNovos">0</div>
-            <div class="card-hint">Ver somente pedidos com status NOVO</div>
+            <div class="card-hint">Pedidos recém-chegados, ainda não tratados</div>
           </button>
 
           <button class="card dashboard-card-action" type="button" onclick="abrirPedidosFiltrados('HOJE')">
@@ -1964,10 +1964,7 @@
         return localDateKey(v) === hoje;
       });
 
-      const novos = pedidosCache.filter(p => {
-        const st = String(getValue(p,['status','STATUS'],'')).toUpperCase().trim();
-        return ['NOVO','NOVOS'].includes(st);
-      }).length;
+      const novos = pedidosCache.filter(p => pedidoEhNovo(getValue(p,['status','STATUS'],''))).length;
 
       const aprovados = pedidosCache.filter(p => {
         return normalizarStatus(getValue(p,['status','STATUS'],'')) === 'PAGAMENTO CONFIRMADO, EM PRODUCAO';
@@ -2279,8 +2276,8 @@
       if(data.bestDay)items.push(['🔥 Melhor dia',data.bestDay.label+' concentrou '+formatMoney(data.bestDay.value)+' em faturamento.']);
       if(data.bestHour)items.push(['⏰ Horário de pico','Maior concentração de pedidos por volta de '+data.bestHour+'.']);
       box.innerHTML=items.slice(0,4).map(x=>'<div class="insight-item"><strong>'+escapeHtml(x[0])+'</strong>'+escapeHtml(x[1])+'</div>').join('');
-      const a=[],newOrders=pedidosCache.filter(p=>['NOVO','NOVOS'].includes(String(getValue(p,['status','STATUS'],'')).toUpperCase().trim())).length;
-      if(newOrders)a.push(['🔴','Pedidos aguardando ação',newOrders+' pedido(s) com status NOVO.']);
+      const a=[],newOrders=pedidosCache.filter(p=>pedidoEhNovo(getValue(p,['status','STATUS'],''))).length;
+      if(newOrders)a.push(['🔴','Pedidos aguardando ação',newOrders+' pedido(s) novo(s) ainda não tratados.']);
       if(data.revenueTrend!==null&&data.revenueTrend<-10)a.push(['⚠️','Queda de faturamento','O período está mais de 10% abaixo do anterior.']);
       if(data.orders&&data.ticket<20)a.push(['💡','Ticket médio','Considere combos, adicionais ou campanhas para elevar o valor por pedido.']);
       if(!a.length)a.push(['🟢','Operação estável','Nenhum alerta crítico identificado com os dados disponíveis.']);
@@ -2880,6 +2877,15 @@
         .toUpperCase();
     }
 
+    // Pedidos pagos por Pix/link (via workflow separado do Mercado Pago) entram
+    // direto com status "Pedido recebido, aguardando pagamento" \u2014 sem passar por
+    // "NOVO" \u2014 mas pra quem est\u00e1 na loja isso tamb\u00e9m \u00e9 um pedido novo, que acabou
+    // de chegar e ainda n\u00e3o foi tratado. Por isso conta como "novo" no dashboard.
+    function pedidoEhNovo(status) {
+      const st = normalizarStatus(status);
+      return st === 'NOVO' || st === 'NOVOS' || st === 'PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO';
+    }
+
     function pedidoEstaBloqueado(status) {
       return PEDIDO_STATUS_BLOQUEADOS.has(normalizarStatus(status));
     }
@@ -3336,10 +3342,7 @@
       }
 
       if (filtroPedidosAtivo === 'NOVOS') {
-        return pedidosCache.filter(p => {
-          const st = String(getValue(p,['status','STATUS'],'')).toUpperCase().trim();
-          return ['NOVO','NOVOS'].includes(st);
-        });
+        return pedidosCache.filter(p => pedidoEhNovo(getValue(p,['status','STATUS'],'')));
       }
 
       if (filtroPedidosAtivo === 'APROVADOS') {
@@ -3410,7 +3413,7 @@
       const descricaoFiltro = filtroPedidosAtivo === 'HOJE'
         ? 'Todos os pedidos criados na data de hoje.'
         : (filtroPedidosAtivo === 'NOVOS'
-          ? 'Somente pedidos com status NOVO.'
+          ? 'Pedidos que acabaram de chegar e ainda não foram tratados (status NOVO ou aguardando confirmação de pagamento via Pix/link).'
           : (filtroPedidosAtivo === 'APROVADOS'
             ? 'Pedidos com pagamento confirmado (Pix ou link de pagamento) e em produção.'
             : 'Todos os pedidos recebidos pela KUKI, independentemente do status. Pedidos ENTREGUES ficam somente para consulta.'));
