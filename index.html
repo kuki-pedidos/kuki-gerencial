@@ -1405,6 +1405,7 @@
     let pedidosCache = [];
     let itensPedidoCache = {};
     let produtosNomeCache = {};
+    let clientesCache = [];
     let horariosCache = [];
     let ultimoPedidoChave = null;
     let pedidosConhecidos = new Set();
@@ -1800,12 +1801,24 @@
       return '<ul style="margin:0;padding-left:16px;font-size:12px;line-height:1.5;">' + linhas + '</ul>';
     }
 
+    async function carregarClientesCache() {
+      try { const rows = await getTable('CLIENTES','?select=*'); clientesCache = Array.isArray(rows) ? rows : []; }
+      catch (e) { console.warn('Não foi possível carregar CLIENTES:', e); }
+    }
+
+    function getClienteNomePorId(clienteId) {
+      if (clienteId === null || clienteId === undefined || clienteId === '') return '';
+      const row = clientesCache.find(c => String(getValue(c,['id','ID'],'')) === String(clienteId));
+      return row ? String(getValue(row,['NOME','nome'],'')||'').trim() : '';
+    }
+
     async function carregarPedidos(initial=false, notificarNovos=true) {
       try {
         const [rows] = await Promise.all([
           getTable('PEDIDOS', '?select=*'),
           carregarItensPedido(),
-          carregarProdutosCache()
+          carregarProdutosCache(),
+          carregarClientesCache()
         ]);
         const novosDados = Array.isArray(rows) ? sortPedidos(rows) : [];
 
@@ -3341,13 +3354,14 @@
         const id = getPedidoId(p);
         const numero = getValue(p,['NUMERO_PEDIDO','numero_pedido','id','ID'],'-');
         const clienteId = getValue(p,['CLIENTE_ID','cliente_id'], null);
-        const clienteNome = getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE'],'');
+        const clienteNome = getValue(p,['cliente_nome','CLIENTE_NOME','nome_cliente','NOME_CLIENTE'],'') || getClienteNomePorId(clienteId);
         const cliente = clienteNome || (clienteId ? 'Cliente #' + clienteId : 'Cliente não informado');
         const status = getPedidoStatus(p);
         const bloqueado = pedidoEstaBloqueado(status);
         const data = getValue(p,['created_at','DATA','data','data_pedido','DATA_PEDIDO'],'');
         const total = getValue(p,['VALOR_TOTAL','valor_total','TOTAL','total','valor'],0);
         const pagamento = getValue(p,['FORMA_PAGAMENTO','forma_pagamento','PAGAMENTO','pagamento'],'-');
+        const entregaPedido = getValue(p,['FORMA_ENTREGA','forma_entrega'],'');
         const observacaoPedido = getValue(p,['OBSERVACAO','observacao'],'');
         const statusEsc = escapeHtml(status);
         const options = ['NOVO','PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO','PAGAMENTO CONFIRMADO, EM PRODUÇÃO','PRONTO PARA RETIRADA','ENTREGUE']
@@ -3371,12 +3385,13 @@
           + '<td><span class="status-pill">'+statusEsc+'</span></td>'
           + '<td>'+renderItensPedidoCelula(p)+'</td>'
           + '<td>'+escapeHtml(pagamento)+'</td>'
+          + '<td>'+(entregaPedido ? escapeHtml(entregaPedido) : '<span style="color:var(--cinza);">—</span>')+'</td>'
           + '<td>'+(observacaoPedido ? escapeHtml(observacaoPedido) : '<span style="color:var(--cinza);">—</span>')+'</td>'
           + '<td>'+escapeHtml(formatMoney(getValue(p,['DESCONTO','desconto'],0)))+'</td>'
           + '<td>'+escapeHtml(formatMoney(total))+'</td>'
           + '<td class="actions-cell">'+actions+'</td>'
           + '</tr>';
-      }).join('') : '<tr><td colspan="10">Nenhum pedido encontrado para este filtro.</td></tr>';
+      }).join('') : '<tr><td colspan="11">Nenhum pedido encontrado para este filtro.</td></tr>';
 
       const tituloFiltro = filtroPedidosAtivo === 'HOJE'
         ? 'Pedidos de hoje'
@@ -3396,9 +3411,319 @@
         : '';
 
       container.innerHTML = '<div class="module-panel">'
-        + '<div class="module-toolbar"><div><h2>📦 '+tituloFiltro+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoFiltro+'</p></div><div class="actions-inline">'+botaoFiltro+'<button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
+        + '<div class="module-toolbar"><div><h2>📦 '+tituloFiltro+'</h2><p style="color:var(--cinza);margin-top:6px;">'+descricaoFiltro+'</p></div><div class="actions-inline">'+botaoFiltro+'<button class="primary-button" type="button" onclick="abrirNovoPedidoManual()">➕ Novo pedido</button><button class="primary-button" onclick="carregarPedidos(false)">↻ Atualizar</button></div></div>'
         + '<div class="order-lock-note">🔒 Regra de integridade: pedidos <strong>ENTREGUES</strong> são considerados concluídos e não podem ser editados, ter o status alterado ou ser excluídos.</div>'
-        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Itens (produção)</th><th>Pagamento</th><th>Observação</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
+        + '<div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Status</th><th>Itens (produção)</th><th>Pagamento</th><th>Entrega</th><th>Observação</th><th>Desconto</th><th>Total</th><th>Ações</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
+    }
+
+    /* =====================================================
+       PEDIDO MANUAL (novo pedido direto pelo painel)
+    ====================================================== */
+    let pedManualItens = [];
+    let pedManualClienteId = null;
+    let pedManualDados = { formasPagamento: [], formasEntrega: [], produtos: [], clientes: [] };
+
+    function pedManualLocalDateTimeValue(date) {
+      const d = date instanceof Date ? date : new Date(date);
+      const pad = n => String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
+    async function abrirNovoPedidoManual() {
+      document.getElementById('modalNovoPedido')?.remove();
+      pedManualItens = [{produtoId:'', quantidade:1, preco:0}];
+      pedManualClienteId = null;
+
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay';
+      modal.id = 'modalNovoPedido';
+      document.body.classList.add('modal-open');
+      modal.innerHTML = `<div class="modal-card" role="dialog" aria-modal="true" style="max-width:720px;">
+        <div class="modal-header"><h2>➕ Novo pedido manual</h2><button type="button" class="icon-button" id="pedManualClose">✕</button></div>
+        <p style="color:var(--cinza);font-size:13px;margin-top:-8px;margin-bottom:14px;">Use esta tela para lançar um pedido feito por telefone/balcão, ou para cadastrar pedidos antigos (carga inicial de um cliente novo).</p>
+        <div id="pedManualBody"><div class="empty-state"><div class="empty-state-icon">⏳</div><strong>Carregando dados...</strong></div></div>
+      </div>`;
+      document.body.appendChild(modal);
+      const close = () => { modal.remove(); document.body.classList.remove('modal-open'); };
+      modal.querySelector('#pedManualClose').addEventListener('click', close);
+      modal.addEventListener('click', event => { if (event.target === modal) close(); });
+
+      try {
+        const [produtos, formasPagamento, formasEntrega, clientes] = await Promise.all([
+          getTable('PRODUTOS','?select=*'),
+          getTable('FORMAS_PAGAMENTO','?select=*'),
+          getTable('FORMAS_ENTREGA','?select=*'),
+          getTable('CLIENTES','?select=*')
+        ]);
+        pedManualDados = {
+          produtos: (Array.isArray(produtos)?produtos:[]).filter(p=>getValue(p,['ATIVO','ativo'],true)!==false),
+          formasPagamento: (Array.isArray(formasPagamento)?formasPagamento:[]).filter(f=>getValue(f,['ATIVO','ativo'],true)!==false),
+          formasEntrega: (Array.isArray(formasEntrega)?formasEntrega:[]).filter(f=>getValue(f,['ATIVO','ativo'],true)!==false),
+          clientes: Array.isArray(clientes)?clientes:[]
+        };
+        pedManualRenderForm(modal);
+      } catch(e) {
+        console.error('NOVO PEDIDO MANUAL:', e);
+        const body = modal.querySelector('#pedManualBody');
+        if (body) body.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><strong>Não foi possível carregar os dados.</strong><p style="margin-top:8px;">${escapeHtml(e.message||'Erro de conexão.')}</p></div>`;
+      }
+    }
+
+    function pedManualRenderForm(modal) {
+      const body = modal.querySelector('#pedManualBody');
+      if (!body) return;
+      const pagamentoOptions = pedManualDados.formasPagamento.map(f => `<option value="${escapeHtml(String(getValue(f,['NOME','nome'],'')))}">${escapeHtml(getValue(f,['NOME','nome'],''))}</option>`).join('');
+      const entregaOptions = pedManualDados.formasEntrega.map(f => `<option value="${escapeHtml(String(getValue(f,['NOME','nome'],'')))}">${escapeHtml(getValue(f,['NOME','nome'],''))}</option>`).join('');
+
+      body.innerHTML = `
+        <div class="field"><label>Telefone do cliente</label>
+          <div class="actions-inline">
+            <input type="text" id="pedManualTelefone" placeholder="(11) 99999-9999" style="flex:1;">
+            <button type="button" class="secondary-button" id="pedManualBuscarCliente">🔎 Buscar</button>
+          </div>
+          <small id="pedManualClienteStatus" style="display:block;margin-top:6px;color:var(--cinza);">Digite o telefone e clique em Buscar para preencher os dados automaticamente, se o cliente já existir.</small>
+        </div>
+        <div class="field"><label>Nome do cliente</label><input type="text" id="pedManualNome" placeholder="Nome completo" required></div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;">
+          <div class="field"><label>Endereço</label><input type="text" id="pedManualEndereco" placeholder="Rua, avenida..."></div>
+          <div class="field"><label>Número</label><input type="text" id="pedManualNumero"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div class="field"><label>Complemento</label><input type="text" id="pedManualComplemento"></div>
+          <div class="field"><label>Bairro</label><input type="text" id="pedManualBairro"></div>
+          <div class="field"><label>Cidade</label><input type="text" id="pedManualCidade"></div>
+        </div>
+        <div class="field"><label>CEP</label><input type="text" id="pedManualCep" style="max-width:180px;"></div>
+
+        <div class="field"><label>Itens do pedido</label>
+          <div id="pedManualItensBox"></div>
+          <button type="button" class="secondary-button" id="pedManualAddItem" style="margin-top:8px;">＋ Adicionar item</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field"><label>Forma de pagamento</label><select id="pedManualPagamento"><option value="">Selecione</option>${pagamentoOptions}</select></div>
+          <div class="field"><label>Forma de entrega</label><select id="pedManualEntrega"><option value="">Selecione</option>${entregaOptions}</select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="field"><label>Data do pedido</label><input type="datetime-local" id="pedManualData" value="${pedManualLocalDateTimeValue(new Date())}"></div>
+          <div class="field"><label>Status</label>
+            <select id="pedManualStatus">
+              <option value="NOVO">NOVO</option>
+              <option value="PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO">PEDIDO RECEBIDO, AGUARDANDO PAGAMENTO</option>
+              <option value="PAGAMENTO CONFIRMADO, EM PRODUÇÃO">PAGAMENTO CONFIRMADO, EM PRODUÇÃO</option>
+              <option value="PRONTO PARA RETIRADA">PRONTO PARA RETIRADA</option>
+              <option value="ENTREGUE">ENTREGUE</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Observação/Troco</label><textarea id="pedManualObs" placeholder="Ex.: troco para R$ 50"></textarea></div>
+
+        <div class="financeiro-card" style="margin-top:6px;"><div class="label">💰 TOTAL DO PEDIDO</div><div class="value" id="pedManualTotal">R$ 0,00</div></div>
+
+        <div class="actions-inline" style="justify-content:flex-end;margin-top:18px"><button type="button" class="secondary-button" id="pedManualCancel">Cancelar</button><button type="button" class="primary-button" id="pedManualSave">💾 Salvar pedido</button></div>
+      `;
+
+      modal.querySelector('#pedManualCancel').addEventListener('click', () => { modal.remove(); document.body.classList.remove('modal-open'); });
+      modal.querySelector('#pedManualBuscarCliente').addEventListener('click', () => pedManualBuscarCliente(modal));
+      modal.querySelector('#pedManualAddItem').addEventListener('click', () => { pedManualItens.push({produtoId:'', quantidade:1, preco:0}); pedManualRenderItens(modal); });
+      modal.querySelector('#pedManualSave').addEventListener('click', () => pedManualSalvar(modal));
+
+      pedManualRenderItens(modal);
+    }
+
+    function pedManualRenderItens(modal) {
+      const box = modal.querySelector('#pedManualItensBox');
+      if (!box) return;
+      const produtoOptionsFor = (selecionadoId) => pedManualDados.produtos.map(p => {
+        const id = String(getValue(p,['id','ID'],''));
+        const nome = getValue(p,['NOME','nome'],'Produto');
+        const preco = parseMoneyValue(getValue(p,['PRECO','preco'],0));
+        return `<option value="${escapeHtml(id)}" ${String(selecionadoId)===id?'selected':''}>${escapeHtml(nome)} — ${formatMoney(preco)}</option>`;
+      }).join('');
+
+      box.innerHTML = pedManualItens.map((item,i) => `
+        <div class="actions-inline" style="align-items:flex-end;margin-bottom:8px;flex-wrap:wrap;" data-item-index="${i}">
+          <div class="field" style="flex:2;min-width:180px;margin:0;"><label style="font-size:11px;">Produto</label>
+            <select class="ped-item-produto" data-index="${i}"><option value="">Selecione um produto</option>${produtoOptionsFor(item.produtoId)}</select>
+          </div>
+          <div class="field" style="flex:0 0 90px;margin:0;"><label style="font-size:11px;">Qtd</label><input type="number" min="1" step="1" class="ped-item-qtd" data-index="${i}" value="${item.quantidade}"></div>
+          <div class="field" style="flex:0 0 130px;margin:0;"><label style="font-size:11px;">Valor unit.</label><input type="number" min="0" step="0.01" class="ped-item-preco" data-index="${i}" value="${Number(item.preco).toFixed(2)}"></div>
+          <div class="ped-item-subtotal" style="flex:0 0 110px;text-align:right;font-weight:800;padding-bottom:8px;">${formatMoney(item.quantidade*item.preco)}</div>
+          <button type="button" class="danger-button ped-item-remove" data-index="${i}" title="Remover item" ${pedManualItens.length<=1?'disabled':''}>🗑</button>
+        </div>
+      `).join('');
+
+      box.querySelectorAll('.ped-item-produto').forEach(sel => sel.addEventListener('change', e => {
+        const i = Number(e.target.dataset.index);
+        const id = e.target.value;
+        const produto = pedManualDados.produtos.find(p => String(getValue(p,['id','ID'],''))===String(id));
+        pedManualItens[i].produtoId = id;
+        pedManualItens[i].preco = produto ? parseMoneyValue(getValue(produto,['PRECO','preco'],0)) : pedManualItens[i].preco;
+        pedManualRenderItens(modal);
+      }));
+      box.querySelectorAll('.ped-item-qtd').forEach(inp => inp.addEventListener('input', e => {
+        const i = Number(e.target.dataset.index);
+        pedManualItens[i].quantidade = Math.max(1, Number(e.target.value)||1);
+        const linha = box.querySelector(`[data-item-index="${i}"]`);
+        if (linha) linha.querySelector('.ped-item-subtotal').textContent = formatMoney(pedManualItens[i].quantidade*pedManualItens[i].preco);
+        pedManualAtualizarTotal(modal);
+      }));
+      box.querySelectorAll('.ped-item-preco').forEach(inp => inp.addEventListener('input', e => {
+        const i = Number(e.target.dataset.index);
+        pedManualItens[i].preco = Math.max(0, Number(e.target.value)||0);
+        const linha = box.querySelector(`[data-item-index="${i}"]`);
+        if (linha) linha.querySelector('.ped-item-subtotal').textContent = formatMoney(pedManualItens[i].quantidade*pedManualItens[i].preco);
+        pedManualAtualizarTotal(modal);
+      }));
+      box.querySelectorAll('.ped-item-remove').forEach(btn => btn.addEventListener('click', e => {
+        const i = Number(e.target.dataset.index);
+        if (pedManualItens.length<=1) return;
+        pedManualItens.splice(i,1);
+        pedManualRenderItens(modal);
+      }));
+
+      pedManualAtualizarTotal(modal);
+    }
+
+    function pedManualAtualizarTotal(modal) {
+      const total = pedManualItens.reduce((s,it)=>s+(Number(it.quantidade)||0)*(Number(it.preco)||0),0);
+      const el = modal.querySelector('#pedManualTotal');
+      if (el) el.textContent = formatMoney(total);
+    }
+
+    async function pedManualBuscarCliente(modal) {
+      const telInput = modal.querySelector('#pedManualTelefone');
+      const status = modal.querySelector('#pedManualClienteStatus');
+      const digitos = String(telInput.value||'').replace(/\D/g,'');
+      if (!digitos) { showToast('Telefone obrigatório','Digite um telefone para buscar.'); return; }
+      const encontrado = pedManualDados.clientes.find(c => {
+        const telCliente = String(getValue(c,['TELEFONE','telefone'],'')).replace(/\D/g,'');
+        return telCliente && (telCliente === digitos || telCliente.endsWith(digitos) || digitos.endsWith(telCliente));
+      });
+      if (encontrado) {
+        pedManualClienteId = getValue(encontrado,['id','ID'],null);
+        modal.querySelector('#pedManualNome').value = getValue(encontrado,['NOME','nome'],'');
+        modal.querySelector('#pedManualEndereco').value = getValue(encontrado,['ENDERECO','endereco'],'');
+        modal.querySelector('#pedManualNumero').value = getValue(encontrado,['NUMERO','numero'],'');
+        modal.querySelector('#pedManualComplemento').value = getValue(encontrado,['COMPLEMENTO','complemento'],'');
+        modal.querySelector('#pedManualBairro').value = getValue(encontrado,['BAIRRO','bairro'],'');
+        modal.querySelector('#pedManualCidade').value = getValue(encontrado,['CIDADE','cidade'],'');
+        modal.querySelector('#pedManualCep').value = getValue(encontrado,['CEP','cep'],'');
+        status.textContent = '✅ Cliente encontrado — dados preenchidos automaticamente.';
+        status.style.color = '#137333';
+      } else {
+        pedManualClienteId = null;
+        status.textContent = 'Cliente não encontrado com esse telefone — será cadastrado um novo ao salvar o pedido.';
+        status.style.color = 'var(--cinza)';
+      }
+    }
+
+    async function pedManualSalvar(modal) {
+      const button = modal.querySelector('#pedManualSave');
+      const nome = modal.querySelector('#pedManualNome').value.trim();
+      const telefoneDigitado = modal.querySelector('#pedManualTelefone').value.trim();
+      const endereco = modal.querySelector('#pedManualEndereco').value.trim();
+      const numero = modal.querySelector('#pedManualNumero').value.trim();
+      const complemento = modal.querySelector('#pedManualComplemento').value.trim();
+      const bairro = modal.querySelector('#pedManualBairro').value.trim();
+      const cidade = modal.querySelector('#pedManualCidade').value.trim();
+      const cep = modal.querySelector('#pedManualCep').value.trim();
+      const pagamento = modal.querySelector('#pedManualPagamento').value;
+      const entrega = modal.querySelector('#pedManualEntrega').value;
+      const dataValor = modal.querySelector('#pedManualData').value;
+      const statusSelecionado = modal.querySelector('#pedManualStatus').value;
+      const observacao = modal.querySelector('#pedManualObs').value.trim();
+
+      const itensValidos = pedManualItens.filter(it => it.produtoId && Number(it.quantidade)>0);
+
+      if (!nome) return showToast('Nome obrigatório','Informe o nome do cliente.');
+      if (!itensValidos.length) return showToast('Itens obrigatórios','Adicione pelo menos um produto ao pedido.');
+      if (!dataValor) return showToast('Data obrigatória','Informe a data do pedido.');
+      if (!confirm('Confirmar o lançamento deste pedido manual?')) return;
+
+      button.disabled = true; button.textContent = 'Salvando...';
+      try {
+        // 1. Resolve ou cadastra o cliente pelo telefone (se informado)
+        let clienteId = pedManualClienteId;
+        const telefoneDigitos = telefoneDigitado.replace(/\D/g,'');
+        if (telefoneDigitos) {
+          const payloadCliente = { NOME: nome, TELEFONE: telefoneDigitos, ENDERECO: endereco||null, NUMERO: numero||null, COMPLEMENTO: complemento||null, BAIRRO: bairro||null, CIDADE: cidade||null, CEP: cep||null };
+          if (clienteId) {
+            try {
+              await restRequest('CLIENTES','?id=eq.'+encodeURIComponent(clienteId),{method:'PATCH',headers:{'Prefer':'return=representation'},body:JSON.stringify(payloadCliente)});
+            } catch(e) { console.warn('Não foi possível atualizar o cliente existente:', e); }
+          } else {
+            try {
+              const res = await restRequest('CLIENTES','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payloadCliente)});
+              if (Array.isArray(res) && res.length===1) clienteId = getValue(res[0],['id','ID'],null);
+            } catch(e) {
+              console.warn('Não foi possível cadastrar o cliente automaticamente (talvez o telefone já exista):', e);
+              try {
+                const busca = await restRequest('CLIENTES','?TELEFONE=eq.'+encodeURIComponent(telefoneDigitos));
+                if (Array.isArray(busca) && busca.length) clienteId = getValue(busca[0],['id','ID'],null);
+              } catch(e2) {}
+            }
+          }
+        }
+
+        // 2. Calcula o próximo número sequencial (mesma lógica usada no fluxo do n8n)
+        let numeroSequencial = 1;
+        try {
+          const ultimo = await getTable('PEDIDOS','?select=NUMERO_SEQUENCIAL&order=NUMERO_SEQUENCIAL.desc.nullslast&limit=1');
+          if (Array.isArray(ultimo) && ultimo.length) numeroSequencial = (Number(getValue(ultimo[0],['NUMERO_SEQUENCIAL','numero_sequencial'],0))||0) + 1;
+        } catch(e) { console.warn('Não foi possível calcular o próximo número sequencial, usando fallback:', e); }
+        const numeroPedidoFormatado = String(numeroSequencial).padStart(5,'0');
+
+        const valorTotal = itensValidos.reduce((s,it)=>s+(Number(it.quantidade)*Number(it.preco)),0);
+        const dataIso = new Date(dataValor).toISOString();
+        const agoraIso = new Date().toISOString();
+
+        const payloadPedido = {
+          NUMERO_PEDIDO: numeroPedidoFormatado,
+          NUMERO_SEQUENCIAL: numeroSequencial,
+          DATA: dataIso,
+          DATA_ATUALIZACAO: agoraIso,
+          CLIENTE_ID: clienteId,
+          ENDERECO: endereco||null,
+          NUMERO: numero||null,
+          COMPLEMENTO: complemento||null,
+          BAIRRO: bairro||null,
+          CIDADE: cidade||null,
+          CEP: cep||null,
+          FORMA_PAGAMENTO: pagamento || null,
+          FORMA_ENTREGA: entrega || null,
+          OBSERVACAO: observacao || null,
+          VALOR_TOTAL: valorTotal,
+          STATUS: statusSelecionado || 'NOVO',
+          NOTIFICADO: true
+        };
+
+        const resPedido = await restRequest('PEDIDOS','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payloadPedido)});
+        if (!Array.isArray(resPedido) || resPedido.length!==1) throw new Error('O Supabase não confirmou a criação do pedido.');
+        const novoPedidoId = getValue(resPedido[0],['id','ID'],null);
+
+        // 3. Insere os itens do pedido
+        for (const item of itensValidos) {
+          const payloadItem = {
+            PEDIDO_ID: novoPedidoId,
+            PRODUTO_ID: item.produtoId,
+            QUANTIDADE: Number(item.quantidade),
+            PRECO_UNITARIO: Number(item.preco),
+            VALOR_ITEM: Number(item.quantidade)*Number(item.preco)
+          };
+          await restRequest('ITENS_PEDIDO','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify(payloadItem)});
+        }
+
+        modal.remove(); document.body.classList.remove('modal-open');
+        showToast('Pedido criado!','Pedido #'+numeroPedidoFormatado+' lançado com sucesso.');
+        filtroPedidosAtivo = 'TODOS';
+        await carregarPedidos(false, false);
+        renderPedidosModule();
+      } catch (error) {
+        console.error('Erro ao salvar pedido manual:', error);
+        showToast('Erro ao salvar', error.message || 'Não foi possível criar o pedido.');
+        button.disabled = false; button.textContent = '💾 Salvar pedido';
+      }
     }
 
     /* =====================================================
