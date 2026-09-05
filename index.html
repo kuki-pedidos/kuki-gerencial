@@ -3454,7 +3454,7 @@
     async function abrirSistema(user, restaurandoSessao=false) {
       loginScreen.style.display = 'none';
       appScreen.style.display = 'block';
-      document.getElementById('userName').textContent = obterNomeUsuarioPorEmail(user.email);
+            document.getElementById('userName').textContent = await obterNomeUsuarioPorEmail(user.email);
 
       // F5/reabertura mantém a sessão enquanto ainda estiver dentro da janela
       // de 1 hora. Um novo login também reinicia essa janela.
